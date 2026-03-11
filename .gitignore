@@ -1,0 +1,52 @@
+# Build artifacts
+elixir/_build/
+elixir/deps/
+
+# Escript binary
+elixir/symphony_elixir
+elixir/symphony_elixir.exe
+
+# Generated on crash or node disconnect
+erl_crash.dump
+
+# Test & coverage
+elixir/cover/
+*.coverdata
+
+# Local board & settings persistence (runtime data)
+elixir/board_data.json
+elixir/local_board.json
+elixir/symphony_settings.json
+elixir/test_board_*.json
+elixir/test_persist_*.json
+elixir/test_proj_persist_*.json
+elixir/test_board_router_*.json
+elixir/test_board_router_settings_*.json
+elixir/test_settings_*.json
+elixir/test_e2e_board.json
+elixir/test_e2e_settings.json
+
+# Environment & secrets
+.env
+*.secret.exs
+
+# Editor & OS
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+.claude
+
+# Playwright
+node_modules/
+test-results/
+playwright-report/
+elixir/test/e2e/node_modules/
+elixir/test/e2e/test-results/
+elixir/test/e2e/playwright-report/
+elixir/test/e2e/screenshots/
+
+# Dialyzer
+elixir/priv/plts/

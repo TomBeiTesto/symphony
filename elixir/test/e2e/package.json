@@ -1,0 +1,16 @@
+{
+  "name": "symphony-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "End-to-end tests for Symphony dashboard",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:screenshots": "npx playwright test screenshots.spec.ts --config=playwright.screenshots.config.ts",
+    "install": "npx playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
