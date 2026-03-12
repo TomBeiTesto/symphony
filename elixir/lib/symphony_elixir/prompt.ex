@@ -23,6 +23,8 @@ defmodule SymphonyElixir.Prompt do
       |> maybe_add_project(issue)
       |> maybe_add_product(issue)
       |> maybe_add_blocked_by(issue)
+      |> maybe_add_skills(issue)
+      |> maybe_add_plan(issue)
 
     case Solid.parse(template) do
       {:ok, parsed} ->
@@ -106,10 +108,24 @@ defmodule SymphonyElixir.Prompt do
   defp safe_get_product(product_id) do
     case SymphonyElixir.LocalBoard.get_product(product_id) do
       {:ok, product} ->
+        features =
+          Enum.map(product.features || [], fn f ->
+            %{
+              "id" => f.id,
+              "name" => f.name,
+              "description" => f[:description],
+              "category" => f[:category],
+              "depends_on" => Map.get(f, :depends_on, []),
+              "statuses" => f.statuses
+            }
+          end)
+
         %{
           "id" => product.id,
           "name" => product.name,
-          "description" => product[:description]
+          "description" => product[:description],
+          "project_ids" => product.project_ids || [],
+          "features" => features
         }
 
       _ ->
@@ -128,6 +144,42 @@ defmodule SymphonyElixir.Prompt do
         proj -> [proj]
       end
     end)
+  rescue
+    _ -> []
+  end
+
+  defp maybe_add_skills(context, issue) do
+    skill_ids = Map.get(issue, :skill_ids, [])
+    group_ids = Map.get(issue, :skill_group_ids, [])
+
+    if skill_ids == [] and group_ids == [] do
+      context
+    else
+      skills = safe_resolve_skills(issue)
+
+      if skills == [] do
+        context
+      else
+        rendered_skills =
+          skills
+          |> Enum.map(fn s ->
+            "<skill name=\"#{s.name}\">\n#{s.content}\n</skill>"
+          end)
+          |> Enum.join("\n\n")
+
+        Map.put(context, "skills", rendered_skills)
+      end
+    end
+  rescue
+    _ -> context
+  end
+
+  defp safe_resolve_skills(issue) do
+    if GenServer.whereis(SymphonyElixir.LocalBoard) do
+      SymphonyElixir.LocalBoard.resolve_issue_skills(issue)
+    else
+      []
+    end
   rescue
     _ -> []
   end
@@ -155,4 +207,17 @@ defmodule SymphonyElixir.Prompt do
   end
 
   defp maybe_append_followup_instructions(rendered, _issue), do: rendered
+
+  defp maybe_add_plan(context, %{plan_status: status, plan_text: text})
+       when status == "approved" and is_binary(text) and text != "" do
+    context
+    |> Map.put("plan", text)
+    |> Map.put("execution_phase", true)
+  end
+
+  defp maybe_add_plan(context, %{plan_status: "planning"}) do
+    Map.put(context, "planning_phase", true)
+  end
+
+  defp maybe_add_plan(context, _issue), do: context
 end

@@ -7,7 +7,7 @@ defmodule SymphonyElixir.Workspace do
 
   require Logger
 
-  alias SymphonyElixir.{Config, Issue}
+  alias SymphonyElixir.{Config, Issue, ShellUtils}
 
   @type hook_name :: :after_create | :before_run | :after_run | :before_remove
   @type create_result :: {:ok, %{path: String.t(), created_now: boolean()}} | {:error, term()}
@@ -185,49 +185,8 @@ defmodule SymphonyElixir.Workspace do
   end
 
   defp hook_shell_command(config, script) do
-    shell = config.hooks.shell || default_hook_shell()
-
-    cond do
-      String.contains?(shell, "bash") ->
-        {shell, ["-lc", script]}
-
-      String.contains?(shell, "sh") ->
-        {shell, ["-c", script]}
-
-      String.contains?(shell, "cmd") ->
-        {shell, ["/C", script]}
-
-      String.contains?(shell, "powershell") ->
-        {shell, ["-NoProfile", "-Command", script]}
-
-      true ->
-        case :os.type() do
-          {:win32, _} -> {shell, ["/C", script]}
-          _ -> {shell, ["-c", script]}
-        end
-    end
-  end
-
-  defp default_hook_shell do
-    # Prefer bash on all platforms — hooks use bash syntax (if/then, cp, etc.)
-    System.find_executable("bash") ||
-      find_bash_windows() ||
-      case :os.type() do
-        {:win32, _} ->
-          System.find_executable("cmd") || "cmd"
-
-        _ ->
-          System.find_executable("sh") || "/bin/sh"
-      end
-  end
-
-  defp find_bash_windows do
-    [
-      "C:/Program Files/Git/bin/bash.exe",
-      "C:/Program Files (x86)/Git/bin/bash.exe",
-      "C:/msys64/usr/bin/bash.exe"
-    ]
-    |> Enum.find(&File.exists?/1)
+    shell = config.hooks.shell || ShellUtils.default_hook_shell()
+    ShellUtils.shell_command(shell, script)
   end
 
   # --- Path Helpers ---

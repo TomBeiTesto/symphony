@@ -32,10 +32,6 @@ defmodule SymphonyElixir.Server.BoardUI do
         </div>
         <div class="topbar-right">
           <!-- Actions group -->
-          <button class="btn btn-ghost" onclick="openProjectModal()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-            Projects
-          </button>
           <div class="dropdown" id="template-dropdown">
             <button class="btn btn-ghost" onclick="toggleTemplateDropdown()">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
@@ -86,9 +82,13 @@ defmodule SymphonyElixir.Server.BoardUI do
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="20" cy="12" r="2"/><line x1="6" y1="12" x2="10" y2="7"/><line x1="6" y1="12" x2="10" y2="17"/><line x1="14" y1="7" x2="18" y2="11"/><line x1="14" y1="17" x2="18" y2="13"/></svg>
               Lineage
             </a>
-            <a href="/board/review" class="btn btn-ghost" title="Product Review">
+            <a href="/board/products" class="btn btn-ghost" title="Products">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-              Review
+              Products
+            </a>
+            <a href="/board/skills" class="btn btn-ghost" title="Skills Library">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Skills
             </a>
             <a href="/" class="btn btn-ghost" title="Dashboard">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
@@ -152,10 +152,23 @@ defmodule SymphonyElixir.Server.BoardUI do
                 <option value="">No project</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Skills <span class="form-hint">(select skills to inject into agent prompt)</span></label>
+              <div class="form-skill-pills" id="form-skill-pills"></div>
+              <select id="form-add-skill" onchange="formAddSkill(this.value); this.value='';">
+                <option value="">+ Add skill or group...</option>
+              </select>
+            </div>
             <div class="form-group form-checkbox">
               <label>
                 <input type="checkbox" id="form-followups" checked>
                 Propose follow-up issues
+              </label>
+            </div>
+            <div class="form-group form-checkbox">
+              <label>
+                <input type="checkbox" id="form-plan-first">
+                Plan first (agent plans before implementing)
               </label>
             </div>
             <div class="form-actions">
@@ -195,74 +208,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       </div>
 
       <!-- Project Modal -->
-      <div class="modal-overlay" id="project-overlay" onclick="closeProjectModal()">
-        <div class="modal modal-wide" onclick="event.stopPropagation()">
-          <div class="modal-header">
-            <h2 id="project-modal-title">Projects</h2>
-            <button class="btn-icon" onclick="closeProjectModal()">&times;</button>
-          </div>
-          <div id="project-list-view">
-            <input type="text" class="project-filter" id="project-filter" placeholder="Filter projects..." oninput="filterProjects(this.value)">
-            <div id="project-list" class="project-list"></div>
-            <div class="form-actions" style="margin-top: 16px; gap: 8px;">
-              <button class="btn btn-primary" onclick="showProjectForm()">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                New Project
-              </button>
-              <button class="btn btn-accent" onclick="showScanView()">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                Import from Directory
-              </button>
-            </div>
-          </div>
-          <div id="scan-view" style="display:none">
-            <div class="form-group">
-              <label for="scan-root-path">Root Directory</label>
-              <div style="display:flex; gap: 8px;">
-                <input type="text" id="scan-root-path" placeholder="C:\\Projects or /home/user/repos" style="flex:1">
-                <button class="btn btn-primary" onclick="scanDirectory()" id="scan-btn">Scan</button>
-              </div>
-              <small style="color: var(--text-muted); margin-top: 4px; display: block;">Each subdirectory becomes a project. READMEs and package files are analyzed for titles and descriptions.</small>
-            </div>
-            <div style="display:flex; gap: 16px; margin-top: 8px;">
-              <label style="display:flex; align-items:center; gap: 4px; cursor:pointer; font-size: 13px; color: var(--text-secondary);">
-                <input type="checkbox" id="scan-git-pull"> Git pull latest
-              </label>
-              <label style="display:flex; align-items:center; gap: 4px; cursor:pointer; font-size: 13px; color: var(--text-secondary);">
-                <input type="checkbox" id="scan-recursive"> Detect monorepos
-              </label>
-            </div>
-            <div id="scan-results" style="margin-top: 12px;"></div>
-            <div class="form-actions" style="margin-top: 16px;">
-              <button class="btn btn-ghost" onclick="hideScanView()">Back</button>
-              <button class="btn btn-primary" id="import-btn" style="display:none" onclick="importScannedProjects()">Import Selected</button>
-            </div>
-          </div>
-          <form id="project-form" style="display:none" onsubmit="handleProjectSubmit(event)">
-            <input type="hidden" id="proj-id" value="">
-            <div class="form-group">
-              <label for="proj-name">Project Name</label>
-              <input type="text" id="proj-name" required placeholder="My Project">
-            </div>
-            <div class="form-group">
-              <label for="proj-description">Description</label>
-              <textarea id="proj-description" rows="2" placeholder="What is this project about?"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="proj-path">Local Directory Path</label>
-              <input type="text" id="proj-path" placeholder="C:\\Projects\\my-app or /home/user/projects/my-app">
-            </div>
-            <div class="form-group">
-              <label for="proj-repo">Repository URL (optional — will clone)</label>
-              <input type="text" id="proj-repo" placeholder="https://github.com/user/repo.git">
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-ghost" onclick="hideProjectForm()">Cancel</button>
-              <button type="submit" class="btn btn-primary" id="proj-submit">Create Project</button>
-            </div>
-          </form>
-        </div>
-      </div>
 
       <script>
     #{javascript()}
@@ -274,9 +219,15 @@ defmodule SymphonyElixir.Server.BoardUI do
 
   defp css do
     alias SymphonyElixir.Server.UIHelpers
-    UIHelpers.base_css() <> UIHelpers.topbar_css() <> UIHelpers.button_css() <>
-    UIHelpers.form_css() <> UIHelpers.modal_css() <> UIHelpers.badge_css() <>
-    UIHelpers.toast_css() <> UIHelpers.skeleton_css() <>
+
+    UIHelpers.base_css() <>
+      UIHelpers.topbar_css() <>
+      UIHelpers.button_css() <>
+      UIHelpers.form_css() <>
+      UIHelpers.modal_css() <>
+      UIHelpers.badge_css() <>
+      UIHelpers.toast_css() <>
+      UIHelpers.skeleton_css() <>
       ~S"""
 
       body {
@@ -418,6 +369,11 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .card-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       /* Age indicator (#23) */
+      .card-skills { font-size: 0.6rem; color: var(--purple); background: rgba(188,140,255,0.1); padding: 1px 5px; border-radius: 6px; }
+      .card-plan-badge { font-size: 0.6rem; padding: 1px 5px; border-radius: 6px; }
+      .card-plan-badge.planning { color: var(--orange); background: rgba(255,180,50,0.12); }
+      .card-plan-badge.review { color: var(--blue); background: rgba(88,166,255,0.15); font-weight: 600; }
+      .card-plan-badge.approved { color: var(--green); background: rgba(63,185,80,0.12); }
       .card-age { font-size: 0.6rem; color: var(--text-muted); opacity: 0.6; margin-left: auto; }
       .card-age.stale { color: var(--red); opacity: 0.8; }
 
@@ -445,6 +401,19 @@ defmodule SymphonyElixir.Server.BoardUI do
       /* --- Form overrides for board --- */
       .form-checkbox label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-secondary); }
       .form-checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--purple); cursor: pointer; }
+      .form-hint { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; }
+      .form-skill-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; min-height: 24px; }
+      .form-skill-pill {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 500;
+        background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.25);
+      }
+      .form-skill-pill.group { background: rgba(88,166,255,0.12); color: var(--accent); border-color: rgba(88,166,255,0.25); }
+      .form-skill-pill button {
+        background: none; border: none; color: inherit; cursor: pointer;
+        font-size: 0.8rem; padding: 0 2px; opacity: 0.6; line-height: 1;
+      }
+      .form-skill-pill button:hover { opacity: 1; }
 
       /* --- Empty State --- */
       .empty-column {
@@ -490,7 +459,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       .dropdown-item:hover { background: var(--bg-hover); }
       .dropdown-item small { display: block; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; }
       .template-menu-wide { min-width: 320px; max-height: 400px; overflow-y: auto; }
-      .template-item { padding: 10px 14px; border-bottom: 1px solid var(--border-light); }
+      .template-item { padding: 10px 14px; border-bottom: 1px solid var(--border-light); background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; cursor: pointer; color: var(--text-primary); font-family: inherit; }
       .template-item:last-child { border-bottom: none; }
       .template-item:hover { background: var(--bg-hover); }
       .template-item .tmpl-name { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 3px; }
@@ -561,12 +530,14 @@ defmodule SymphonyElixir.Server.BoardUI do
         .column.collapsed .column-title-group { flex-direction: row; }
         .metrics-bar { overflow-x: auto; white-space: nowrap; }
       }
+
       """
   end
 
   defp javascript do
     ~S"""
     const API = '/board/api';
+    let _apiLock = false;
     let boardData = null;
     let projects = [];
     let templates = [];
@@ -576,6 +547,10 @@ defmodule SymphonyElixir.Server.BoardUI do
     let segregateByProject = false;
     let loadPending = false;
     let lastLoadTime = 0;
+    let allSkillsCache = [];
+    let allGroupsCache = [];
+    let formSkillIds = [];
+    let formGroupIds = [];
 
     // --- Fetch & Render (#27 skeleton, #28 loading, #29 debounce, #31 scroll preserve) ---
     async function loadBoard() {
@@ -829,6 +804,18 @@ defmodule SymphonyElixir.Server.BoardUI do
         }
       }
 
+      // Skills indicator
+      var skillCount = (issue.skill_ids || []).length + (issue.skill_group_ids || []).length;
+      var skillBadge = skillCount > 0
+        ? '<span class="card-skills" title="' + skillCount + ' skill(s) assigned">&#9889; ' + skillCount + '</span>'
+        : '';
+
+      // Plan status badge
+      var planBadge = '';
+      if (issue.plan_status === 'planning') planBadge = '<span class="card-plan-badge planning" title="Planning phase">&#128203; Planning</span>';
+      else if (issue.plan_status === 'plan_review') planBadge = '<span class="card-plan-badge review" title="Plan awaiting review">&#128203; Plan Ready</span>';
+      else if (issue.plan_status === 'approved') planBadge = '<span class="card-plan-badge approved" title="Plan approved, executing">&#128203; Executing</span>';
+
       return `
         <div class="card${highPriority}" draggable="true" data-id="${issue.id}"
              style="border-left-color: ${borderColor}"
@@ -842,6 +829,8 @@ defmodule SymphonyElixir.Server.BoardUI do
             <span class="priority-dot ${priorityClass}"></span>
             ${projBadge}
             ${labels}
+            ${skillBadge}
+            ${planBadge}
             ${ageHtml}
           </div>
         </div>
@@ -878,10 +867,11 @@ defmodule SymphonyElixir.Server.BoardUI do
       menu.innerHTML = templates.map(t => {
         const descPreview = (t.description || '').replace(/^##?\s+.+\n*/m, '').replace(/\n/g, ' ').replace(/[-*[\]#]/g, '').trim().slice(0, 80);
         const labels = (t.labels || []).map(l => '<span class="tmpl-label">' + esc(l) + '</span>').join('');
+        const skillBadge = (t.skill_names && t.skill_names.length > 0) ? '<span class="tmpl-label" style="background:var(--accent-primary);color:#fff">&#9889; ' + t.skill_names.length + ' skills</span>' : '';
         return '<button class="template-item" onclick="applyTemplate(templates.find(x=>x.id===\'' + t.id + '\'))">' +
           '<div class="tmpl-name">' + esc(t.name) + '</div>' +
           (descPreview ? '<div class="tmpl-desc">' + esc(descPreview) + '</div>' : '') +
-          '<div class="tmpl-labels">' + labels +
+          '<div class="tmpl-labels">' + labels + skillBadge +
             '<span class="tmpl-priority">P' + (t.priority || 0) + ' ' + (priorityNames[t.priority] || '') + '</span>' +
           '</div>' +
         '</button>';
@@ -900,6 +890,17 @@ defmodule SymphonyElixir.Server.BoardUI do
       document.getElementById('form-description').value = tmpl.description || '';
       document.getElementById('form-priority').value = (tmpl.priority || 0).toString();
       document.getElementById('form-labels').value = (tmpl.labels || []).join(', ');
+
+      // Resolve template skill_names to skill IDs from cache
+      formSkillIds = [];
+      formGroupIds = [];
+      if (tmpl.skill_names && tmpl.skill_names.length > 0) {
+        tmpl.skill_names.forEach(function(name) {
+          var skill = allSkillsCache.find(function(s) { return s.name === name; });
+          if (skill) formSkillIds.push(skill.id);
+        });
+      }
+      renderFormSkillPills();
     }
 
     // Close dropdown when clicking outside
@@ -941,21 +942,30 @@ defmodule SymphonyElixir.Server.BoardUI do
       const newState = e.currentTarget.dataset.state;
 
       if (!issueId || !newState) return;
+      if (_apiLock) return;
 
       // Confirm high-consequence moves (#32)
       if (['Cancelled', 'Archived'].includes(newState)) {
         if (!confirm('Move issue to ' + newState + '?')) return;
       }
 
+      _apiLock = true;
       try {
-        await fetch(`${API}/issues/${issueId}/move`, {
+        const res = await fetch(`${API}/issues/${issueId}/move`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ state: newState })
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast('Move failed: ' + esc(data.error || 'unknown error'), { type: 'error' });
+        }
         await loadBoard();
       } catch (err) {
         console.error('Move failed:', err);
+        showToast('Move failed: ' + esc(err.message || 'network error'), { type: 'error' });
+      } finally {
+        _apiLock = false;
       }
     }
 
@@ -965,6 +975,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       const input = e.target;
       const title = input.value.trim();
       if (!title) return;
+      if (_apiLock) return;
 
       const state = input.dataset.state;
       input.value = '';
@@ -972,15 +983,23 @@ defmodule SymphonyElixir.Server.BoardUI do
       const body = { title, state };
       if (currentProjectFilter) body.project_id = currentProjectFilter;
 
+      _apiLock = true;
       try {
-        await fetch(`${API}/issues`, {
+        const res = await fetch(`${API}/issues`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast('Quick add failed: ' + esc(data.error || 'unknown error'), { type: 'error' });
+        }
         await loadBoard();
       } catch (err) {
         console.error('Quick add failed:', err);
+        showToast('Quick add failed: ' + esc(err.message || 'network error'), { type: 'error' });
+      } finally {
+        _apiLock = false;
       }
     }
 
@@ -992,8 +1011,13 @@ defmodule SymphonyElixir.Server.BoardUI do
       document.getElementById('form-priority').value = '0';
       document.getElementById('form-labels').value = '';
       document.getElementById('form-followups').checked = true;
+      document.getElementById('form-plan-first').checked = false;
       document.getElementById('modal-title').textContent = 'New Issue';
       document.getElementById('form-submit').textContent = 'Create Issue';
+
+      formSkillIds = [];
+      formGroupIds = [];
+      renderFormSkillPills();
 
       populateStateSelect(defaultState || (boardData?.states?.[0]));
       populateProjectSelect(currentProjectFilter);
@@ -1009,8 +1033,13 @@ defmodule SymphonyElixir.Server.BoardUI do
       document.getElementById('form-priority').value = (issue.priority || 0).toString();
       document.getElementById('form-labels').value = (issue.labels || []).join(', ');
       document.getElementById('form-followups').checked = issue.propose_followups !== false;
+      document.getElementById('form-plan-first').checked = issue.plan_status === 'planning' || issue.plan_status === 'plan_review';
       document.getElementById('modal-title').textContent = `Edit ${issue.identifier}`;
       document.getElementById('form-submit').textContent = 'Save Changes';
+
+      formSkillIds = (issue.skill_ids || []).slice();
+      formGroupIds = (issue.skill_group_ids || []).slice();
+      renderFormSkillPills();
 
       populateStateSelect(issue.state);
       populateProjectSelect(issue.project_id || '');
@@ -1043,6 +1072,81 @@ defmodule SymphonyElixir.Server.BoardUI do
       });
     }
 
+    // --- Skills in Create/Edit form ---
+    async function loadSkillsCache() {
+      try {
+        var [sr, gr] = await Promise.all([
+          fetch(API + '/skills'), fetch(API + '/skill-groups')
+        ]);
+        if (sr.ok) { var d = await sr.json(); allSkillsCache = d.skills || []; }
+        if (gr.ok) { var d = await gr.json(); allGroupsCache = d.skill_groups || []; }
+      } catch(e) {}
+    }
+
+    function populateFormSkillSelect() {
+      var sel = document.getElementById('form-add-skill');
+      sel.innerHTML = '<option value="">+ Add skill or group...</option>';
+      var optSkills = document.createElement('optgroup');
+      optSkills.label = 'Skills';
+      allSkillsCache.forEach(function(s) {
+        if (formSkillIds.indexOf(s.id) === -1) {
+          var opt = document.createElement('option');
+          opt.value = 'skill:' + s.id;
+          opt.textContent = '[' + s.category + '] ' + s.name;
+          optSkills.appendChild(opt);
+        }
+      });
+      sel.appendChild(optSkills);
+      var optGroups = document.createElement('optgroup');
+      optGroups.label = 'Groups';
+      allGroupsCache.forEach(function(g) {
+        if (formGroupIds.indexOf(g.id) === -1) {
+          var opt = document.createElement('option');
+          opt.value = 'group:' + g.id;
+          opt.textContent = g.name + ' (' + (g.skill_ids || []).length + ' skills)';
+          optGroups.appendChild(opt);
+        }
+      });
+      sel.appendChild(optGroups);
+    }
+
+    function renderFormSkillPills() {
+      var container = document.getElementById('form-skill-pills');
+      var pills = [];
+      formSkillIds.forEach(function(sid) {
+        var s = allSkillsCache.find(function(sk) { return sk.id === sid; });
+        if (s) pills.push('<span class="form-skill-pill">' + esc(s.name) + '<button type="button" onclick="formRemoveSkill(\'' + sid + '\')">&times;</button></span>');
+      });
+      formGroupIds.forEach(function(gid) {
+        var g = allGroupsCache.find(function(gr) { return gr.id === gid; });
+        if (g) pills.push('<span class="form-skill-pill group">' + esc(g.name) + '<button type="button" onclick="formRemoveGroup(\'' + gid + '\')">&times;</button></span>');
+      });
+      container.innerHTML = pills.join('');
+      populateFormSkillSelect();
+    }
+
+    function formAddSkill(val) {
+      if (!val) return;
+      if (val.startsWith('skill:')) {
+        var id = val.substring(6);
+        if (formSkillIds.indexOf(id) === -1) formSkillIds.push(id);
+      } else if (val.startsWith('group:')) {
+        var id = val.substring(6);
+        if (formGroupIds.indexOf(id) === -1) formGroupIds.push(id);
+      }
+      renderFormSkillPills();
+    }
+
+    function formRemoveSkill(sid) {
+      formSkillIds = formSkillIds.filter(function(id) { return id !== sid; });
+      renderFormSkillPills();
+    }
+
+    function formRemoveGroup(gid) {
+      formGroupIds = formGroupIds.filter(function(id) { return id !== gid; });
+      renderFormSkillPills();
+    }
+
     function closeModal() {
       document.getElementById('modal-overlay').classList.remove('active');
     }
@@ -1057,27 +1161,37 @@ defmodule SymphonyElixir.Server.BoardUI do
         priority: document.getElementById('form-priority').value,
         labels: document.getElementById('form-labels').value,
         project_id: document.getElementById('form-project').value || null,
-        propose_followups: document.getElementById('form-followups').checked
+        propose_followups: document.getElementById('form-followups').checked,
+        plan_status: document.getElementById('form-plan-first').checked ? 'planning' : null,
+        skill_ids: formSkillIds,
+        skill_group_ids: formGroupIds
       };
 
       try {
+        var res;
         if (id) {
-          await fetch(`${API}/issues/${id}`, {
+          res = await fetch(`${API}/issues/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
           });
         } else {
-          await fetch(`${API}/issues`, {
+          res = await fetch(`${API}/issues`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
           });
         }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          showToast('Save failed: ' + esc(errData.error || 'unknown error'), { type: 'error' });
+          return;
+        }
         closeModal();
         await loadBoard();
       } catch (err) {
         console.error('Submit failed:', err);
+        showToast('Save failed: ' + esc(err.message || 'network error'), { type: 'error' });
       }
     }
 
@@ -1146,169 +1260,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
     }
 
-    // --- Project Modal ---
-    function openProjectModal() {
-      document.getElementById('project-overlay').classList.add('active');
-      document.getElementById('project-modal-title').textContent = 'Projects';
-      document.getElementById('project-list-view').style.display = '';
-      document.getElementById('project-form').style.display = 'none';
-      document.getElementById('project-filter').value = '';
-      renderProjectList();
-    }
-
-    function closeProjectModal() {
-      document.getElementById('project-overlay').classList.remove('active');
-    }
-
-    function renderProjectList(filter) {
-      const list = document.getElementById('project-list');
-      if (projects.length === 0) {
-        list.innerHTML = '<div class="project-empty">No projects yet. Create one to organize your issues.</div>';
-        return;
-      }
-      const q = (filter || '').toLowerCase();
-      const filtered = q ? projects.filter(p =>
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.description || '').toLowerCase().includes(q) ||
-        (p.path || '').toLowerCase().includes(q)
-      ) : projects;
-
-      if (filtered.length === 0) {
-        list.innerHTML = `<div class="project-empty">No projects matching "${esc(filter)}"</div>`;
-        return;
-      }
-
-      list.innerHTML = filtered.map(p => {
-        const issueCount = boardData.columns.reduce((sum, col) =>
-          sum + col.issues.filter(i => i.project_id === p.id).length, 0);
-        const meta = [
-          `${issueCount} issue${issueCount !== 1 ? 's' : ''}`,
-          p.path ? `<span title="${esc(p.path)}">&#128193; ${esc(truncPath(p.path))}</span>` : '',
-          p.repo_url ? `<span title="${esc(p.repo_url)}">&#128279;</span>` : ''
-        ].filter(Boolean).join('');
-
-        return `
-          <div class="project-card">
-            <div class="project-info">
-              <h3 title="${esc(p.name)}">${esc(p.name)}</h3>
-              ${p.description ? `<div class="project-desc" title="${esc(p.description)}">${esc(p.description)}</div>` : ''}
-              <div class="project-meta">${meta}</div>
-            </div>
-            <div class="project-actions">
-              ${p.repo_url && !p.path ? `<button class="btn btn-ghost btn-sm" onclick="cloneProject('${p.id}')">Clone</button>` : ''}
-              <button class="btn btn-ghost btn-sm" onclick="editProject('${p.id}')">Edit</button>
-              <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Del</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function filterProjects(q) {
-      renderProjectList(q);
-    }
-
-    function truncPath(p) {
-      return p.length > 40 ? '...' + p.slice(-37) : p;
-    }
-
-    function showProjectForm(project) {
-      document.getElementById('project-list-view').style.display = 'none';
-      document.getElementById('project-form').style.display = '';
-      if (project) {
-        document.getElementById('proj-id').value = project.id;
-        document.getElementById('proj-name').value = project.name || '';
-        document.getElementById('proj-description').value = project.description || '';
-        document.getElementById('proj-path').value = project.path || '';
-        document.getElementById('proj-repo').value = project.repo_url || '';
-        document.getElementById('proj-submit').textContent = 'Save Changes';
-        document.getElementById('project-modal-title').textContent = `Edit: ${project.name}`;
-      } else {
-        document.getElementById('proj-id').value = '';
-        document.getElementById('proj-name').value = '';
-        document.getElementById('proj-description').value = '';
-        document.getElementById('proj-path').value = '';
-        document.getElementById('proj-repo').value = '';
-        document.getElementById('proj-submit').textContent = 'Create Project';
-        document.getElementById('project-modal-title').textContent = 'New Project';
-      }
-    }
-
-    function hideProjectForm() {
-      document.getElementById('project-form').style.display = 'none';
-      document.getElementById('project-list-view').style.display = '';
-      document.getElementById('project-modal-title').textContent = 'Projects';
-    }
-
-    async function handleProjectSubmit(e) {
-      e.preventDefault();
-      const id = document.getElementById('proj-id').value;
-      const data = {
-        name: document.getElementById('proj-name').value,
-        description: document.getElementById('proj-description').value,
-        path: document.getElementById('proj-path').value || null,
-        repo_url: document.getElementById('proj-repo').value || null
-      };
-
-      try {
-        if (id) {
-          await fetch(`${API}/projects/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-          });
-        } else {
-          await fetch(`${API}/projects`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-          });
-        }
-        await loadBoard();
-        hideProjectForm();
-        renderProjectList();
-      } catch (err) {
-        console.error('Project submit failed:', err);
-      }
-    }
-
-    function editProject(id) {
-      const proj = projects.find(p => p.id === id);
-      if (proj) showProjectForm(proj);
-    }
-
-    async function deleteProject(id) {
-      const proj = projects.find(p => p.id === id);
-      if (!confirm(`Delete project "${proj?.name}" and ALL its issues? This cannot be undone.`)) return;
-      try {
-        await fetch(`${API}/projects/${id}`, { method: 'DELETE' });
-        await loadBoard();
-        renderProjectList();
-      } catch (err) {
-        console.error('Delete project failed:', err);
-      }
-    }
-
-    async function cloneProject(id) {
-      const proj = projects.find(p => p.id === id);
-      if (!confirm(`Clone repository for "${proj?.name}"?\n${proj?.repo_url}`)) return;
-
-      try {
-        const res = await fetch(`${API}/projects/${id}/clone`, { method: 'POST' });
-        const data = await res.json();
-        if (res.ok) {
-          alert(`Repository cloned to:\n${data.path}`);
-          await loadBoard();
-          renderProjectList();
-        } else {
-          alert(`Clone failed: ${data.error}\n${data.detail || ''}`);
-        }
-      } catch (err) {
-        console.error('Clone failed:', err);
-        alert('Clone request failed. Check console for details.');
-      }
-    }
-
     // --- Issue Deletion with undo toast (#25) ---
     async function deleteIssue(id, identifier) {
       // Find the issue data first for potential undo
@@ -1345,152 +1296,6 @@ defmodule SymphonyElixir.Server.BoardUI do
         await loadBoard();
       } catch (err) {
         console.error('Clear column failed:', err);
-      }
-    }
-
-    // --- Directory Scanning ---
-    let scannedCandidates = [];
-
-    function showScanView() {
-      document.getElementById('project-list-view').style.display = 'none';
-      document.getElementById('project-form').style.display = 'none';
-      document.getElementById('scan-view').style.display = '';
-      document.getElementById('project-modal-title').textContent = 'Import from Directory';
-      document.getElementById('scan-results').innerHTML = '';
-      document.getElementById('import-btn').style.display = 'none';
-      scannedCandidates = [];
-    }
-
-    function hideScanView() {
-      document.getElementById('scan-view').style.display = 'none';
-      document.getElementById('project-list-view').style.display = '';
-      document.getElementById('project-modal-title').textContent = 'Projects';
-    }
-
-    async function scanDirectory() {
-      const rootPath = document.getElementById('scan-root-path').value.trim();
-      if (!rootPath) return;
-      const btn = document.getElementById('scan-btn');
-      const results = document.getElementById('scan-results');
-      btn.disabled = true;
-      btn.textContent = 'Scanning...';
-      results.innerHTML = '<div style="color: var(--text-muted);">Scanning directories...</div>';
-
-      try {
-        const res = await fetch(`${API}/projects/scan`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            root_path: rootPath,
-            git_pull: document.getElementById('scan-git-pull').checked,
-            recursive: document.getElementById('scan-recursive').checked
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          results.innerHTML = `<div style="color: var(--red);">Error: ${data.error}${data.detail ? ' — ' + data.detail : ''}</div>`;
-          return;
-        }
-        scannedCandidates = data.candidates || [];
-        // Filter out directories that are already projects (by path)
-        const existingPaths = new Set(projects.map(p => p.path).filter(Boolean));
-        scannedCandidates.forEach(c => { c._selected = !existingPaths.has(c.path); c._existing = existingPaths.has(c.path); });
-        renderScanResults();
-      } catch (err) {
-        results.innerHTML = `<div style="color: var(--red);">Scan failed: ${err.message}</div>`;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Scan';
-      }
-    }
-
-    function renderScanResults() {
-      const results = document.getElementById('scan-results');
-      if (scannedCandidates.length === 0) {
-        results.innerHTML = '<div style="color: var(--text-muted);">No subdirectories found.</div>';
-        document.getElementById('import-btn').style.display = 'none';
-        return;
-      }
-      const selectable = scannedCandidates.filter(c => !c._existing);
-      const selectedCount = scannedCandidates.filter(c => c._selected).length;
-
-      results.innerHTML = `
-        <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.85rem; color: var(--text-secondary);">Found ${scannedCandidates.length} directories (${selectedCount} selected)</span>
-          ${selectable.length > 0 ? `<label style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;"><input type="checkbox" ${selectedCount === selectable.length ? 'checked' : ''} onchange="toggleAllScan(this.checked)"> Select all</label>` : ''}
-        </div>
-        <div class="scan-list">${scannedCandidates.map((c, i) => renderScanCard(c, i)).join('')}</div>
-      `;
-      document.getElementById('import-btn').style.display = selectedCount > 0 ? '' : 'none';
-      document.getElementById('import-btn').textContent = `Import ${selectedCount} Project${selectedCount !== 1 ? 's' : ''}`;
-    }
-
-    function renderScanCard(c, idx) {
-      const disabled = c._existing;
-      const checked = c._selected ? 'checked' : '';
-      const opacity = disabled ? 'opacity: 0.5;' : '';
-      const badge = disabled ? '<span style="font-size: 0.7rem; background: var(--bg-tertiary); color: var(--text-muted); padding: 2px 6px; border-radius: 4px; margin-left: 8px;">already imported</span>' : '';
-      const repo = c.repo_url ? `<span style="font-size: 0.75rem; color: var(--text-muted);">&#128279; ${esc(c.repo_url)}</span>` : '';
-
-      return `
-        <div class="scan-card" style="${opacity}">
-          <div style="display: flex; align-items: flex-start; gap: 10px;">
-            <input type="checkbox" ${checked} ${disabled ? 'disabled' : ''} onchange="toggleScanItem(${idx}, this.checked)" style="margin-top: 4px;">
-            <div style="flex: 1; min-width: 0;">
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <strong style="font-size: 0.9rem;">${esc(c.name)}</strong>
-                ${badge}
-              </div>
-              ${c.description ? `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${esc(c.description)}</div>` : ''}
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                <span>&#128193; ${esc(c.path)}</span>
-                ${repo}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function toggleScanItem(idx, checked) {
-      scannedCandidates[idx]._selected = checked;
-      renderScanResults();
-    }
-
-    function toggleAllScan(checked) {
-      scannedCandidates.forEach(c => { if (!c._existing) c._selected = checked; });
-      renderScanResults();
-    }
-
-    async function importScannedProjects() {
-      const toImport = scannedCandidates
-        .filter(c => c._selected && !c._existing)
-        .map(c => ({ name: c.name, slug: c.slug, path: c.path, description: c.description, repo_url: c.repo_url }));
-      if (toImport.length === 0) return;
-
-      const btn = document.getElementById('import-btn');
-      btn.disabled = true;
-      btn.textContent = 'Importing...';
-
-      try {
-        const res = await fetch(`${API}/projects/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projects: toImport })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          await loadBoard();
-          hideScanView();
-          renderProjectList();
-        } else {
-          alert(`Import failed: ${data.error || 'Unknown error'}`);
-        }
-      } catch (err) {
-        alert(`Import failed: ${err.message}`);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = `Import ${toImport.length} Projects`;
       }
     }
 
@@ -1643,6 +1448,7 @@ defmodule SymphonyElixir.Server.BoardUI do
     // --- Init ---
     loadBoard();
     loadAutoAddSettings();
+    loadSkillsCache();
     // Auto-refresh every 30 seconds (#30)
     setInterval(loadBoard, 30000);
     """

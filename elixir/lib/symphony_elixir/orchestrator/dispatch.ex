@@ -33,7 +33,8 @@ defmodule SymphonyElixir.Orchestrator.Dispatch do
       not MapSet.member?(state.completed, issue.id) and
       global_slots_available?(state, config) and
       per_state_slots_available?(state, config, issue.state) and
-      not blocked_in_todo?(issue, terminal_set)
+      not blocked_in_todo?(issue, terminal_set) and
+      not awaiting_plan_review?(issue)
   end
 
   @doc "Sort issues by dispatch priority per SPEC Section 8.2."
@@ -89,6 +90,9 @@ defmodule SymphonyElixir.Orchestrator.Dispatch do
       false
     end
   end
+
+  defp awaiting_plan_review?(%Issue{plan_status: "plan_review"}), do: true
+  defp awaiting_plan_review?(_), do: false
 
   defp priority_sort_key(nil), do: 999
   defp priority_sort_key(p) when is_integer(p) and p >= 1 and p <= 4, do: p

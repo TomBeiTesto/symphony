@@ -21,7 +21,9 @@ defmodule SymphonyElixir.ProjectScannerTest do
 
     test "discovers subdirectories as projects", %{root: root} do
       File.mkdir_p!(Path.join(root, "alpha"))
+      File.write!(Path.join([root, "alpha", "package.json"]), ~s({"name": "alpha"}))
       File.mkdir_p!(Path.join(root, "beta"))
+      File.write!(Path.join([root, "beta", "package.json"]), ~s({"name": "beta"}))
 
       assert {:ok, candidates} = ProjectScanner.scan(root)
       assert length(candidates) == 2
@@ -32,7 +34,9 @@ defmodule SymphonyElixir.ProjectScannerTest do
 
     test "ignores hidden directories", %{root: root} do
       File.mkdir_p!(Path.join(root, ".hidden"))
+      File.write!(Path.join([root, ".hidden", "package.json"]), ~s({"name": "hidden"}))
       File.mkdir_p!(Path.join(root, "visible"))
+      File.write!(Path.join([root, "visible", "package.json"]), ~s({"name": "visible"}))
 
       assert {:ok, [candidate]} = ProjectScanner.scan(root)
       assert candidate.name == "Visible"
@@ -41,6 +45,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
     test "ignores files (only directories)", %{root: root} do
       File.write!(Path.join(root, "not_a_dir.txt"), "hello")
       File.mkdir_p!(Path.join(root, "real_project"))
+      File.write!(Path.join([root, "real_project", "mix.exs"]), "defmodule RealProject do end")
 
       assert {:ok, [candidate]} = ProjectScanner.scan(root)
       assert candidate.name == "Real Project"
@@ -49,6 +54,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
     test "reads README.md for title and description", %{root: root} do
       proj = Path.join(root, "my-app")
       File.mkdir_p!(proj)
+      File.write!(Path.join(proj, "package.json"), ~s({"name": "my-app"}))
 
       File.write!(Path.join(proj, "README.md"), """
       # My Awesome App
@@ -67,6 +73,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
 
     test "falls back to humanized dir name without README", %{root: root} do
       File.mkdir_p!(Path.join(root, "my-cool-project"))
+      File.write!(Path.join([root, "my-cool-project", "Makefile"]), "all:\n\techo hello")
 
       assert {:ok, [candidate]} = ProjectScanner.scan(root)
       assert candidate.name == "My Cool Project"
@@ -76,6 +83,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
 
     test "sets path to full directory path", %{root: root} do
       File.mkdir_p!(Path.join(root, "service"))
+      File.write!(Path.join([root, "service", "Dockerfile"]), "FROM alpine")
 
       assert {:ok, [candidate]} = ProjectScanner.scan(root)
       assert String.ends_with?(candidate.path, "service")
@@ -100,6 +108,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
 
     test "repo_url is nil without .git", %{root: root} do
       File.mkdir_p!(Path.join(root, "no-git"))
+      File.write!(Path.join([root, "no-git", "Makefile"]), "all:\n\techo hello")
 
       assert {:ok, [candidate]} = ProjectScanner.scan(root)
       assert candidate.repo_url == nil
@@ -108,6 +117,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
     test "skips badge lines and HTML when extracting description", %{root: root} do
       proj = Path.join(root, "badged")
       File.mkdir_p!(proj)
+      File.write!(Path.join(proj, "package.json"), ~s({"name": "badged"}))
 
       File.write!(Path.join(proj, "README.md"), """
       # Badged Project
@@ -127,6 +137,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
     test "truncates long descriptions", %{root: root} do
       proj = Path.join(root, "verbose")
       File.mkdir_p!(proj)
+      File.write!(Path.join(proj, "package.json"), ~s({"name": "verbose"}))
 
       long_text = String.duplicate("word ", 100)
 
@@ -145,6 +156,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
 
     test "includes git_branch field", %{root: root} do
       File.mkdir_p!(Path.join(root, "project"))
+      File.write!(Path.join([root, "project", "Makefile"]), "all:\n\techo hello")
 
       assert {:ok, [candidate]} = ProjectScanner.scan(root)
       assert Map.has_key?(candidate, :git_branch)
@@ -168,6 +180,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
     test "extracts description from About section over first paragraph", %{root: root} do
       proj = Path.join(root, "about-project")
       File.mkdir_p!(proj)
+      File.write!(Path.join(proj, "package.json"), ~s({"name": "about-project"}))
 
       File.write!(Path.join(proj, "README.md"), """
       # About Project
@@ -191,7 +204,7 @@ defmodule SymphonyElixir.ProjectScannerTest do
   describe "scan/2 with recursive option" do
     test "detects monorepo with apps/ subdirectories", %{root: root} do
       mono = Path.join(root, "monorepo")
-      File.mkdir_p!(mono)
+      File.mkdir_p!(Path.join(mono, ".git"))
       File.write!(Path.join(mono, "package.json"), ~s({"name": "monorepo"}))
 
       app1 = Path.join([mono, "apps", "frontend"])

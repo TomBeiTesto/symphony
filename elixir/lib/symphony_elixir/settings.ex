@@ -34,7 +34,10 @@ defmodule SymphonyElixir.Settings do
     "tracker_kind" => "local",
     "tracker_endpoint" => "",
     "tracker_api_key" => "",
-    "tracker_project_slug" => ""
+    "tracker_project_slug" => "",
+    # --- Default Skills ---
+    "default_skill_ids" => "",
+    "default_skill_group_ids" => ""
   }
 
   @type settings_map :: %{String.t() => String.t() | nil}

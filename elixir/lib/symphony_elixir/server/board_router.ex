@@ -47,6 +47,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
     |> send_resp(200, html)
   end
 
+  get "/skills" do
+    html = SymphonyElixir.Server.SkillsUI.render()
+
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(200, html)
+  end
+
   get "/settings" do
     html = SymphonyElixir.Server.SettingsUI.render()
 
@@ -55,7 +63,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     |> send_resp(200, html)
   end
 
-  get "/review" do
+  get "/products" do
     html = SymphonyElixir.Server.ReviewUI.render()
 
     conn
@@ -186,6 +194,60 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  # --- Plan Review API ---
+
+  post "/api/issues/:id/approve-plan" do
+    try do
+      case SymphonyElixir.Orchestrator.approve_plan(id) do
+        :ok ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(%{ok: true}))
+
+        {:error, reason} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(422, Jason.encode!(%{error: to_string(reason)}))
+      end
+    catch
+      :exit, _ ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(503, Jason.encode!(%{error: "orchestrator_unavailable"}))
+    end
+  end
+
+  post "/api/issues/:id/reject-plan" do
+    {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+    feedback =
+      case Jason.decode(body) do
+        {:ok, %{"feedback" => fb}} when is_binary(fb) and fb != "" -> fb
+        _ -> nil
+      end
+
+    try do
+      case SymphonyElixir.Orchestrator.reject_plan(id, feedback) do
+        :ok ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(%{ok: true}))
+
+        {:error, reason} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(422, Jason.encode!(%{error: to_string(reason)}))
+      end
+    catch
+      :exit, _ ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(503, Jason.encode!(%{error: "orchestrator_unavailable"}))
+    end
+  end
+
+  # --- Follow-ups API ---
+
   post "/api/issues/:id/follow-ups/:fu_id/accept" do
     with {:ok, issue} <- LocalBoard.get_issue(id),
          {:ok, follow_up, agent_run} <- find_follow_up(issue, fu_id),
@@ -195,20 +257,54 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
       result =
         if prod_id do
-          # Add as a product feature instead of creating an issue
           feature_attrs = %{
             "name" => follow_up["title"],
-            "description" => follow_up["description"]
+            "description" => follow_up["description"],
+            "category" => follow_up["category"],
+            "depends_on" => follow_up["depends_on"] || [],
+            "project_ids" => follow_up["project_ids"] || [],
+            "statuses" => follow_up["statuses"] || %{}
           }
 
-          case LocalBoard.add_product_feature(prod_id, feature_attrs) do
-            {:ok, prod} ->
-              # Find the newly added feature (last one)
-              new_feature = List.last(prod.features)
-              %{ok: true, feature: new_feature, product_id: prod_id}
+          # Check for existing feature with same name (dedup)
+          case LocalBoard.get_product(prod_id) do
+            {:ok, existing_prod} ->
+              existing_feature =
+                Enum.find(existing_prod.features, fn f ->
+                  String.downcase(String.trim(f.name)) ==
+                    String.downcase(String.trim(feature_attrs["name"] || ""))
+                end)
+
+              if existing_feature do
+                # Merge new statuses into existing feature
+                new_statuses = feature_attrs["statuses"] || %{}
+
+                Enum.each(new_statuses, fn {project_id, status} ->
+                  LocalBoard.set_feature_status(
+                    prod_id,
+                    existing_feature.id,
+                    project_id,
+                    status,
+                    "agent_merge"
+                  )
+                end)
+
+                {:ok, updated_prod} = LocalBoard.get_product(prod_id)
+                merged = Enum.find(updated_prod.features, &(&1.id == existing_feature.id))
+                %{ok: true, feature: merged, product_id: prod_id, merged: true}
+              else
+                # New feature — add it
+                case LocalBoard.add_product_feature(prod_id, feature_attrs) do
+                  {:ok, prod} ->
+                    new_feature = List.last(prod.features)
+                    %{ok: true, feature: new_feature, product_id: prod_id}
+
+                  {:error, _} ->
+                    create_follow_up_issue(issue, follow_up, id)
+                end
+              end
 
             {:error, _} ->
-              # Fallback: create as issue if product not found
               create_follow_up_issue(issue, follow_up, id)
           end
         else
@@ -268,6 +364,11 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(201, Jason.encode!(issue))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
     end
   end
 
@@ -351,6 +452,11 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(201, Jason.encode!(project))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
     end
   end
 
@@ -413,7 +519,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     opts = [
       git_pull: conn.body_params["git_pull"] == true,
-      recursive: conn.body_params["recursive"] == true
+      recursive: conn.body_params["recursive"] == true,
+      ai_summarize: conn.body_params["ai_summarize"] == true
     ]
 
     case SymphonyElixir.ProjectScanner.scan(root_path, opts) do
@@ -434,15 +541,37 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  post "/api/browse-folder" do
+    case open_native_folder_dialog() do
+      {:ok, path} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{path: path}))
+
+      :cancelled ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{path: nil}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: "browse_failed", detail: inspect(reason)}))
+    end
+  end
+
   post "/api/projects/import" do
     candidates = Map.get(conn.body_params, "projects", [])
 
-    created =
+    results =
       Enum.map(candidates, fn attrs ->
         case LocalBoard.create_project(attrs) do
-          {:ok, project} -> project
+          {:ok, project} -> {:ok, project}
+          {:error, _reason} -> :skip
         end
       end)
+
+    created = for {:ok, p} <- results, do: p
 
     conn
     |> put_resp_content_type("application/json")
@@ -479,6 +608,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(201, Jason.encode!(prod))
+
+      {:error, :duplicate_name} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(409, Jason.encode!(%{error: "duplicate_name", message: "A product with that name already exists"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
     end
   end
 
@@ -516,6 +655,34 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(201, Jason.encode!(prod))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, :duplicate_name} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(409, Jason.encode!(%{error: "duplicate_name", message: "A feature with that name already exists in this product"}))
+    end
+  end
+
+  patch "/api/products/:id/features/bulk-category" do
+    feature_ids = conn.body_params["feature_ids"] || []
+    category = conn.body_params["category"]
+
+    case LocalBoard.get_product(id) do
+      {:ok, _prod} ->
+        Enum.each(feature_ids, fn fid ->
+          LocalBoard.update_product_feature(id, fid, %{"category" => category})
+        end)
+
+        {:ok, updated} = LocalBoard.get_product(id)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(updated))
 
       {:error, :not_found} ->
         conn
@@ -561,7 +728,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
       |> put_resp_content_type("application/json")
       |> send_resp(400, Jason.encode!(%{error: "project_id and status are required"}))
     else
-      case LocalBoard.set_feature_status(prod_id, feature_id, project_id, status) do
+      source = conn.body_params["source"] || "manual"
+      case LocalBoard.set_feature_status(prod_id, feature_id, project_id, status, source) do
         {:ok, prod} ->
           conn
           |> put_resp_content_type("application/json")
@@ -571,6 +739,11 @@ defmodule SymphonyElixir.Server.BoardRouter do
           conn
           |> put_resp_content_type("application/json")
           |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+        {:error, :invalid_status} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(400, Jason.encode!(%{error: "invalid_status", message: "Status must be one of: missing, planned, in_progress, done, n_a"}))
       end
     end
   end
@@ -578,20 +751,62 @@ defmodule SymphonyElixir.Server.BoardRouter do
   post "/api/products/:id/analyze-gaps" do
     case LocalBoard.get_product(id) do
       {:ok, prod} ->
-        # Resolve project names for context
-        projects =
-          Enum.map(prod.project_ids, fn pid ->
-            case LocalBoard.get_project(pid) do
-              {:ok, p} -> p
-              _ -> %{id: pid, name: pid, description: nil}
-            end
-          end)
+        projects = resolve_product_projects(prod)
+        project_list = format_project_list(projects)
+        feature_matrix = format_feature_matrix(prod, projects)
 
-        gaps = analyze_product_gaps(prod, projects)
+        description = """
+        ## Gap Analysis — #{prod.name}
+
+        Analyze the codebases of this product's projects and identify gaps — features that are missing,
+        incomplete, or incorrectly tracked in the current feature matrix.
+        #{if prod.description, do: "\n**Product:** #{prod.description}\n", else: ""}
+        **Projects in this product:**
+        #{project_list}
+
+        **Current feature matrix:**
+        #{feature_matrix}
+
+        ### Instructions
+        For each project, explore the codebase and compare against the feature matrix above.
+
+        Look for:
+        1. **Missing features** — capabilities that should exist but aren't tracked yet
+        2. **Status mismatches** — features marked as "done" that are actually incomplete, or "missing" features that are already implemented
+        3. **Missing project coverage** — features that should apply to a project but don't include it
+
+        For each gap found, propose a follow-up with:
+        - **Title**: Short description of the gap (e.g. "Add rate limiting to API Gateway", "Fix: Auth is implemented in User Service")
+        - **Description**: What the gap is, evidence from the codebase, and what needs to happen
+        - **Labels**: `["gap-analysis"]`
+
+        For status corrections, also include:
+        - **project_ids**: Array of project IDs affected
+        - **statuses**: Object mapping project_id → corrected status
+
+        Be thorough but only report real gaps — verify against the actual codebase.
+        """
+
+        {:ok, issue} =
+          LocalBoard.create_issue(%{
+            "title" => "Gap analysis for #{prod.name}",
+            "description" => description,
+            "labels" => ["product-review", "gap-analysis", "product:#{id}"],
+            "priority" => 2,
+            "state" => "Todo",
+            "product_id" => id
+          })
 
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{gaps: gaps}))
+        |> send_resp(
+          201,
+          Jason.encode!(%{
+            issue: issue,
+            message:
+              "Issue #{issue.identifier} created. The agent will analyze codebases and identify gaps."
+          })
+        )
 
       {:error, :not_found} ->
         conn
@@ -652,20 +867,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
           |> send_resp(400, Jason.encode!(%{error: "prompt is required"}))
         else
           projects = resolve_product_projects(prod)
-
-          project_list =
-            projects
-            |> Enum.map(fn p ->
-              "- #{p.name}" <>
-                if(p.description, do: ": #{p.description}", else: "") <>
-                if(p.repo_url, do: " [repo: #{p.repo_url}]", else: "")
-            end)
-            |> Enum.join("\n")
-
-          existing =
-            prod.features
-            |> Enum.map(fn f -> "- #{f.name}: #{f.description || ""}" end)
-            |> Enum.join("\n")
+          project_list = format_project_list(projects)
+          existing = format_existing_features(prod)
 
           description = """
           ## Generate Features — #{prod.name}
@@ -680,17 +883,26 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
           ### Instructions
           For each project, look at its codebase (if workspace available) or infer from the project name and description.
-          Identify cross-cutting features that span the projects in this product.
+          Identify features that exist or are needed across the projects in this product.
           A feature is a capability or concern that may need implementation in one or more projects (e.g. "API Key Management", "Error Handling", "User Documentation").
+
+          **IMPORTANT**: Not every feature applies to every project. Only include projects that genuinely participate in or need a given feature. If you find evidence that a feature is already implemented in a project, mark its status as "done". If it's partially there, use "in_progress". If the project needs it but doesn't have it yet, use "missing". If a feature doesn't apply to a project at all, do NOT include that project.
 
           Propose each feature as a follow-up with:
           - **Title**: The feature name (short, descriptive — e.g. "API Key Management")
-          - **Description**: What this feature covers, which projects it applies to, and why it's needed
+          - **Description**: What this feature covers and evidence of its current state
           - **Labels**: `["product-feature"]`
+          - **project_ids**: Array of project IDs that participate in this feature (only relevant projects!)
+          - **statuses**: Object mapping project_id → status ("done", "in_progress", "missing") reflecting the actual current state
+
+          Valid status values: "done" (implemented), "in_progress" (partially implemented), "planned" (planned but not started), "missing" (needed but absent), "n_a" (not applicable).
 
           These will be added to the product feature matrix for tracking across projects.
           Do NOT propose implementation tasks — propose high-level features.
           """
+
+          skill_ids = conn.body_params["skill_ids"] || []
+          skill_group_ids = conn.body_params["skill_group_ids"] || []
 
           {:ok, issue} =
             LocalBoard.create_issue(%{
@@ -698,7 +910,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
               "description" => description,
               "labels" => ["product-review", "generate-features", "product:#{id}"],
               "priority" => 2,
-              "state" => "Todo"
+              "state" => "Todo",
+              "product_id" => id,
+              "skill_ids" => skill_ids,
+              "skill_group_ids" => skill_group_ids
             })
 
           conn
@@ -724,11 +939,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
     with {:ok, prod} <- LocalBoard.get_product(prod_id),
          feature when not is_nil(feature) <-
            Enum.find(prod.features, &(&1.id == feature_id)) do
-      projects = resolve_product_projects(prod)
+      all_projects = resolve_product_projects(prod)
+      project_map = Map.new(all_projects, fn p -> {p.id, p} end)
 
-      # Create one check issue per project that isn't already done or n/a
+      # Only check projects that participate in this feature
+      feature_project_ids = Map.keys(feature.statuses)
+
       issues_created =
-        projects
+        feature_project_ids
+        |> Enum.map(fn pid -> Map.get(project_map, pid) end)
+        |> Enum.reject(&is_nil/1)
         |> Enum.reject(fn p ->
           status = Map.get(feature.statuses, p.id, "missing")
           status in ["done", "n_a"]
@@ -749,13 +969,27 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
           Report your findings and propose follow-up issues for anything missing or incomplete.
           Each follow-up should be a concrete, actionable task.
+
+          **IMPORTANT**: At the end of your response, include a status verdict block:
+          ```status-verdict
+          {"status": "done|in_progress|missing|n_a", "reason": "brief explanation"}
+          ```
+          - "done" — feature is fully implemented
+          - "in_progress" — feature is partially implemented
+          - "missing" — feature is not implemented but needed
+          - "n_a" — feature does not apply to this project
           """
 
           {:ok, issue} =
             LocalBoard.create_issue(%{
               "title" => "Check: #{feature.name} in #{p.name}",
               "description" => description,
-              "labels" => ["product-review", "feature-check"],
+              "labels" => [
+                "product-review",
+                "feature-check",
+                "product:#{prod_id}",
+                "feature:#{feature_id}"
+              ],
               "priority" => 2,
               "state" => "Todo",
               "project_id" => p.id
@@ -771,7 +1005,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
             prod_id,
             feature_id,
             issue.project_id,
-            "in_progress"
+            "in_progress",
+            "agent_check"
           )
         end
       end)
@@ -796,6 +1031,488 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(404, Jason.encode!(%{error: "feature_not_found"}))
+    end
+  end
+
+  post "/api/products/:id/analyze-existing-features" do
+    case LocalBoard.get_product(id) do
+      {:ok, prod} ->
+        projects = resolve_product_projects(prod)
+
+        project_list = format_project_list(projects)
+        existing = format_existing_features(prod)
+
+        description = """
+        ## Analyze Existing Features — #{prod.name}
+
+        Scan the codebases of all projects in this product and identify features that are ALREADY implemented.
+        #{if prod.description, do: "\n**Product:** #{prod.description}\n", else: ""}
+        **Projects in this product:**
+        #{project_list}
+
+        #{if existing != "", do: "**Already tracked features (update status if found, do NOT duplicate):**\n#{existing}\n", else: ""}
+
+        ### Instructions
+        For each project, explore the codebase thoroughly. Look at:
+        - Source code structure, modules, and packages
+        - API endpoints and routes
+        - Configuration files
+        - Tests (they reveal implemented functionality)
+        - Documentation and README files
+
+        Identify features and capabilities that are already implemented across the projects.
+        A feature is a high-level capability (e.g. "Authentication", "Rate Limiting", "Error Handling", "Logging", "API Versioning").
+
+        **IMPORTANT**: Not every feature applies to every project. Only include projects where a feature is relevant. If you find evidence a feature is implemented in a project, set its status to "done". If it's partially implemented, use "in_progress". If the project needs it but it's missing, use "missing". Do NOT include projects where a feature doesn't apply at all.
+
+        Propose each discovered feature as a follow-up with:
+        - **Title**: The feature name (short, descriptive)
+        - **Description**: What this feature covers, evidence of implementation (file paths, module names)
+        - **Labels**: `["product-feature"]`
+        - **project_ids**: Array of project IDs where this feature is relevant (only participating projects!)
+        - **statuses**: Object mapping project_id → status ("done", "in_progress", "missing") based on evidence found
+
+        Valid status values: "done" (implemented), "in_progress" (partially implemented), "planned" (planned but not started), "missing" (needed but absent), "n_a" (not applicable).
+
+        These will be added to the product feature matrix.
+        Only propose features you have evidence for — do NOT speculate about features that might exist.
+        """
+
+        {:ok, issue} =
+          LocalBoard.create_issue(%{
+            "title" => "Analyze existing features in #{prod.name}",
+            "description" => description,
+            "labels" => ["product-review", "analyze-existing", "product:#{id}"],
+            "priority" => 2,
+            "state" => "Todo",
+            "product_id" => id
+          })
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          201,
+          Jason.encode!(%{
+            issue: issue,
+            message:
+              "Issue #{issue.identifier} created. The agent will scan the codebases and discover implemented features."
+          })
+        )
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/products/:id/code-review" do
+    case LocalBoard.get_product(id) do
+      {:ok, prod} ->
+        focus = conn.body_params["focus"] || ""
+        projects = resolve_product_projects(prod)
+
+        project_list = format_project_list(projects)
+
+        description = """
+        ## Code Review — #{prod.name}
+
+        Perform a comprehensive code review across all projects in this product.
+        #{if prod.description, do: "\n**Product:** #{prod.description}\n", else: ""}
+        **Projects to review:**
+        #{project_list}
+
+        #{if focus != "", do: "**Focus areas:** #{focus}\n", else: ""}
+
+        ### Instructions
+        Review the codebase of each project. For each project, examine:
+        - **Code quality**: naming conventions, readability, complexity, duplication
+        - **Architecture**: separation of concerns, dependency management, modularity
+        - **Security**: input validation, authentication, authorization, secrets management
+        - **Error handling**: graceful failures, logging, error propagation
+        - **Testing**: test coverage, test quality, missing edge cases
+        - **Performance**: potential bottlenecks, N+1 queries, memory issues
+        - **Dependencies**: outdated deps, security vulnerabilities, unnecessary deps
+        - **Documentation**: missing docs, outdated docs, API documentation
+
+        For each finding, propose a follow-up issue with:
+        - **Title**: Clear, actionable title (e.g. "Fix SQL injection in user search endpoint")
+        - **Description**: What the issue is, where it is (file paths), why it matters, and how to fix it
+        - **Labels**: One of `["code-review-critical"]`, `["code-review-major"]`, or `["code-review-minor"]` based on severity
+
+        Prioritize critical issues (security, data loss) over minor style issues.
+        Be specific — include file paths and line references where possible.
+        """
+
+        skill_ids = conn.body_params["skill_ids"] || []
+        skill_group_ids = conn.body_params["skill_group_ids"] || []
+
+        {:ok, issue} =
+          LocalBoard.create_issue(%{
+            "title" => "Code review: #{prod.name}",
+            "description" => description,
+            "labels" => ["product-review", "code-review", "product:#{id}"],
+            "priority" => 1,
+            "state" => "Todo",
+            "product_id" => id,
+            "skill_ids" => skill_ids,
+            "skill_group_ids" => skill_group_ids
+          })
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          201,
+          Jason.encode!(%{
+            issue: issue,
+            message:
+              "Issue #{issue.identifier} created. The agent will review all project codebases and report findings."
+          })
+        )
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/products/:id/generate-definition" do
+    case LocalBoard.get_product(id) do
+      {:ok, prod} ->
+        user_context = conn.body_params["context"] || ""
+        projects = resolve_product_projects(prod)
+        project_list = format_project_list(projects)
+        existing = format_existing_features(prod)
+
+        description = """
+        ## Generate Product Definition — #{prod.name}
+
+        Analyze the projects in this product and generate a comprehensive product definition and description.
+
+        **Current product name:** #{prod.name}
+        #{if prod.description && prod.description != "", do: "**Current description:** #{prod.description}\n", else: ""}
+        **Projects in this product:**
+        #{project_list}
+
+        #{if existing != "", do: "**Currently tracked features:**\n#{existing}\n", else: ""}
+        #{if user_context != "", do: "**Additional context from user:** #{user_context}\n", else: ""}
+
+        ### Instructions
+        Analyze each project's codebase, documentation, and structure to understand what this product does.
+        Then write a clear, comprehensive product definition including:
+
+        1. **Product Name** — Suggest a better name if the current one is vague, or confirm it's good
+        2. **Description** — A 2-4 sentence description of what this product is, what it does, and who it's for
+        3. **Scope** — What this product covers and what it explicitly does NOT cover
+        4. **Key capabilities** — The main things this product enables
+
+        Format your response with clear sections. At the end, include a definition block:
+        ```product-definition
+        {"name": "Suggested Product Name", "description": "The generated product description text."}
+        ```
+
+        Be specific and evidence-based — reference what you found in the codebases.
+        """
+
+        skill_ids = conn.body_params["skill_ids"] || []
+        skill_group_ids = conn.body_params["skill_group_ids"] || []
+
+        {:ok, issue} =
+          LocalBoard.create_issue(%{
+            "title" => "Generate definition for #{prod.name}",
+            "description" => description,
+            "labels" => ["product-review", "generate-definition", "product:#{id}"],
+            "priority" => 2,
+            "state" => "Todo",
+            "product_id" => id,
+            "skill_ids" => skill_ids,
+            "skill_group_ids" => skill_group_ids
+          })
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          201,
+          Jason.encode!(%{
+            issue: issue,
+            message:
+              "Issue #{issue.identifier} created. The agent will analyze codebases and propose a product definition."
+          })
+        )
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/products/:id/tasks" do
+    case LocalBoard.get_product(id) do
+      {:ok, prod} ->
+        title = conn.body_params["title"] || ""
+        user_prompt = conn.body_params["prompt"] || ""
+
+        if title == "" or user_prompt == "" do
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(400, Jason.encode!(%{error: "title and prompt are required"}))
+        else
+          projects = resolve_product_projects(prod)
+          project_list = format_project_list(projects)
+
+          description = """
+          ## #{title} — #{prod.name}
+
+          #{if prod.description, do: "**Product:** #{prod.description}\n", else: ""}
+          **Projects in this product:**
+          #{project_list}
+
+          ### Task
+          #{user_prompt}
+
+          ### Instructions
+          You have access to the codebases of all projects listed above.
+          Complete the task described above. Be thorough and evidence-based.
+          If you find issues or have recommendations, propose them as follow-up issues.
+          """
+
+          priority = conn.body_params["priority"] || 2
+          skill_ids = conn.body_params["skill_ids"] || []
+          skill_group_ids = conn.body_params["skill_group_ids"] || []
+
+          {:ok, issue} =
+            LocalBoard.create_issue(%{
+              "title" => "#{title}: #{prod.name}",
+              "description" => description,
+              "labels" => ["product-review", "product-task", "product:#{id}"],
+              "priority" => priority,
+              "state" => "Todo",
+              "product_id" => id,
+              "skill_ids" => skill_ids,
+              "skill_group_ids" => skill_group_ids
+            })
+
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(
+            201,
+            Jason.encode!(%{
+              issue: issue,
+              message:
+                "Issue #{issue.identifier} created. The agent will pick it up and work on it."
+            })
+          )
+        end
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  # --- Skills API ---
+
+  get "/api/skills" do
+    skills = LocalBoard.list_skills()
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{skills: skills}))
+  end
+
+  get "/api/skills/:id" do
+    case LocalBoard.get_skill(id) do
+      {:ok, skill} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(skill))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/skills" do
+    case LocalBoard.create_skill(conn.body_params) do
+      {:ok, skill} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(201, Jason.encode!(skill))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+    end
+  end
+
+  patch "/api/skills/:id" do
+    case LocalBoard.update_skill(id, conn.body_params) do
+      {:ok, skill} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(skill))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  delete "/api/skills/:id" do
+    case LocalBoard.delete_skill(id) do
+      :ok ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{deleted: true}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, :built_in} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          400,
+          Jason.encode!(%{
+            error: "cannot_delete_built_in",
+            message:
+              "Built-in skills cannot be deleted. Duplicate it to create a customizable copy."
+          })
+        )
+    end
+  end
+
+  post "/api/skills/:id/duplicate" do
+    case LocalBoard.duplicate_skill(id) do
+      {:ok, skill} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(201, Jason.encode!(skill))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  # --- Skill Groups API ---
+
+  get "/api/skill-groups" do
+    groups = LocalBoard.list_skill_groups()
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{skill_groups: groups}))
+  end
+
+  get "/api/skill-groups/:id" do
+    case LocalBoard.get_skill_group(id) do
+      {:ok, group} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(group))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/skill-groups" do
+    case LocalBoard.create_skill_group(conn.body_params) do
+      {:ok, group} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(201, Jason.encode!(group))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+    end
+  end
+
+  patch "/api/skill-groups/:id" do
+    case LocalBoard.update_skill_group(id, conn.body_params) do
+      {:ok, group} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(group))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  delete "/api/skill-groups/:id" do
+    case LocalBoard.delete_skill_group(id) do
+      :ok ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{deleted: true}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  # --- Issue Skill Assignment API ---
+
+  post "/api/issues/:id/skills" do
+    case LocalBoard.get_issue(id) do
+      {:ok, _issue} ->
+        attrs = %{
+          "skill_ids" => conn.body_params["skill_ids"] || [],
+          "skill_group_ids" => conn.body_params["skill_group_ids"] || []
+        }
+
+        case LocalBoard.update_issue(id, attrs) do
+          {:ok, updated} ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Jason.encode!(updated))
+
+          {:error, reason} ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(400, Jason.encode!(%{error: "update_failed", detail: inspect(reason)}))
+        end
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  get "/api/issues/:id/resolved-skills" do
+    case LocalBoard.get_issue(id) do
+      {:ok, issue} ->
+        skills = LocalBoard.resolve_issue_skills(issue)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{skills: skills}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
     end
   end
 
@@ -1064,32 +1781,133 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end)
   end
 
-  # --- Gap analysis helper ---
+  defp format_project_list(projects) do
+    projects
+    |> Enum.map(fn p ->
+      "- **#{p.name}** (id: `#{p.id}`)" <>
+        if(p.description, do: ": #{p.description}", else: "") <>
+        if(p.repo_url, do: " [repo: #{p.repo_url}]", else: "") <>
+        if(Map.get(p, :path), do: " [path: #{p.path}]", else: "")
+    end)
+    |> Enum.join("\n")
+  end
 
-  defp analyze_product_gaps(prod, projects) do
+  defp format_existing_features(prod) do
+    prod.features
+    |> Enum.map(fn f -> "- #{f.name}: #{f.description || ""}" end)
+    |> Enum.join("\n")
+  end
+
+  defp format_feature_matrix(prod, projects) do
     project_map = Map.new(projects, fn p -> {p.id, p} end)
 
-    Enum.flat_map(prod.features, fn feature ->
-      Enum.flat_map(prod.project_ids, fn pid ->
-        status = Map.get(feature.statuses, pid, "missing")
-        project = Map.get(project_map, pid, %{name: pid})
+    if prod.features == [] do
+      "(no features tracked yet)"
+    else
+      prod.features
+      |> Enum.map(fn f ->
+        status_parts =
+          f.statuses
+          |> Enum.map(fn {pid, status} ->
+            pname = Map.get(project_map, pid, %{name: pid}).name
+            "#{pname}=#{status}"
+          end)
+          |> Enum.join(", ")
 
-        if status in ["missing", "planned"] do
-          [
-            %{
-              feature_id: feature.id,
-              feature_name: feature.name,
-              project_id: pid,
-              project_name: project.name,
-              status: status,
-              reason: "Feature '#{feature.name}' is #{status} in project '#{project.name}'"
-            }
-          ]
-        else
-          []
-        end
+        "- **#{f.name}** [#{status_parts}]#{if f.description, do: " — #{f.description}", else: ""}"
       end)
-    end)
+      |> Enum.join("\n")
+    end
+  end
+
+  defp open_native_folder_dialog do
+    case :os.type() do
+      {:win32, _} -> open_folder_dialog_windows()
+      {:unix, :darwin} -> open_folder_dialog_macos()
+      {:unix, _} -> open_folder_dialog_linux()
+    end
+  end
+
+  defp open_folder_dialog_windows do
+    script_path =
+      Path.join(System.tmp_dir!(), "symphony_browse_#{:rand.uniform(999_999)}.ps1")
+
+    ps_script = ~S"""
+    Add-Type -AssemblyName System.Windows.Forms
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = 'Select a directory to scan for projects'
+    $dialog.ShowNewFolderButton = $false
+    if ($dialog.ShowDialog() -eq 'OK') { $dialog.SelectedPath } else { '__CANCELLED__' }
+    """
+
+    File.write!(script_path, ps_script)
+
+    try do
+      case System.cmd(
+             "powershell",
+             ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script_path],
+             stderr_to_stdout: true,
+             timeout: 120_000
+           ) do
+        {output, 0} ->
+          path = String.trim(output)
+          if path == "__CANCELLED__", do: :cancelled, else: {:ok, path}
+
+        {output, _} ->
+          {:error, output}
+      end
+    after
+      File.rm(script_path)
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp open_folder_dialog_macos do
+    args = [
+      "-e",
+      ~S|tell application "System Events" to activate|,
+      "-e",
+      ~S|POSIX path of (choose folder with prompt "Select a directory to scan for projects")|
+    ]
+
+    case System.cmd("osascript", args, stderr_to_stdout: true, timeout: 120_000) do
+      {output, 0} -> {:ok, String.trim(output)}
+      {_, 1} -> :cancelled
+      {output, _} -> {:error, output}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp open_folder_dialog_linux do
+    # Try zenity first, fall back to kdialog
+    cond do
+      System.find_executable("zenity") ->
+        case System.cmd("zenity", ["--file-selection", "--directory", "--title=Select directory"],
+               stderr_to_stdout: true,
+               timeout: 120_000
+             ) do
+          {output, 0} -> {:ok, String.trim(output)}
+          {_, 1} -> :cancelled
+          {output, _} -> {:error, output}
+        end
+
+      System.find_executable("kdialog") ->
+        case System.cmd("kdialog", ["--getexistingdirectory", "."],
+               stderr_to_stdout: true,
+               timeout: 120_000
+             ) do
+          {output, 0} -> {:ok, String.trim(output)}
+          {_, 1} -> :cancelled
+          {output, _} -> {:error, output}
+        end
+
+      true ->
+        {:error, "No dialog tool found (install zenity or kdialog)"}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
   end
 
   match _ do

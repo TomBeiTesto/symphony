@@ -298,7 +298,7 @@ test.describe("Product Review Screenshots", () => {
   test.beforeEach(async ({ request }) => { await cleanupAll(request); });
 
   test("16 - Product review - empty", async ({ page }) => {
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(1000);
     await page.screenshot({
       path: join(SCREENSHOTS_DIR, "16-review-empty.png"),
@@ -309,7 +309,7 @@ test.describe("Product Review Screenshots", () => {
   test("17 - Product review - with product selected", async ({ page, request }) => {
     const project = await seedProject(request);
     const product = await seedProduct(request, project.id);
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(2000);
     // Wait for select to be populated, then select by value
     const select = page.locator("#product-select");

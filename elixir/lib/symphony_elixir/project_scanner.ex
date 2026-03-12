@@ -1,24 +1,31 @@
 defmodule SymphonyElixir.ProjectScanner do
   @moduledoc """
-  Scans a root directory for subdirectories and generates project metadata.
+  Intelligent recursive directory scanner for project discovery.
 
-  Supports:
-  - Recursive monorepo detection (apps/, packages/, services/ etc.)
+  Traverses a root directory tree and identifies real projects by looking
+  for git repositories and/or project marker files (mix.exs, package.json, etc.).
+  Non-project directories are recursively explored to find nested projects.
+
+  Features:
+  - True recursive discovery: if a dir is not a project, recurse into children
   - Git pull before scanning (optional)
-  - Smart README + package file summarization via Summarizer
+  - Smart summarization with tag inference via Summarizer
   - Parallel scanning with bounded concurrency
   """
 
   require Logger
 
-  alias SymphonyElixir.ProjectScanner.{Git, Summarizer}
+  alias SymphonyElixir.ProjectScanner.{AgentSummarizer, Git, Summarizer}
 
   @project_markers ~w(mix.exs package.json Cargo.toml go.mod pyproject.toml setup.py
-                       build.gradle pom.xml CMakeLists.txt Makefile Gemfile requirements.txt)
-
-  @monorepo_dirs ~w(apps packages services modules libs projects crates workspace)
+                       build.gradle pom.xml CMakeLists.txt Makefile Gemfile requirements.txt
+                       .sln .csproj composer.json Dockerfile docker-compose.yml)
 
   @max_concurrency 8
+  @max_depth 5
+
+  @skip_dirs ~w(node_modules .git __pycache__ .venv venv .tox dist build target
+                _build deps .elixir_ls .next .cache .terraform)
 
   @type scan_opts :: [
           git_pull: boolean(),
@@ -31,16 +38,21 @@ defmodule SymphonyElixir.ProjectScanner do
           path: String.t(),
           description: String.t() | nil,
           repo_url: String.t() | nil,
-          git_branch: String.t() | nil
+          git_branch: String.t() | nil,
+          tags: [String.t()]
         }
 
   @doc """
-  Scan a root directory and return a list of candidate projects.
+  Scan a root directory and return a list of discovered projects.
+
+  Recursively explores the directory tree. A directory is considered a project
+  if it has a `.git` directory or contains project marker files. Non-project
+  directories are recursively explored up to #{@max_depth} levels deep.
 
   ## Options
 
     * `:git_pull` - pull latest from default branch before scanning (default: `false`)
-    * `:recursive` - detect monorepos and scan subdirectories (default: `false`)
+    * `:recursive` - kept for API compat, scanning is always recursive now (default: `true`)
   """
   @spec scan(String.t(), scan_opts()) :: {:ok, [scanned_project()]} | {:error, term()}
   def scan(root_path, opts \\ []) do
@@ -48,26 +60,16 @@ defmodule SymphonyElixir.ProjectScanner do
 
     if File.dir?(expanded) do
       git_pull? = Keyword.get(opts, :git_pull, false)
-      recursive? = Keyword.get(opts, :recursive, false)
+      ai? = Keyword.get(opts, :ai_summarize, false)
 
-      dirs =
-        expanded
-        |> list_subdirs()
-        |> Enum.sort()
+      candidates = discover_projects(expanded, 0, git_pull?)
 
       candidates =
-        dirs
-        |> Task.async_stream(
-          fn dir -> scan_directory(dir, git_pull?: git_pull?, recursive?: recursive?) end,
-          max_concurrency: @max_concurrency,
-          timeout: 60_000,
-          on_timeout: :kill_task
-        )
-        |> Enum.flat_map(fn
-          {:ok, results} when is_list(results) -> results
-          {:ok, result} -> [result]
-          {:exit, _reason} -> []
-        end)
+        if ai? and candidates != [] do
+          AgentSummarizer.enrich(candidates)
+        else
+          candidates
+        end
 
       {:ok, candidates}
     else
@@ -77,46 +79,78 @@ defmodule SymphonyElixir.ProjectScanner do
     e -> {:error, {:scan_failed, Exception.message(e)}}
   end
 
-  # --- Scanning ---
+  # --- Recursive discovery ---
 
-  defp scan_directory(dir_path, opts) do
-    git_pull? = Keyword.get(opts, :git_pull?, false)
-    recursive? = Keyword.get(opts, :recursive?, false)
-
-    git_branch = maybe_git_pull(dir_path, git_pull?)
-
-    if recursive? and monorepo?(dir_path) do
-      scan_monorepo(dir_path, git_branch)
+  defp discover_projects(dir_path, depth, git_pull?) when depth >= @max_depth do
+    # At max depth, try to make a candidate even without markers
+    if is_project?(dir_path) do
+      [build_candidate(dir_path, git_pull?)]
     else
-      [build_candidate(dir_path, git_branch)]
+      []
     end
   end
 
-  defp scan_monorepo(dir_path, git_branch) do
-    sub_projects =
-      @monorepo_dirs
-      |> Enum.map(&Path.join(dir_path, &1))
-      |> Enum.filter(&File.dir?/1)
-      |> Enum.flat_map(&list_subdirs/1)
-      |> Enum.filter(&has_project_marker?/1)
-      |> Enum.map(&build_candidate(&1, git_branch))
+  defp discover_projects(dir_path, depth, git_pull?) do
+    subdirs =
+      dir_path
+      |> list_subdirs()
+      |> Enum.sort()
 
-    if sub_projects == [] do
-      # Not actually a monorepo pattern we recognize; treat as single project
-      [build_candidate(dir_path, git_branch)]
+    if depth == 0 do
+      # Top-level: parallel scan
+      subdirs
+      |> Task.async_stream(
+        fn dir -> scan_subtree(dir, depth + 1, git_pull?) end,
+        max_concurrency: @max_concurrency,
+        timeout: 60_000,
+        on_timeout: :kill_task
+      )
+      |> Enum.flat_map(fn
+        {:ok, results} -> results
+        {:exit, _reason} -> []
+      end)
     else
-      # Include the root as well if it has its own project marker
-      root_candidates =
-        if has_project_marker?(dir_path),
-          do: [build_candidate(dir_path, git_branch)],
-          else: []
-
-      root_candidates ++ sub_projects
+      Enum.flat_map(subdirs, fn dir ->
+        scan_subtree(dir, depth + 1, git_pull?)
+      end)
     end
   end
 
-  defp build_candidate(dir_path, git_branch) do
+  defp scan_subtree(dir_path, depth, git_pull?) do
+    cond do
+      # Has .git → this is a project root. Don't recurse further into git repos.
+      Git.has_git?(dir_path) ->
+        projects = [build_candidate(dir_path, git_pull?)]
+
+        # Also check for monorepo sub-projects within this git repo
+        sub_projects = find_monorepo_children(dir_path)
+        projects ++ sub_projects
+
+      # Has project markers but no git → standalone project (e.g., subdirectory project)
+      has_project_marker?(dir_path) ->
+        [build_candidate(dir_path, git_pull?)]
+
+      # Not a project → recurse deeper
+      true ->
+        discover_projects(dir_path, depth, git_pull?)
+    end
+  end
+
+  defp find_monorepo_children(git_root) do
+    # Look for common monorepo container dirs
+    monorepo_containers = ~w(apps packages services modules libs projects crates workspaces src)
+
+    monorepo_containers
+    |> Enum.map(&Path.join(git_root, &1))
+    |> Enum.filter(&File.dir?/1)
+    |> Enum.flat_map(&list_subdirs/1)
+    |> Enum.filter(&has_project_marker?/1)
+    |> Enum.map(&build_candidate(&1, false))
+  end
+
+  defp build_candidate(dir_path, git_pull?) do
     dir_name = Path.basename(dir_path)
+    git_branch = if git_pull?, do: maybe_git_pull(dir_path), else: nil
     summary = Summarizer.summarize(dir_path)
 
     %{
@@ -125,11 +159,23 @@ defmodule SymphonyElixir.ProjectScanner do
       path: dir_path,
       description: summary.description,
       repo_url: Git.detect_remote_url(dir_path) || detect_parent_remote(dir_path),
-      git_branch: git_branch
+      git_branch: git_branch,
+      tags: summary.tags
     }
   end
 
-  # For monorepo sub-projects, walk up to find the git remote
+  # --- Detection helpers ---
+
+  defp is_project?(dir_path) do
+    Git.has_git?(dir_path) or has_project_marker?(dir_path)
+  end
+
+  defp has_project_marker?(dir_path) do
+    Enum.any?(@project_markers, fn marker ->
+      File.regular?(Path.join(dir_path, marker))
+    end)
+  end
+
   defp detect_parent_remote(dir_path) do
     parent = Path.dirname(dir_path)
     grandparent = Path.dirname(parent)
@@ -141,35 +187,12 @@ defmodule SymphonyElixir.ProjectScanner do
     end
   end
 
-  defp maybe_git_pull(dir_path, true) do
+  defp maybe_git_pull(dir_path) do
     case Git.pull_latest(dir_path) do
       {:ok, branch} -> branch
-      {:skipped, _reason} -> nil
-      {:error, _reason} -> nil
+      {:skipped, _} -> nil
+      {:error, _} -> nil
     end
-  end
-
-  defp maybe_git_pull(_dir_path, false), do: nil
-
-  # --- Detection helpers ---
-
-  defp monorepo?(dir_path) do
-    Enum.any?(@monorepo_dirs, fn sub ->
-      sub_path = Path.join(dir_path, sub)
-      File.dir?(sub_path) and has_nested_projects?(sub_path)
-    end)
-  end
-
-  defp has_nested_projects?(container_dir) do
-    container_dir
-    |> list_subdirs()
-    |> Enum.any?(&has_project_marker?/1)
-  end
-
-  defp has_project_marker?(dir_path) do
-    Enum.any?(@project_markers, fn marker ->
-      File.regular?(Path.join(dir_path, marker))
-    end)
   end
 
   # --- Utility ---
@@ -178,17 +201,17 @@ defmodule SymphonyElixir.ProjectScanner do
     case File.ls(dir_path) do
       {:ok, entries} ->
         entries
+        |> Enum.reject(&skip_dir?/1)
         |> Enum.map(&Path.join(dir_path, &1))
         |> Enum.filter(&File.dir?/1)
-        |> Enum.reject(&hidden?/1)
 
       _ ->
         []
     end
   end
 
-  defp hidden?(path) do
-    Path.basename(path) |> String.starts_with?(".")
+  defp skip_dir?(name) do
+    String.starts_with?(name, ".") or name in @skip_dirs
   end
 
   defp expand_path("~" <> rest), do: Path.expand(System.user_home!() <> rest)

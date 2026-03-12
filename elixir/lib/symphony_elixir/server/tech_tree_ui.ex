@@ -54,7 +54,9 @@ defmodule SymphonyElixir.Server.TechTreeUI do
 
   defp css do
     alias SymphonyElixir.Server.UIHelpers
-    UIHelpers.base_css() <> UIHelpers.topbar_css() <>
+
+    UIHelpers.base_css() <>
+      UIHelpers.topbar_css() <>
       ~S"""
 
       body {

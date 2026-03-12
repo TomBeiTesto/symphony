@@ -33,6 +33,9 @@ children = [
 
 {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one)
 
+# Seed built-in skills so E2E tests have them available
+SymphonyElixir.SkillsSeed.seed()
+
 IO.puts("E2E test server running on http://127.0.0.1:4545")
 IO.puts("  Board file:    #{test_board_path}")
 IO.puts("  Settings file: #{test_settings_path}")

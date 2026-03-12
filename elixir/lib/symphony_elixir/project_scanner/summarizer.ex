@@ -1,19 +1,20 @@
 defmodule SymphonyElixir.ProjectScanner.Summarizer do
   @moduledoc """
-  Heuristic extraction of project name and description from README files
-  and package manifest files (package.json, mix.exs, Cargo.toml, etc.).
+  Intelligent project summarization from directory contents.
 
-  Prefers structured "About" / "Overview" sections over the first paragraph,
-  and falls back to package file descriptions when the README is unhelpful.
+  Extracts:
+  - **Title**: cleaned project name from README headings or package files
+  - **Description**: concise summary from About/Overview sections or package descriptions
+  - **Tags**: auto-inferred from tech stack, frameworks, and domain keywords
   """
 
   @max_readme_bytes 12_000
   @readme_names ~w(README.md README.MD readme.md README Readme.md README.rst README.txt)
   @max_description 300
 
-  @type summary :: %{name: String.t(), description: String.t() | nil}
+  @type summary :: %{name: String.t(), description: String.t() | nil, tags: [String.t()]}
 
-  @doc "Extract a project name and description from a directory."
+  @doc "Extract project name, description, and tags from a directory."
   @spec summarize(String.t()) :: summary()
   def summarize(dir_path) do
     dir_name = Path.basename(dir_path)
@@ -30,7 +31,36 @@ defmodule SymphonyElixir.ProjectScanner.Summarizer do
     title = title || extract_name_from_package_files(dir_path)
     title = title || humanize(dir_name)
 
-    %{name: title, description: truncate(description)}
+    # Clean up garbage titles
+    title = clean_title(title, dir_name)
+
+    tags = infer_tags(dir_path, readme)
+
+    %{name: title, description: truncate(description), tags: Enum.uniq(tags)}
+  end
+
+  # --- Title cleaning ---
+
+  @garbage_patterns [
+    ~r/^-{2,}\s*/,
+    ~r/\s*-{2,}$/,
+    ~r/^={2,}\s*/,
+    ~r/\s*={2,}$/,
+    ~r/^automatically generated/i,
+    ~r/^auto[- ]?generated/i,
+    ~r/^service information/i
+  ]
+
+  defp clean_title(title, dir_name) do
+    cleaned =
+      Enum.reduce(@garbage_patterns, title, fn pattern, acc ->
+        String.replace(acc, pattern, "")
+      end)
+      |> String.trim()
+      |> String.trim("-")
+      |> String.trim()
+
+    if useful_title?(cleaned), do: cleaned, else: humanize(dir_name)
   end
 
   # --- README parsing ---
@@ -81,8 +111,17 @@ defmodule SymphonyElixir.ProjectScanner.Summarizer do
 
   def useful_title?(title) do
     down = String.downcase(title)
-    # Reject generic titles
-    down not in ["readme", "readme.md", "documentation", "docs", "table of contents", "toc"]
+
+    down not in [
+      "readme",
+      "readme.md",
+      "documentation",
+      "docs",
+      "table of contents",
+      "toc"
+    ] and
+      String.length(title) > 1 and
+      String.length(title) < 120
   end
 
   @about_headings ~r/^##\s+(About|Overview|Introduction|Summary|What is|Description)/i
@@ -141,6 +180,132 @@ defmodule SymphonyElixir.ProjectScanner.Summarizer do
       String.starts_with?(trimmed, "<") or
       String.starts_with?(trimmed, "```") or
       Regex.match?(~r/^\|/, trimmed)
+  end
+
+  # --- Tag inference ---
+
+  @doc false
+  @spec infer_tags(String.t(), String.t() | nil) :: [String.t()]
+  def infer_tags(dir_path, readme_content) do
+    language_tags = detect_language_tags(dir_path)
+    framework_tags = detect_framework_tags(dir_path)
+    infra_tags = detect_infra_tags(dir_path)
+    domain_tags = if readme_content, do: detect_domain_tags(readme_content), else: []
+
+    (language_tags ++ framework_tags ++ infra_tags ++ domain_tags)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  @language_markers %{
+    "mix.exs" => "elixir",
+    "package.json" => "javascript",
+    "Cargo.toml" => "rust",
+    "go.mod" => "go",
+    "pyproject.toml" => "python",
+    "setup.py" => "python",
+    "requirements.txt" => "python",
+    "Gemfile" => "ruby",
+    "build.gradle" => "java",
+    "pom.xml" => "java",
+    "CMakeLists.txt" => "c++",
+    ".sln" => ".net",
+    ".csproj" => ".net",
+    "composer.json" => "php"
+  }
+
+  defp detect_language_tags(dir_path) do
+    @language_markers
+    |> Enum.filter(fn {marker, _} -> File.regular?(Path.join(dir_path, marker)) end)
+    |> Enum.map(fn {_, lang} -> lang end)
+    |> Enum.uniq()
+  end
+
+  @framework_indicators %{
+    "next.config.js" => "nextjs",
+    "next.config.mjs" => "nextjs",
+    "next.config.ts" => "nextjs",
+    "nuxt.config.ts" => "nuxt",
+    "angular.json" => "angular",
+    "vite.config.ts" => "vite",
+    "webpack.config.js" => "webpack",
+    "tailwind.config.js" => "tailwind",
+    "tailwind.config.ts" => "tailwind",
+    "tsconfig.json" => "typescript",
+    "jest.config.js" => "jest",
+    "playwright.config.ts" => "playwright",
+    ".eslintrc.json" => "eslint",
+    "terraform.tf" => "terraform",
+    "serverless.yml" => "serverless",
+    "samconfig.toml" => "aws-sam",
+    "template.yaml" => "cloudformation",
+    "cdk.json" => "aws-cdk",
+    "pulumi.yaml" => "pulumi"
+  }
+
+  defp detect_framework_tags(dir_path) do
+    @framework_indicators
+    |> Enum.filter(fn {file, _} -> File.regular?(Path.join(dir_path, file)) end)
+    |> Enum.map(fn {_, tag} -> tag end)
+  end
+
+  defp detect_infra_tags(dir_path) do
+    tags = []
+
+    tags =
+      if File.regular?(Path.join(dir_path, "Dockerfile")) or
+           File.regular?(Path.join(dir_path, "docker-compose.yml")) or
+           File.regular?(Path.join(dir_path, "docker-compose.yaml")),
+         do: ["docker" | tags],
+         else: tags
+
+    tags =
+      if File.dir?(Path.join(dir_path, ".github")),
+        do: ["github-actions" | tags],
+        else: tags
+
+    tags =
+      if File.regular?(Path.join(dir_path, ".gitlab-ci.yml")),
+        do: ["gitlab-ci" | tags],
+        else: tags
+
+    tags =
+      if File.regular?(Path.join(dir_path, "Jenkinsfile")),
+        do: ["jenkins" | tags],
+        else: tags
+
+    tags =
+      if File.dir?(Path.join(dir_path, "k8s")) or
+           File.dir?(Path.join(dir_path, "kubernetes")) or
+           File.dir?(Path.join(dir_path, "helm")),
+         do: ["kubernetes" | tags],
+         else: tags
+
+    tags
+  end
+
+  @domain_keywords %{
+    ~r/\b(stream|streaming|kafka|kinesis|event[ -]?driven)\b/i => "streaming",
+    ~r/\b(ETL|data[ -]?pipeline|airflow|glue|spark)\b/i => "data-pipeline",
+    ~r/\b(REST|API|endpoint|microservice|graphql)\b/i => "api",
+    ~r/\b(machine[ -]?learn|ML|model|training|inference)\b/i => "ml",
+    ~r/\b(monitor|alert|observ|prometheus|grafana|datadog)\b/i => "monitoring",
+    ~r/\b(auth|oauth|JWT|SSO|SAML|identity)\b/i => "auth",
+    ~r/\b(database|postgres|mysql|dynamo|redis|cassandra)\b/i => "database",
+    ~r/\b(message[ -]?broker|queue|RabbitMQ|SQS|ActiveMQ|AMQP)\b/i => "messaging",
+    ~r/\b(infrastructure|IaC|terraform|cloudformation|provisioning)\b/i => "infrastructure",
+    ~r/\b(CI\/CD|deploy|pipeline|release)\b/i => "ci-cd",
+    ~r/\b(frontend|UI|user[ -]?interface|react|vue|angular)\b/i => "frontend",
+    ~r/\b(backend|server|service)\b/i => "backend"
+  }
+
+  defp detect_domain_tags(readme_content) do
+    # Only scan first 3000 chars to stay fast
+    snippet = String.slice(readme_content, 0, 3000)
+
+    @domain_keywords
+    |> Enum.filter(fn {pattern, _} -> Regex.match?(pattern, snippet) end)
+    |> Enum.map(fn {_, tag} -> tag end)
   end
 
   # --- Package file fallbacks ---

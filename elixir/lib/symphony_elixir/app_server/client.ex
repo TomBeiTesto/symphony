@@ -10,8 +10,8 @@ defmodule SymphonyElixir.AppServer.Client do
 
   require Logger
 
-  alias SymphonyElixir.AppServer.Protocol
-  alias SymphonyElixir.Config
+  alias SymphonyElixir.AppServer.{Events, Protocol}
+  alias SymphonyElixir.{Config, ShellUtils}
 
   @max_line_bytes 10 * 1024 * 1024
 
@@ -38,7 +38,7 @@ defmodule SymphonyElixir.AppServer.Client do
           {:ok, session()} | {:error, term()}
   def start_session(%Config{} = config, workspace_path, prompt, callback) do
     command = config.agent_command
-    shell_args = build_shell_args(config)
+    shell_args = ShellUtils.shell_args(shell_executable(config))
 
     port_opts = [
       :binary,
@@ -70,7 +70,7 @@ defmodule SymphonyElixir.AppServer.Client do
       }
 
       with {:ok, session} <- do_handshake(session, prompt) do
-        emit_event(session, :session_started, %{os_pid: os_pid})
+        Events.emit_event(session, :session_started, %{os_pid: os_pid})
         {:ok, session}
       end
     rescue
@@ -130,7 +130,7 @@ defmodule SymphonyElixir.AppServer.Client do
       :error, :badarg -> :ok
     end
 
-    emit_event(session, :session_stopped, %{})
+    Events.emit_event(session, :session_stopped, %{})
     :ok
   end
 
@@ -193,7 +193,7 @@ defmodule SymphonyElixir.AppServer.Client do
     remaining = deadline - System.monotonic_time(:millisecond)
 
     if remaining <= 0 do
-      emit_event(session, :turn_timeout, %{})
+      Events.emit_event(session, :turn_timeout, %{})
       {:error, :turn_timeout}
     else
       timeout = min(remaining, 1000)
@@ -210,7 +210,7 @@ defmodule SymphonyElixir.AppServer.Client do
           if status == 0 do
             {:ok, :completed, %{session | port: nil}}
           else
-            emit_event(session, :port_exit, %{status: status})
+            Events.emit_event(session, :port_exit, %{status: status})
             {:error, :port_exit}
           end
       after
@@ -230,19 +230,19 @@ defmodule SymphonyElixir.AppServer.Client do
 
         case Protocol.classify(msg) do
           :turn_completed ->
-            emit_event(session, :turn_completed, %{})
+            Events.emit_event(session, :turn_completed, %{})
             {:ok, :completed, session}
 
           :turn_failed ->
-            emit_event(session, :turn_failed, %{message: inspect(msg)})
+            Events.emit_event(session, :turn_failed, %{message: inspect(msg)})
             {:ok, :failed, session}
 
           :turn_cancelled ->
-            emit_event(session, :turn_cancelled, %{})
+            Events.emit_event(session, :turn_cancelled, %{})
             {:ok, :cancelled, session}
 
           :turn_input_required ->
-            emit_event(session, :turn_input_required, %{})
+            Events.emit_event(session, :turn_input_required, %{})
             {:error, :turn_input_required}
 
           :approval_request ->
@@ -250,7 +250,7 @@ defmodule SymphonyElixir.AppServer.Client do
 
             if approval_id do
               send_message(session, Protocol.approval_result(approval_id, true))
-              emit_event(session, :approval_auto_approved, %{id: approval_id})
+              Events.emit_event(session, :approval_auto_approved, %{id: approval_id})
             end
 
             do_stream_turn(session, deadline)
@@ -269,7 +269,7 @@ defmodule SymphonyElixir.AppServer.Client do
         end
 
       {:error, _} ->
-        emit_event(session, :malformed, %{line: String.slice(line, 0, 200)})
+        Events.emit_event(session, :malformed, %{line: String.slice(line, 0, 200)})
         do_stream_turn(session, deadline)
     end
   end
@@ -278,7 +278,7 @@ defmodule SymphonyElixir.AppServer.Client do
     # Update token usage if present
     case Protocol.extract_token_usage(msg) do
       %{} = usage ->
-        emit_event(session, :token_usage_updated, usage)
+        Events.emit_event(session, :token_usage_updated, usage)
 
       nil ->
         :ok
@@ -287,7 +287,7 @@ defmodule SymphonyElixir.AppServer.Client do
     # Update rate limits if present
     case Protocol.extract_rate_limits(msg) do
       %{} = rl ->
-        emit_event(session, :rate_limits_updated, rl)
+        Events.emit_event(session, :rate_limits_updated, rl)
 
       nil ->
         :ok
@@ -300,11 +300,8 @@ defmodule SymphonyElixir.AppServer.Client do
     tool_name = get_in(msg, ["params", "name"]) || ""
     tool_call_id = msg["id"]
 
-    case tool_name do
-      _ ->
-        send_message(session, Protocol.tool_call_failure(tool_call_id))
-        emit_event(session, :unsupported_tool_call, %{tool: tool_name})
-    end
+    send_message(session, Protocol.tool_call_failure(tool_call_id))
+    Events.emit_event(session, :unsupported_tool_call, %{tool: tool_name})
   end
 
   # --- Message I/O ---
@@ -366,55 +363,10 @@ defmodule SymphonyElixir.AppServer.Client do
 
   # --- Helpers ---
 
-  defp emit_event(%{callback: callback} = session, event, payload) do
-    callback.(%{
-      event: event,
-      timestamp: DateTime.utc_now(),
-      agent_process_pid: session.os_pid,
-      session_id: session.session_id,
-      payload: payload
-    })
-  end
-
   defp shell_executable(%Config{} = config) do
     case config.agent_shell do
-      nil -> default_shell()
+      nil -> ShellUtils.default_shell()
       shell -> shell
-    end
-  end
-
-  defp build_shell_args(%Config{} = config) do
-    shell = shell_executable(config)
-
-    cond do
-      String.contains?(shell, "bash") -> ["-lc"]
-      String.contains?(shell, "sh") -> ["-c"]
-      String.contains?(shell, "cmd") -> ["/C"]
-      String.contains?(shell, "powershell") -> ["-NoProfile", "-Command"]
-      true -> ["-c"]
-    end
-  end
-
-  defp default_shell do
-    case :os.type() do
-      {:win32, _} -> find_windows_shell()
-      _ -> find_unix_shell()
-    end
-  end
-
-  defp find_windows_shell do
-    cond do
-      System.find_executable("cmd") -> System.find_executable("cmd")
-      System.find_executable("powershell") -> System.find_executable("powershell")
-      true -> "cmd"
-    end
-  end
-
-  defp find_unix_shell do
-    cond do
-      System.find_executable("bash") -> System.find_executable("bash")
-      System.find_executable("sh") -> System.find_executable("sh")
-      true -> "/bin/sh"
     end
   end
 

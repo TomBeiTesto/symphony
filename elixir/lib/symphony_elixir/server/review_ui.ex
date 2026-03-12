@@ -1,14 +1,13 @@
 defmodule SymphonyElixir.Server.ReviewUI do
   @moduledoc """
-  Cross-project feature completeness review matrix.
+  Product feature spec sheet view.
 
-  Visualizes products (products spanning multiple projects) as an
-  interactive matrix: features as rows, projects as columns, with
-  colour-coded status cells. Includes AI-assisted gap detection that
-  creates follow-up issues on the board.
+  Visualizes products as a spec-sheet: category ring summaries at top,
+  collapsible feature cards grouped by category, with project tags and
+  overall status per feature. Includes AI-assisted analysis actions.
   """
 
-  @doc "Render the review matrix HTML page."
+  @doc "Render the product spec sheet HTML page."
   @spec render() :: String.t()
   def render do
     """
@@ -17,7 +16,7 @@ defmodule SymphonyElixir.Server.ReviewUI do
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Symphony Review</title>
+      <title>Symphony Products</title>
       <style>
     #{css()}
       </style>
@@ -26,24 +25,13 @@ defmodule SymphonyElixir.Server.ReviewUI do
       <header class="topbar">
         <div class="topbar-left">
           <nav class="breadcrumb"><a href="/board">Board</a><span class="sep">/</span></nav>
-          <h1>Product Review</h1>
+          <h1>Products</h1>
           <select id="product-select" class="prod-select" onchange="selectProduct()">
             <option value="">Select product...</option>
           </select>
         </div>
         <div class="topbar-right">
           <button class="btn btn-ghost" onclick="openNewProductModal()">+ New Product</button>
-          <button class="btn btn-accent" id="analyze-btn" onclick="analyzeGaps()" style="display:none">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-            Analyze Gaps
-          </button>
-          <div class="legend">
-            <span class="legend-item"><span class="status-dot status-done"></span> Done</span>
-            <span class="legend-item"><span class="status-dot status-in_progress"></span> In Progress</span>
-            <span class="legend-item"><span class="status-dot status-planned"></span> Planned</span>
-            <span class="legend-item"><span class="status-dot status-missing"></span> Missing</span>
-            <span class="legend-item"><span class="status-dot status-n_a"></span> N/A</span>
-          </div>
         </div>
       </header>
 
@@ -52,15 +40,16 @@ defmodule SymphonyElixir.Server.ReviewUI do
           <div class="empty-icon">
             <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           </div>
-          <h2>Cross-Project Review</h2>
+          <h2>Product Spec Sheets</h2>
           <p>Create a product to group projects and track feature completeness across them.</p>
           <button class="btn btn-primary" onclick="openNewProductModal()">Create Product</button>
         </div>
 
-        <div class="matrix-container" id="matrix-container" style="display:none">
-          <div class="matrix-header" id="matrix-header"></div>
-          <div class="matrix-body" id="matrix-body"></div>
-          <div class="matrix-footer" id="matrix-footer"></div>
+        <div class="spec-sheet" id="spec-sheet" style="display:none">
+          <div id="product-header"></div>
+          <div id="category-rings"></div>
+          <div id="category-sections"></div>
+          <div id="inline-gap-section"></div>
         </div>
       </main>
 
@@ -85,7 +74,7 @@ defmodule SymphonyElixir.Server.ReviewUI do
         </div>
       </div>
 
-      <!-- Add Feature Modal -->
+      <!-- Add/Edit Feature Modal -->
       <div class="modal-overlay" id="feature-modal" style="display:none">
         <div class="modal modal-sm">
           <div class="modal-header">
@@ -96,6 +85,13 @@ defmodule SymphonyElixir.Server.ReviewUI do
             <input type="hidden" id="feature-edit-id">
             <label>Feature Name<input type="text" id="feature-name" placeholder="e.g. API Key Management"></label>
             <label>Description<textarea id="feature-desc" placeholder="What should this feature cover?"></textarea></label>
+            <label>Category
+              <input type="text" id="feature-category" placeholder="e.g. Security, Data Pipeline, Infrastructure" list="category-list">
+              <datalist id="category-list"></datalist>
+            </label>
+            <label>Dependencies
+              <div id="feature-deps-checklist" class="project-checklist" style="max-height:150px"></div>
+            </label>
           </div>
           <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeFeatureModal()">Cancel</button>
@@ -115,6 +111,8 @@ defmodule SymphonyElixir.Server.ReviewUI do
             <label>Describe your product and what features you expect
               <textarea id="generate-prompt" rows="5" placeholder="e.g. This is a B2C async API product. It includes a REST API, an API key management service, a customer-facing docs site, and a React frontend. We need features like authentication, rate limiting, error handling, monitoring, documentation..."></textarea>
             </label>
+            <label>Agent Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('generate-skills')">select skills...</button></label>
+            <div class="skill-picker" id="generate-skills" style="display:none"></div>
             <div class="ai-hint">This creates an issue on the board. An agent will pick it up, analyze the projects, and propose features as follow-up issues.</div>
           </div>
           <div class="modal-footer">
@@ -124,19 +122,92 @@ defmodule SymphonyElixir.Server.ReviewUI do
         </div>
       </div>
 
-      <!-- Gap Analysis Modal -->
-      <div class="modal-overlay" id="gap-modal" style="display:none">
-        <div class="modal modal-lg">
+      <!-- Code Review Modal -->
+      <div class="modal-overlay" id="code-review-modal" style="display:none">
+        <div class="modal">
           <div class="modal-header">
-            <h2>Gap Analysis</h2>
-            <button class="modal-close" onclick="closeGapModal()">&times;</button>
+            <h2>Code Review</h2>
+            <button class="modal-close" onclick="closeCodeReviewModal()">&times;</button>
           </div>
           <div class="modal-body">
-            <div id="gap-results"></div>
+            <label>Focus areas (optional)
+              <textarea id="review-focus" rows="4" placeholder="e.g. Security vulnerabilities, error handling, test coverage, performance bottlenecks..."></textarea>
+            </label>
+            <label>Agent Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('review-skills')">select skills...</button></label>
+            <div class="skill-picker" id="review-skills" style="display:none"></div>
+            <div class="ai-hint">This creates an issue on the board. An agent will review all project codebases and propose follow-up issues for findings.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeGapModal()">Close</button>
-            <button class="btn btn-primary" id="create-issues-btn" onclick="createGapIssues()">Create Issues for Selected Gaps</button>
+            <button class="btn btn-ghost" onclick="closeCodeReviewModal()">Cancel</button>
+            <button class="btn btn-primary" id="code-review-btn" onclick="startCodeReview()">Start Code Review</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate Definition Modal -->
+      <div class="modal-overlay" id="gendef-modal" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>Generate Product Definition</h2>
+            <button class="modal-close" onclick="closeGenDefModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <label>Additional context (optional)
+              <textarea id="gendef-context" rows="3" placeholder="e.g. This product focuses on our B2C platform, specifically the async messaging layer..."></textarea>
+            </label>
+            <label>Agent Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('gendef-skills')">select skills...</button></label>
+            <div class="skill-picker" id="gendef-skills" style="display:none"></div>
+            <div class="ai-hint">An agent will analyze the selected projects and generate a product name, description, and scope definition.</div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeGenDefModal()">Cancel</button>
+            <button class="btn btn-primary" id="gendef-btn" onclick="generateDefinition()">Generate Definition</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Task Modal -->
+      <div class="modal-overlay" id="product-task-modal" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>Create Product Task</h2>
+            <button class="modal-close" onclick="closeProductTaskModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <label>Task title
+              <input type="text" id="ptask-title" placeholder="e.g. Generate runbook, Create architecture diagram, Write API docs...">
+            </label>
+            <label>Description / prompt
+              <textarea id="ptask-prompt" rows="5" placeholder="Describe what the agent should do. It will have access to all project codebases in this product."></textarea>
+            </label>
+            <label>Priority
+              <select id="ptask-priority">
+                <option value="1">High</option>
+                <option value="2" selected>Medium</option>
+                <option value="3">Low</option>
+              </select>
+            </label>
+            <label>Agent Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('ptask-skills')">select skills...</button></label>
+            <div class="skill-picker" id="ptask-skills" style="display:none"></div>
+            <div class="ai-hint">Creates an issue on the board scoped to this product. The agent will have access to all project codebases and will report findings as follow-up issues.</div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeProductTaskModal()">Cancel</button>
+            <button class="btn btn-primary" id="ptask-btn" onclick="createProductTask()">Create Task</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Detail Modal (per-project statuses) -->
+      <div class="modal-overlay" id="detail-modal" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <h2 id="detail-modal-title">Feature Details</h2>
+            <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+          </div>
+          <div class="modal-body" id="detail-modal-body"></div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeDetailModal()">Close</button>
           </div>
         </div>
       </div>
@@ -151,8 +222,12 @@ defmodule SymphonyElixir.Server.ReviewUI do
 
   defp css do
     alias SymphonyElixir.Server.UIHelpers
-    UIHelpers.base_css() <> UIHelpers.topbar_css() <> UIHelpers.button_css() <>
-    UIHelpers.form_css() <> UIHelpers.modal_css() <>
+
+    UIHelpers.base_css() <>
+      UIHelpers.topbar_css() <>
+      UIHelpers.button_css() <>
+      UIHelpers.form_css() <>
+      UIHelpers.modal_css() <>
       ~S"""
 
       body {
@@ -173,26 +248,6 @@ defmodule SymphonyElixir.Server.ReviewUI do
         font-size: 0.85rem;
         min-width: 200px;
       }
-
-      .legend {
-        display: flex;
-        gap: 12px;
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-      .legend-item { display: flex; align-items: center; gap: 4px; }
-
-      .status-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 3px;
-        display: inline-block;
-      }
-      .status-done { background: var(--green); }
-      .status-in_progress { background: var(--accent); }
-      .status-planned { background: var(--yellow); }
-      .status-missing { background: var(--red); }
-      .status-n_a { background: #484f58; }
 
       /* Review-specific button overrides */
       .btn-accent {
@@ -223,192 +278,301 @@ defmodule SymphonyElixir.Server.ReviewUI do
       .empty-state p { max-width: 400px; line-height: 1.5; }
       .empty-icon { opacity: 0.3; }
 
-      /* Matrix */
-      .matrix-container {
-        min-width: fit-content;
-      }
+      /* Spec Sheet */
+      .spec-sheet { max-width: 1000px; margin: 0 auto; }
 
-      .matrix-header {
+      /* Product Header */
+      .product-header-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px 24px;
+        margin-bottom: 20px;
+      }
+      .product-header-top {
         display: flex;
-        align-items: flex-end;
         justify-content: space-between;
-        margin-bottom: 16px;
+        align-items: flex-start;
         gap: 16px;
+        margin-bottom: 12px;
       }
-      .matrix-header h2 {
-        font-size: 1.1rem;
-        font-weight: 600;
+      .product-header-top h2 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 0;
       }
-      .matrix-header .prod-desc {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-        margin-top: 4px;
+      .product-desc {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 12px;
       }
-      .matrix-actions {
+      .product-actions {
         display: flex;
         gap: 8px;
         flex-shrink: 0;
       }
+      .project-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .project-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 10px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+      }
+      .project-tag-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
 
-      .score-bar {
+      /* Overall progress bar */
+      .overall-bar {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 20px;
-        padding: 12px 16px;
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-light);
       }
-      .score-label {
+      .overall-label {
         font-size: 0.8rem;
         color: var(--text-muted);
         font-weight: 500;
+        white-space: nowrap;
       }
-      .score-progress {
+      .overall-track {
         flex: 1;
-        height: 8px;
+        height: 6px;
         background: var(--bg-tertiary);
-        border-radius: 4px;
+        border-radius: 3px;
         overflow: hidden;
       }
-      .score-fill {
+      .overall-fill {
         height: 100%;
-        border-radius: 4px;
+        border-radius: 3px;
         transition: width 0.3s ease;
       }
-      .score-value {
+      .overall-value {
         font-size: 1rem;
         font-weight: 700;
-        min-width: 50px;
+        min-width: 45px;
         text-align: right;
       }
 
-      /* Table */
-      .matrix-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
+      /* Category Rings */
+      .rings-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .ring-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 14px 18px;
         background: var(--bg-secondary);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        overflow: hidden;
-      }
-      .matrix-table th, .matrix-table td {
-        padding: 10px 14px;
-        text-align: center;
-        border-bottom: 1px solid var(--border-light);
-      }
-      .matrix-table th {
-        background: var(--bg-tertiary);
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--text-muted);
-        position: sticky;
-        top: 0;
-        z-index: 2;
-      }
-      .matrix-table th.feature-col {
-        text-align: left;
-        min-width: 200px;
-      }
-      .matrix-table th.project-col {
-        min-width: 120px;
-      }
-      .matrix-table th.score-col {
-        min-width: 80px;
-      }
-      .matrix-table td.feature-cell {
-        text-align: left;
-        font-weight: 500;
-        font-size: 0.85rem;
-      }
-      .matrix-table td.feature-cell .feature-desc {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        font-weight: 400;
-        margin-top: 2px;
-      }
-      .matrix-table tr:last-child td { border-bottom: none; }
-      .matrix-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-      /* Status cells */
-      .status-cell {
+        min-width: 110px;
         cursor: pointer;
-        position: relative;
         transition: all var(--transition);
       }
-      .status-cell:hover {
-        background: var(--bg-hover) !important;
+      .ring-card:hover {
+        border-color: var(--accent);
+        background: var(--bg-hover);
       }
-      .status-badge {
+      .ring-card.active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .ring-svg { width: 56px; height: 56px; }
+      .ring-label {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        text-align: center;
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ring-count {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+      }
+
+      /* Category Sections */
+      .category-section {
+        margin-bottom: 16px;
+      }
+      .category-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        cursor: pointer;
+        user-select: none;
+      }
+      .category-header:hover .category-title { color: var(--text-primary); }
+      .category-chevron {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+        width: 16px;
+        text-align: center;
+      }
+      .category-chevron.collapsed { transform: rotate(-90deg); }
+      .category-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        transition: color var(--transition);
+      }
+      .category-stats {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        margin-left: auto;
+      }
+      .category-body { }
+      .category-body.collapsed { display: none; }
+
+      /* Feature Cards */
+      .feature-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 18px;
+        margin-bottom: 8px;
+        transition: border-color var(--transition);
+      }
+      .feature-card:hover {
+        border-color: var(--border-light);
+      }
+      .feature-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .feature-status-badge {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        font-size: 1rem;
-        transition: transform 0.15s;
-      }
-      .status-cell:hover .status-badge { transform: scale(1.15); }
-      .status-badge.done { background: rgba(63,185,80,0.15); }
-      .status-badge.in_progress { background: rgba(88,166,255,0.15); }
-      .status-badge.planned { background: rgba(210,153,34,0.15); }
-      .status-badge.missing { background: rgba(248,81,73,0.15); }
-      .status-badge.n_a { background: rgba(72,79,88,0.25); }
-
-      .score-cell {
-        font-weight: 700;
-        font-size: 0.85rem;
-      }
-
-      /* Footer score row */
-      .matrix-table tfoot td {
-        background: var(--bg-tertiary);
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.72rem;
         font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .badge-done { background: rgba(63,185,80,0.15); color: var(--green); }
+      .badge-partial { background: rgba(210,153,34,0.15); color: var(--yellow); }
+      .badge-in_progress { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .badge-planned { background: rgba(210,153,34,0.1); color: var(--yellow); }
+      .badge-missing { background: rgba(248,81,73,0.1); color: var(--red); }
+      .badge-n_a { background: rgba(72,79,88,0.2); color: var(--text-muted); }
+
+      .feature-info { flex: 1; min-width: 0; }
+      .feature-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .feature-desc {
         font-size: 0.8rem;
         color: var(--text-muted);
-        border-top: 2px solid var(--border);
-        border-bottom: none;
+        line-height: 1.4;
+        margin-top: 4px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
-
-      /* Feature row actions */
-      .feature-actions {
+      .feature-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .feature-project-tag {
         display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        background: var(--bg-tertiary);
+        border-radius: 10px;
+        font-size: 0.68rem;
+        color: var(--text-muted);
+      }
+      .feature-actions {
+        display: flex;
         gap: 4px;
-        margin-left: 8px;
+        flex-shrink: 0;
         opacity: 0;
         transition: opacity var(--transition);
       }
-      .matrix-table tr:hover .feature-actions { opacity: 1; }
+      .feature-card:hover .feature-actions { opacity: 1; }
       .feature-action-btn {
         background: none;
         border: none;
         color: var(--text-muted);
         cursor: pointer;
-        padding: 2px;
-        font-size: 0.7rem;
-        border-radius: 3px;
+        padding: 4px 6px;
+        font-size: 0.75rem;
+        border-radius: 4px;
       }
       .feature-action-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
-      /* Add feature row */
-      .add-feature-row td {
-        border-bottom: none;
+      .verify-btn {
+        background: rgba(188,140,255,0.1);
+        border: 1px solid rgba(188,140,255,0.2);
+        color: var(--purple);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.68rem;
+        cursor: pointer;
+        transition: all var(--transition);
       }
+      .verify-btn:hover {
+        background: rgba(188,140,255,0.25);
+        border-color: var(--purple);
+      }
+      .verify-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .gap-warning {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.68rem;
+        color: var(--yellow);
+        margin-left: auto;
+      }
+
+      /* Add feature button at bottom of sections */
       .add-feature-btn {
         background: none;
         border: 1px dashed var(--border);
         color: var(--text-muted);
-        padding: 8px 16px;
+        padding: 10px 16px;
         border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.8rem;
         transition: all var(--transition);
         width: 100%;
+        text-align: center;
+        margin-top: 4px;
       }
       .add-feature-btn:hover {
         border-color: var(--accent);
@@ -417,7 +581,6 @@ defmodule SymphonyElixir.Server.ReviewUI do
       }
 
       /* Modals */
-      /* Review modal overrides — shared base from UIHelpers */
       .modal-overlay { display: flex; }
       .modal { width: 480px; }
       .modal-sm { width: 400px; }
@@ -471,91 +634,147 @@ defmodule SymphonyElixir.Server.ReviewUI do
       .project-check-item:hover { background: var(--bg-hover); }
       .project-check-item input { accent-color: var(--accent); }
 
-      /* Gap analysis results */
-      .gap-list {
+      /* Detail modal per-project statuses */
+      .detail-project-row {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .gap-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
+        align-items: center;
+        gap: 12px;
         padding: 10px 12px;
         background: var(--bg-tertiary);
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
+        margin-bottom: 6px;
       }
-      .gap-item input { margin-top: 3px; accent-color: var(--accent); }
-      .gap-info { flex: 1; }
-      .gap-feature { font-weight: 600; font-size: 0.85rem; }
-      .gap-project { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
-      .gap-reason { font-size: 0.75rem; color: var(--yellow); margin-top: 4px; }
-      .gap-empty {
-        text-align: center;
-        color: var(--green);
-        padding: 24px;
-        font-size: 0.9rem;
-      }
-      .gap-summary {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 12px;
+      .detail-project-name {
+        flex: 1;
         font-size: 0.85rem;
-        color: var(--text-muted);
+        font-weight: 500;
       }
-
-      /* AI hint text */
-      .ai-hint {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        margin-top: 8px;
-        font-style: italic;
-      }
-
-      /* Check button in feature row */
-      .check-btn {
-        background: rgba(188,140,255,0.1);
-        border: 1px solid rgba(188,140,255,0.2);
-        color: var(--purple);
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 0.68rem;
+      .detail-status-btn {
+        padding: 4px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        font-weight: 600;
         cursor: pointer;
         transition: all var(--transition);
-        white-space: nowrap;
       }
-      .check-btn:hover {
-        background: rgba(188,140,255,0.25);
-        border-color: var(--purple);
+      .detail-status-btn:hover { border-color: var(--accent); }
+
+      /* Dependencies */
+      .feature-deps {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 6px;
+        font-size: 0.72rem;
+        color: var(--text-muted);
       }
-      .check-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+      .feature-deps-label { color: var(--purple); font-weight: 500; }
+      .dep-tag {
+        padding: 1px 6px;
+        background: rgba(188,140,255,0.1);
+        border: 1px solid rgba(188,140,255,0.15);
+        border-radius: 8px;
+        font-size: 0.68rem;
+        color: var(--purple);
+        cursor: pointer;
       }
-      .check-btn.checking {
-        animation: pulse 1.5s ease-in-out infinite;
-      }
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+      .dep-tag:hover { background: rgba(188,140,255,0.2); }
+      .dep-blocked {
+        color: var(--red);
+        font-size: 0.72rem;
+        font-weight: 500;
+        margin-left: 4px;
       }
 
-      /* Spinner for generating */
+      /* History / last verified */
+      .feature-history {
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .history-source { color: var(--accent); }
+
+      /* Inline gap section */
+      .gap-section {
+        margin-top: 24px;
+        border: 1px solid rgba(248,81,73,0.2);
+        border-radius: var(--radius);
+        background: rgba(248,81,73,0.03);
+      }
+      .gap-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 18px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .gap-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--red);
+      }
+      .gap-section-count {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+      .gap-section-body { padding: 0 18px 14px; }
+      .gap-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        margin-bottom: 6px;
+      }
+      .gap-row-feature { font-weight: 600; font-size: 0.82rem; flex: 1; }
+      .gap-row-project { font-size: 0.75rem; color: var(--text-muted); }
+      .gap-row-action {
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+        cursor: pointer;
+      }
+      .gap-row-action:hover { border-color: var(--accent); color: var(--accent); }
+
+      /* AI hint text */
+      .ai-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+
+      /* Skill Picker */
+      .skill-picker {
+        max-height: 200px; overflow-y: auto;
+        border: 1px solid var(--border); border-radius: 6px;
+        padding: 8px; margin-top: 4px;
+        background: var(--bg-secondary);
+      }
+      .skill-picker-section { margin-bottom: 8px; }
+      .skill-picker-section strong { display: block; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.5px; }
+      .skill-pick-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.8rem; cursor: pointer; }
+      .skill-pick-item input { margin: 0; cursor: pointer; }
+      .skill-pick-name { color: var(--text-primary); }
+      .skill-pick-count { color: var(--text-muted); font-size: 0.7rem; }
+      .skill-pick-empty { font-size: 0.8rem; color: var(--text-muted); padding: 8px; text-align: center; }
+      .skill-picker-toggle { font-size: 0.75rem; color: var(--accent); cursor: pointer; margin-top: 4px; border: none; background: none; padding: 0; }
+      .skill-picker-toggle:hover { text-decoration: underline; }
+
+      /* Spinner */
       .spinner {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        border: 2px solid var(--text-muted);
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        vertical-align: middle;
-        margin-right: 6px;
+        display: inline-block; width: 14px; height: 14px;
+        border: 2px solid var(--text-muted); border-top-color: transparent;
+        border-radius: 50%; animation: spin 0.8s linear infinite;
+        vertical-align: middle; margin-right: 6px;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       """
   end
 
@@ -566,29 +785,28 @@ defmodule SymphonyElixir.Server.ReviewUI do
       const API = '/board/api';
       let allProducts = [];
       let allProjects = [];
+      let allSkills = [];
+      let allSkillGroups = [];
       let currentProd = null;
+      let collapsedCategories = {};
+      let activeFilter = null;
+      let detailHistoryExpanded = {};
 
       const STATUS_ORDER = ['missing', 'planned', 'in_progress', 'done', 'n_a'];
-      const STATUS_ICONS = {
-        done: '\u2705',
-        in_progress: '\uD83D\uDD35',
-        planned: '\uD83D\uDFE1',
-        missing: '\uD83D\uDD34',
-        n_a: '\u2B1C'
-      };
       const STATUS_LABELS = {
-        done: 'Done',
-        in_progress: 'In Progress',
-        planned: 'Planned',
-        missing: 'Missing',
-        n_a: 'N/A'
+        done: 'Done', partial: 'Partial', in_progress: 'In Progress',
+        planned: 'Planned', missing: 'Missing', n_a: 'N/A'
       };
+      const STATUS_ICONS = {
+        done: '\u2705', partial: '\uD83D\uDFE1', in_progress: '\uD83D\uDD35',
+        planned: '\uD83D\uDFE0', missing: '\uD83D\uDD34', n_a: '\u2B1C'
+      };
+
+      // --- Init & Data Loading ---
 
       async function init() {
-        await Promise.all([loadProducts(), loadProjects()]);
+        await Promise.all([loadProducts(), loadProjects(), loadSkills()]);
         populateProdSelect();
-
-        // Auto-select if only one product
         if (allProducts.length === 1) {
           document.getElementById('product-select').value = allProducts[0].id;
           selectProduct();
@@ -607,6 +825,71 @@ defmodule SymphonyElixir.Server.ReviewUI do
         allProjects = data.projects || [];
       }
 
+      async function loadSkills() {
+        try {
+          var [sRes, gRes] = await Promise.all([
+            fetch(API + '/skills'),
+            fetch(API + '/skill-groups')
+          ]);
+          var sData = await sRes.json();
+          var gData = await gRes.json();
+          allSkills = (sData.skills || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
+          allSkillGroups = (gData.skill_groups || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
+        } catch (e) {
+          allSkills = [];
+          allSkillGroups = [];
+        }
+      }
+
+      function renderSkillPicker(containerId, selectedSkillIds, selectedGroupIds) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        var html = '';
+
+        if (allSkillGroups.length > 0) {
+          html += '<div class="skill-picker-section"><strong>Skill Groups</strong>';
+          allSkillGroups.forEach(function(g) {
+            var checked = selectedGroupIds.indexOf(g.id) >= 0 ? ' checked' : '';
+            html += '<label class="skill-pick-item"><input type="checkbox" value="' + g.id + '" data-type="group"' + checked + '>' +
+              '<span class="skill-pick-name">' + esc(g.name) + '</span>' +
+              '<span class="skill-pick-count">(' + (g.skill_ids || []).length + ' skills)</span></label>';
+          });
+          html += '</div>';
+        }
+
+        if (allSkills.length > 0) {
+          var categories = {};
+          allSkills.forEach(function(s) {
+            var cat = s.category || 'custom';
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(s);
+          });
+          Object.keys(categories).sort().forEach(function(cat) {
+            html += '<div class="skill-picker-section"><strong>' + esc(cat.charAt(0).toUpperCase() + cat.slice(1)) + '</strong>';
+            categories[cat].forEach(function(s) {
+              var checked = selectedSkillIds.indexOf(s.id) >= 0 ? ' checked' : '';
+              html += '<label class="skill-pick-item"><input type="checkbox" value="' + s.id + '" data-type="skill"' + checked + '>' +
+                '<span class="skill-pick-name">' + esc(s.name) + '</span></label>';
+            });
+            html += '</div>';
+          });
+        }
+
+        if (!html) html = '<div class="skill-pick-empty">No skills available. Create skills in the Skills library.</div>';
+        el.innerHTML = html;
+      }
+
+      function getSelectedSkills(containerId) {
+        var el = document.getElementById(containerId);
+        if (!el) return { skill_ids: [], skill_group_ids: [] };
+        var skillIds = [], groupIds = [];
+        el.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
+          if (cb.dataset.type === 'group') groupIds.push(cb.value);
+          else skillIds.push(cb.value);
+        });
+        return { skill_ids: skillIds, skill_group_ids: groupIds };
+      }
+
       function populateProdSelect() {
         var sel = document.getElementById('product-select');
         sel.innerHTML = '<option value="">Select product...</option>';
@@ -620,42 +903,45 @@ defmodule SymphonyElixir.Server.ReviewUI do
         if (!id) {
           currentProd = null;
           document.getElementById('empty-state').style.display = '';
-          document.getElementById('matrix-container').style.display = 'none';
-          document.getElementById('analyze-btn').style.display = 'none';
+          document.getElementById('spec-sheet').style.display = 'none';
           return;
         }
         var res = await fetch(API + '/products/' + id);
         currentProd = await res.json();
+        activeFilter = null;
+        loadCollapseState();
         document.getElementById('empty-state').style.display = 'none';
-        document.getElementById('matrix-container').style.display = '';
-        document.getElementById('analyze-btn').style.display = '';
-        renderMatrix();
+        document.getElementById('spec-sheet').style.display = '';
+        renderSpecSheet();
       }
 
       function getProjectById(id) {
         return allProjects.find(function(p) { return p.id === id; }) || { id: id, name: id };
       }
 
-      function computeScore(statuses, projectIds) {
-        var applicable = projectIds.filter(function(pid) {
+      // --- Status Computation ---
+
+      function computeOverallStatus(statuses, projectIds) {
+        // Use the feature's own project keys if no explicit list provided
+        var pids = projectIds || Object.keys(statuses || {});
+        var applicable = pids.filter(function(pid) {
           return (statuses[pid] || 'missing') !== 'n_a';
         });
-        if (applicable.length === 0) return 100;
-        var done = applicable.filter(function(pid) {
-          return statuses[pid] === 'done';
-        }).length;
-        return Math.round((done / applicable.length) * 100);
+        if (applicable.length === 0) return 'n_a';
+        var vals = applicable.map(function(pid) { return statuses[pid] || 'missing'; });
+        if (vals.every(function(v) { return v === 'done'; })) return 'done';
+        if (vals.some(function(v) { return v === 'in_progress'; })) return 'in_progress';
+        if (vals.some(function(v) { return v === 'done'; })) return 'partial';
+        if (vals.some(function(v) { return v === 'planned'; })) return 'planned';
+        return 'missing';
       }
 
-      function computeProjectScore(features, projectId) {
-        var applicable = features.filter(function(f) {
-          return (f.statuses[projectId] || 'missing') !== 'n_a';
+      function getApplicableProjects(feature, projectIds) {
+        // Use the feature's own project keys if no explicit list provided
+        var pids = projectIds || Object.keys(feature.statuses || {});
+        return pids.filter(function(pid) {
+          return (feature.statuses[pid] || 'missing') !== 'n_a';
         });
-        if (applicable.length === 0) return 100;
-        var done = applicable.filter(function(f) {
-          return f.statuses[projectId] === 'done';
-        }).length;
-        return Math.round((done / applicable.length) * 100);
       }
 
       function scoreColor(pct) {
@@ -665,122 +951,466 @@ defmodule SymphonyElixir.Server.ReviewUI do
         return 'var(--red)';
       }
 
-      function renderMatrix() {
+      function computeCategoryStats(features) {
+        var total = 0, done = 0;
+        features.forEach(function(f) {
+          var app = getApplicableProjects(f);
+          app.forEach(function(pid) {
+            total++;
+            if (f.statuses[pid] === 'done') done++;
+          });
+        });
+        return { total: total, done: done, pct: total > 0 ? Math.round(done / total * 100) : 100 };
+      }
+
+      function timeAgo(isoStr) {
+        if (!isoStr) return '';
+        var d = new Date(isoStr);
+        var now = new Date();
+        var secs = Math.floor((now - d) / 1000);
+        if (secs < 60) return 'just now';
+        var mins = Math.floor(secs / 60);
+        if (mins < 60) return mins + 'm ago';
+        var hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs + 'h ago';
+        var days = Math.floor(hrs / 24);
+        if (days < 30) return days + 'd ago';
+        return d.toLocaleDateString();
+      }
+
+      function getCategories(features) {
+        var cats = {};
+        features.forEach(function(f) {
+          var cat = f.category || 'Uncategorized';
+          if (!cats[cat]) cats[cat] = [];
+          cats[cat].push(f);
+        });
+        // Sort: named categories first (alphabetical), Uncategorized last
+        var keys = Object.keys(cats).sort(function(a, b) {
+          if (a === 'Uncategorized') return 1;
+          if (b === 'Uncategorized') return -1;
+          return a.localeCompare(b);
+        });
+        return keys.map(function(k) { return { name: k, features: cats[k] }; });
+      }
+
+      // --- SVG Donut Ring ---
+
+      function renderDonutSVG(pct, color) {
+        var r = 22, c = 28, stroke = 5;
+        var circ = 2 * Math.PI * r;
+        var offset = circ - (pct / 100) * circ;
+        return '<svg class="ring-svg" viewBox="0 0 56 56">' +
+          '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="var(--bg-tertiary)" stroke-width="' + stroke + '"/>' +
+          '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + stroke + '" ' +
+            'stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" ' +
+            'stroke-linecap="round" transform="rotate(-90 ' + c + ' ' + c + ')" style="transition:stroke-dashoffset 0.4s"/>' +
+          '<text x="' + c + '" y="' + c + '" text-anchor="middle" dominant-baseline="central" fill="' + color + '" font-size="13" font-weight="700">' + pct + '%</text>' +
+        '</svg>';
+      }
+
+      // --- Main Render ---
+
+      function renderSpecSheet() {
         if (!currentProd) return;
         var prod = currentProd;
         var pids = prod.project_ids || [];
         var features = prod.features || [];
 
-        // Header
-        var header = document.getElementById('matrix-header');
-        header.innerHTML =
-          '<div>' +
+        renderProductHeader(prod, pids, features);
+        renderCategoryRings(prod, pids, features);
+        renderCategorySections(prod, pids, features);
+        renderInlineGapSection(prod, pids, features);
+        updateCategoryDatalist(features);
+      }
+
+      function renderProductHeader(prod, pids, features) {
+        var el = document.getElementById('product-header');
+
+        // Overall stats — use each feature's own participating projects
+        var total = 0, done = 0;
+        features.forEach(function(f) {
+          var featurePids = Object.keys(f.statuses || {});
+          featurePids.forEach(function(pid) {
+            var s = f.statuses[pid];
+            if (s !== 'n_a') { total++; if (s === 'done') done++; }
+          });
+        });
+        var pct = total > 0 ? Math.round(done / total * 100) : 100;
+
+        var html = '<div class="product-header-card">' +
+          '<div class="product-header-top">' +
             '<h2>' + esc(prod.name) + '</h2>' +
-            (prod.description ? '<div class="prod-desc">' + esc(prod.description) + '</div>' : '') +
-          '</div>' +
-          '<div class="matrix-actions">' +
-            '<button class="btn btn-accent btn-sm" onclick="openGenerateModal()" title="Use AI to generate features from a description"><span class="spinner" style="display:none" id="gen-spinner"></span>Generate Features</button>' +
-            '<button class="btn btn-ghost btn-sm" onclick="openEditProductModal()">Edit</button>' +
-            '<button class="btn btn-danger btn-sm" onclick="deleteCurrentProduct()">Delete</button>' +
+            '<div class="product-actions">' +
+              '<button class="btn btn-accent btn-sm" onclick="analyzeExistingFeatures()" id="analyze-existing-btn">Analyze Features</button>' +
+              '<button class="btn btn-accent btn-sm" onclick="analyzeGaps()" id="analyze-gaps-btn">Analyze Gaps</button>' +
+              '<button class="btn btn-accent btn-sm" onclick="openCodeReviewModal()">Code Review</button>' +
+              '<button class="btn btn-accent btn-sm" onclick="openGenerateModal()">Generate Features</button>' +
+              '<button class="btn btn-accent btn-sm" onclick="openGenDefModal()">Generate Definition</button>' +
+              '<button class="btn btn-primary btn-sm" onclick="openProductTaskModal()">+ Create Task</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="openEditProductModal()">Edit</button>' +
+              '<button class="btn btn-danger btn-sm" onclick="deleteCurrentProduct()">Delete</button>' +
+            '</div>' +
           '</div>';
 
-        // Overall score
-        var totalApplicable = 0;
-        var totalDone = 0;
-        features.forEach(function(f) {
+        if (prod.description) {
+          html += '<div class="product-desc">' + esc(prod.description) + '</div>';
+        }
+
+        // Project tags
+        if (pids.length > 0) {
+          html += '<div class="project-tags">';
           pids.forEach(function(pid) {
-            var s = f.statuses[pid] || 'missing';
-            if (s !== 'n_a') {
-              totalApplicable++;
-              if (s === 'done') totalDone++;
+            var p = getProjectById(pid);
+            html += '<span class="project-tag"><span class="project-tag-dot"></span>' + esc(p.name) + '</span>';
+          });
+          html += '</div>';
+        }
+
+        // Overall progress bar
+        html += '<div class="overall-bar">' +
+          '<span class="overall-label">Overall Completeness</span>' +
+          '<div class="overall-track"><div class="overall-fill" style="width:' + pct + '%;background:' + scoreColor(pct) + '"></div></div>' +
+          '<span class="overall-value" style="color:' + scoreColor(pct) + '">' + pct + '%</span>' +
+        '</div>';
+
+        html += '</div>';
+        el.innerHTML = html;
+      }
+
+      function renderCategoryRings(prod, pids, features) {
+        var el = document.getElementById('category-rings');
+        var categories = getCategories(features);
+
+        if (categories.length <= 1 && features.length < 5) {
+          el.innerHTML = '';
+          return;
+        }
+
+        var html = '<div class="rings-row">';
+        categories.forEach(function(cat) {
+          var stats = computeCategoryStats(cat.features);
+          var color = scoreColor(stats.pct);
+          var isActive = activeFilter === cat.name;
+          html += '<div class="ring-card' + (isActive ? ' active' : '') + '" onclick="filterCategory(\'' + esc(cat.name).replace(/'/g, "\\'") + '\')">' +
+            renderDonutSVG(stats.pct, color) +
+            '<div class="ring-label" title="' + esc(cat.name) + '">' + esc(cat.name) + '</div>' +
+            '<div class="ring-count">' + cat.features.length + ' feature' + (cat.features.length !== 1 ? 's' : '') + '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+        el.innerHTML = html;
+      }
+
+      function renderCategorySections(prod, pids, features) {
+        var el = document.getElementById('category-sections');
+        var categories = getCategories(features);
+
+        var html = '';
+        categories.forEach(function(cat) {
+          if (activeFilter && activeFilter !== cat.name) return;
+
+          var stats = computeCategoryStats(cat.features);
+          var collapsed = collapsedCategories[cat.name];
+          var catId = 'cat-' + cat.name.replace(/\W/g, '_');
+
+          html += '<div class="category-section">';
+
+          // Category header
+          var doneCount = cat.features.filter(function(f) {
+            return computeOverallStatus(f.statuses) === 'done';
+          }).length;
+
+          html += '<div class="category-header" onclick="toggleCategory(\'' + esc(cat.name).replace(/'/g, "\\'") + '\')">' +
+            '<span class="category-chevron' + (collapsed ? ' collapsed' : '') + '">\u25BC</span>' +
+            '<span class="category-title">' + esc(cat.name) + '</span>' +
+            '<span class="category-stats">' + doneCount + '/' + cat.features.length + ' done \u00b7 ' + stats.pct + '%</span>' +
+          '</div>';
+
+          // Feature cards
+          html += '<div class="category-body' + (collapsed ? ' collapsed' : '') + '" id="' + catId + '">';
+          cat.features.forEach(function(f) {
+            html += renderFeatureCard(f, pids);
+          });
+
+          // Add feature button
+          html += '<button class="add-feature-btn" onclick="openAddFeatureModal(\'' + esc(cat.name).replace(/'/g, "\\'") + '\')">+ Add Feature</button>';
+
+          html += '</div></div>';
+        });
+
+        // If no features at all
+        if (features.length === 0) {
+          html += '<div style="text-align:center;padding:40px;color:var(--text-muted)">' +
+            '<p>No features defined yet.</p>' +
+            '<button class="btn btn-primary" onclick="openAddFeatureModal()">Add Feature</button>' +
+          '</div>';
+        }
+
+        el.innerHTML = html;
+      }
+
+      var gapSectionCollapsed = false;
+
+      function renderInlineGapSection(prod, pids, features) {
+        var el = document.getElementById('inline-gap-section');
+        var gaps = [];
+
+        features.forEach(function(f) {
+          // Only check projects that participate in this feature
+          var featurePids = Object.keys(f.statuses || {});
+          featurePids.forEach(function(pid) {
+            var s = f.statuses[pid];
+            if (s === 'missing' || s === 'planned') {
+              gaps.push({
+                feature_id: f.id,
+                feature_name: f.name,
+                project_id: pid,
+                project_name: getProjectById(pid).name,
+                status: s,
+                category: f.category || 'Uncategorized',
+                // Check if blocked by dependencies
+                blocked: (f.depends_on || []).some(function(depId) {
+                  var depF = features.find(function(x) { return x.id === depId; });
+                  return depF && computeOverallStatus(depF.statuses) !== 'done';
+                })
+              });
             }
           });
         });
-        var overallPct = totalApplicable > 0 ? Math.round((totalDone / totalApplicable) * 100) : 100;
 
-        // Table
-        var body = document.getElementById('matrix-body');
-        var html = '';
-
-        // Score bar
-        html += '<div class="score-bar">' +
-          '<span class="score-label">Overall Completeness</span>' +
-          '<div class="score-progress"><div class="score-fill" style="width:' + overallPct + '%;background:' + scoreColor(overallPct) + '"></div></div>' +
-          '<span class="score-value" style="color:' + scoreColor(overallPct) + '">' + overallPct + '%</span>' +
-        '</div>';
-
-        // Table
-        html += '<table class="matrix-table"><thead><tr>';
-        html += '<th class="feature-col">Feature</th>';
-        pids.forEach(function(pid) {
-          var p = getProjectById(pid);
-          html += '<th class="project-col">' + esc(p.name) + '</th>';
-        });
-        html += '<th class="score-col">Score</th>';
-        html += '<th class="score-col"></th>';
-        html += '</tr></thead><tbody>';
-
-        if (features.length === 0) {
-          html += '<tr><td colspan="' + (pids.length + 3) + '" style="text-align:center;padding:24px;color:var(--text-muted)">No features defined yet. Add one below.</td></tr>';
+        if (gaps.length === 0) {
+          el.innerHTML = '';
+          return;
         }
 
-        features.forEach(function(f) {
-          html += '<tr>';
-          html += '<td class="feature-cell">' +
-            esc(f.name) +
-            (f.description ? '<div class="feature-desc">' + esc(f.description) + '</div>' : '') +
-            '<span class="feature-actions">' +
-              '<button class="feature-action-btn" onclick="editFeature(\'' + f.id + '\')" title="Edit">&#9998;</button>' +
-              '<button class="feature-action-btn" onclick="deleteFeature(\'' + f.id + '\')" title="Delete">&times;</button>' +
-            '</span>' +
-          '</td>';
+        var html = '<div class="gap-section">' +
+          '<div class="gap-section-header" onclick="toggleGapSection()">' +
+            '<span class="gap-section-title">\u26A0 Gap Analysis (' + gaps.length + ' items)</span>' +
+            '<span class="gap-section-count">' + gaps.filter(function(g) { return g.status === 'missing'; }).length + ' missing \u00b7 ' + gaps.filter(function(g) { return g.status === 'planned'; }).length + ' planned</span>' +
+          '</div>';
 
-          pids.forEach(function(pid) {
-            var status = f.statuses[pid] || 'missing';
-            html += '<td class="status-cell" onclick="cycleStatus(\'' + f.id + '\',\'' + pid + '\',\'' + status + '\')">' +
-              '<span class="status-badge ' + status + '" title="' + STATUS_LABELS[status] + ' — click to change">' + STATUS_ICONS[status] + '</span>' +
-            '</td>';
+        if (!gapSectionCollapsed) {
+          html += '<div class="gap-section-body">';
+          gaps.forEach(function(g) {
+            html += '<div class="gap-row">' +
+              '<span class="gap-row-feature">' + STATUS_ICONS[g.status] + ' ' + esc(g.feature_name) +
+                (g.blocked ? ' <span class="dep-blocked">\u26D4</span>' : '') +
+              '</span>' +
+              '<span class="gap-row-project">' + esc(g.project_name) + '</span>' +
+              '<button class="gap-row-action" onclick="quickSetStatus(\'' + g.feature_id + '\',\'' + g.project_id + '\',\'in_progress\')">\u25B6 Start</button>' +
+              '<button class="gap-row-action" onclick="quickSetStatus(\'' + g.feature_id + '\',\'' + g.project_id + '\',\'done\')">\u2705 Done</button>' +
+              '<button class="gap-row-action" onclick="quickSetStatus(\'' + g.feature_id + '\',\'' + g.project_id + '\',\'n_a\')">\u2B1C N/A</button>' +
+            '</div>';
           });
+          html += '</div>';
+        }
 
-          var rowScore = computeScore(f.statuses, pids);
-          html += '<td class="score-cell" style="color:' + scoreColor(rowScore) + '">' + rowScore + '%</td>';
-          html += '<td><button class="check-btn" id="check-' + f.id + '" onclick="checkFeature(\'' + f.id + '\')" title="AI checks if this feature is implemented">Check</button></td>';
-          html += '</tr>';
-        });
-
-        // Add feature row
-        html += '<tr class="add-feature-row"><td colspan="' + (pids.length + 3) + '"><button class="add-feature-btn" onclick="openAddFeatureModal()">+ Add Feature</button></td></tr>';
-
-        html += '</tbody>';
-
-        // Footer with per-project scores
-        html += '<tfoot><tr><td style="text-align:left;font-weight:600">Project Score</td>';
-        pids.forEach(function(pid) {
-          var pScore = computeProjectScore(features, pid);
-          html += '<td style="color:' + scoreColor(pScore) + ';font-weight:700">' + pScore + '%</td>';
-        });
-        html += '<td></td><td></td></tr></tfoot>';
-
-        html += '</table>';
-        body.innerHTML = html;
-
-        // Footer
-        document.getElementById('matrix-footer').innerHTML = '';
+        html += '</div>';
+        el.innerHTML = html;
       }
 
-      async function cycleStatus(featureId, projectId, current) {
+      function toggleGapSection() {
+        gapSectionCollapsed = !gapSectionCollapsed;
+        renderSpecSheet();
+      }
+
+      async function quickSetStatus(featureId, projectId, status) {
+        await fetch(API + '/products/' + currentProd.id + '/features/' + featureId + '/status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, status: status, source: 'gap_action' })
+        });
+        var res = await fetch(API + '/products/' + currentProd.id);
+        currentProd = await res.json();
+        renderSpecSheet();
+      }
+
+      function renderFeatureCard(f, pids) {
+        var overall = computeOverallStatus(f.statuses);
+        var applicable = getApplicableProjects(f);
+        var missingCount = applicable.filter(function(pid) {
+          var s = f.statuses[pid] || 'missing';
+          return s === 'missing';
+        }).length;
+
+        var html = '<div class="feature-card">' +
+          '<div class="feature-card-top">' +
+            '<span class="feature-status-badge badge-' + overall + '">' + STATUS_ICONS[overall] + ' ' + STATUS_LABELS[overall] + '</span>' +
+            '<div class="feature-info">' +
+              '<div class="feature-name">' + esc(f.name) + '</div>' +
+              (f.description ? '<div class="feature-desc">' + esc(f.description) + '</div>' : '') +
+              '<div class="feature-meta">';
+
+        // Project tags for applicable projects
+        applicable.forEach(function(pid) {
+          var p = getProjectById(pid);
+          var pStatus = f.statuses[pid] || 'missing';
+          html += '<span class="feature-project-tag" title="' + STATUS_LABELS[pStatus] + '">' + STATUS_ICONS[pStatus] + ' ' + esc(p.name) + '</span>';
+        });
+
+        // Gap warning
+        if (missingCount > 0 && overall !== 'missing') {
+          html += '<span class="gap-warning">\u26A0 ' + missingCount + ' gap' + (missingCount > 1 ? 's' : '') + '</span>';
+        }
+
+        html += '</div>';
+
+        // Dependencies (skip orphaned/deleted refs)
+        var deps = (f.depends_on || []).filter(function(depId) {
+          return currentProd.features.some(function(x) { return x.id === depId; });
+        });
+        if (deps.length > 0) {
+          html += '<div class="feature-deps"><span class="feature-deps-label">Depends on:</span>';
+          deps.forEach(function(depId) {
+            var depF = currentProd.features.find(function(x) { return x.id === depId; });
+            var depName = depF.name;
+            var depStatus = computeOverallStatus(depF.statuses);
+            html += '<span class="dep-tag" onclick="openFeatureDetail(\'' + depId + '\')" title="' + STATUS_LABELS[depStatus] + '">' + STATUS_ICONS[depStatus] + ' ' + esc(depName) + '</span>';
+            if (depStatus !== 'done') {
+              html += '<span class="dep-blocked">\u26D4 blocked</span>';
+            }
+          });
+          html += '</div>';
+        }
+
+        // Last status change (from history)
+        var history = f.status_history || [];
+        if (history.length > 0) {
+          var last = history[0];
+          var ago = timeAgo(last.changed_at);
+          var srcLabel = last.source === 'manual' ? 'manually' : 'by ' + last.source;
+          var projName = getProjectById(last.project_id).name;
+          html += '<div class="feature-history">Last updated: ' + esc(projName) + ' \u2192 ' + STATUS_LABELS[last.status] + ' \u00b7 ' + ago + ' <span class="history-source">(' + esc(srcLabel) + ')</span></div>';
+        }
+
+        html += '</div>' +
+            '<div class="feature-actions">' +
+              '<button class="verify-btn" onclick="checkFeature(\'' + f.id + '\')" title="Verify this feature across projects">Verify</button>' +
+              '<button class="feature-action-btn" onclick="openFeatureDetail(\'' + f.id + '\')" title="Per-project details">\uD83D\uDD0D</button>' +
+              '<button class="feature-action-btn" onclick="editFeature(\'' + f.id + '\')" title="Edit">\u270E</button>' +
+              '<button class="feature-action-btn" onclick="deleteFeature(\'' + f.id + '\')" title="Delete">\u00D7</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+        return html;
+      }
+
+      // --- Category Filter & Toggle ---
+
+      function filterCategory(catName) {
+        if (activeFilter === catName) {
+          activeFilter = null;
+        } else {
+          activeFilter = catName;
+        }
+        renderSpecSheet();
+      }
+
+      function toggleCategory(catName) {
+        collapsedCategories[catName] = !collapsedCategories[catName];
+        saveCollapseState();
+        renderSpecSheet();
+      }
+
+      function saveCollapseState() {
+        if (!currentProd) return;
+        try { localStorage.setItem('symphony_collapse_' + currentProd.id, JSON.stringify(collapsedCategories)); } catch(e) {}
+      }
+
+      function loadCollapseState() {
+        if (!currentProd) { collapsedCategories = {}; return; }
+        try {
+          var saved = localStorage.getItem('symphony_collapse_' + currentProd.id);
+          collapsedCategories = saved ? JSON.parse(saved) : {};
+        } catch(e) { collapsedCategories = {}; }
+      }
+
+      function updateCategoryDatalist(features) {
+        var cats = {};
+        features.forEach(function(f) { if (f.category) cats[f.category] = true; });
+        var dl = document.getElementById('category-list');
+        dl.innerHTML = Object.keys(cats).map(function(c) {
+          return '<option value="' + esc(c) + '">';
+        }).join('');
+      }
+
+      // --- Feature Detail Modal (per-project statuses) ---
+
+      function openFeatureDetail(fid) {
+        var f = currentProd.features.find(function(x) { return x.id === fid; });
+        if (!f) return;
+        var featurePids = Object.keys(f.statuses || {});
+
+        document.getElementById('detail-modal-title').textContent = f.name;
+
+        var html = '';
+        if (f.description) {
+          html += '<p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">' + esc(f.description) + '</p>';
+        }
+
+        featurePids.forEach(function(pid) {
+          var p = getProjectById(pid);
+          var status = f.statuses[pid] || 'missing';
+          html += '<div class="detail-project-row">' +
+            '<span class="detail-project-name">' + esc(p.name) + '</span>' +
+            '<button class="detail-status-btn badge-' + status + '" onclick="cycleDetailStatus(\'' + fid + '\',\'' + pid + '\',\'' + status + '\')" title="Click to change">' +
+              STATUS_ICONS[status] + ' ' + STATUS_LABELS[status] +
+            '</button>' +
+          '</div>';
+        });
+
+        // History section
+        var history = f.status_history || [];
+        if (history.length > 0) {
+          var historyLimit = detailHistoryExpanded[fid] ? history.length : 10;
+          html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">';
+          html += '<h4 style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">Change History (' + history.length + ')</h4>';
+          history.slice(0, historyLimit).forEach(function(h) {
+            var projName = getProjectById(h.project_id).name;
+            var ago = timeAgo(h.changed_at);
+            html += '<div style="font-size:0.75rem;color:var(--text-muted);padding:3px 0">' +
+              esc(projName) + ' \u2192 ' + STATUS_LABELS[h.status] + ' <span class="history-source">(' + esc(h.source) + ')</span> \u00b7 ' + ago +
+            '</div>';
+          });
+          if (history.length > 10) {
+            if (detailHistoryExpanded[fid]) {
+              html += '<div style="padding-top:4px"><button class="btn btn-ghost btn-sm" onclick="toggleDetailHistory(\'' + fid + '\')">Show less</button></div>';
+            } else {
+              html += '<div style="padding-top:4px"><button class="btn btn-ghost btn-sm" onclick="toggleDetailHistory(\'' + fid + '\')">Show all ' + history.length + ' entries</button></div>';
+            }
+          }
+          html += '</div>';
+        }
+
+        document.getElementById('detail-modal-body').innerHTML = html;
+        document.getElementById('detail-modal').style.display = '';
+      }
+
+      function closeDetailModal() {
+        document.getElementById('detail-modal').style.display = 'none';
+      }
+
+      function toggleDetailHistory(fid) {
+        detailHistoryExpanded[fid] = !detailHistoryExpanded[fid];
+        openFeatureDetail(fid);
+      }
+
+      async function cycleDetailStatus(featureId, projectId, current) {
         var idx = STATUS_ORDER.indexOf(current);
         var next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
 
         await fetch(API + '/products/' + currentProd.id + '/features/' + featureId + '/status', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project_id: projectId, status: next })
+          body: JSON.stringify({ project_id: projectId, status: next, source: 'manual' })
         });
 
         var res = await fetch(API + '/products/' + currentProd.id);
         currentProd = await res.json();
-        renderMatrix();
+        renderSpecSheet();
+        openFeatureDetail(featureId);
       }
 
       // --- Product CRUD ---
@@ -806,9 +1436,7 @@ defmodule SymphonyElixir.Server.ReviewUI do
         document.getElementById('prod-name').focus();
       }
 
-      function closeProdModal() {
-        document.getElementById('prod-modal').style.display = 'none';
-      }
+      function closeProdModal() { document.getElementById('prod-modal').style.display = 'none'; }
 
       function renderProjectChecklist(selectedIds) {
         var container = document.getElementById('project-checklist');
@@ -818,7 +1446,7 @@ defmodule SymphonyElixir.Server.ReviewUI do
         }
         container.innerHTML = allProjects.map(function(p) {
           var checked = selectedIds.indexOf(p.id) !== -1 ? 'checked' : '';
-          return '<label class="project-check-item"><input type="checkbox" value="' + p.id + '" ' + checked + '> ' + esc(p.name) + (p.description ? ' <span style="color:var(--text-muted);font-size:0.75rem">— ' + esc(p.description) + '</span>' : '') + '</label>';
+          return '<label class="project-check-item"><input type="checkbox" value="' + p.id + '" ' + checked + '> ' + esc(p.name) + (p.description ? ' <span style="color:var(--text-muted);font-size:0.75rem">\u2014 ' + esc(p.description) + '</span>' : '') + '</label>';
         }).join('');
       }
 
@@ -833,18 +1461,16 @@ defmodule SymphonyElixir.Server.ReviewUI do
 
         var payload = { name: name, description: desc || null, project_ids: projectIds };
 
+        var res;
         if (editId) {
-          await fetch(API + '/products/' + editId, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+          res = await fetch(API + '/products/' + editId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         } else {
-          await fetch(API + '/products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+          res = await fetch(API + '/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        }
+
+        if (res.status === 409) {
+          alert('A product with that name already exists.');
+          return;
         }
 
         closeProdModal();
@@ -862,7 +1488,6 @@ defmodule SymphonyElixir.Server.ReviewUI do
       async function deleteCurrentProduct() {
         if (!currentProd) return;
         if (!confirm('Delete product "' + currentProd.name + '"?')) return;
-
         await fetch(API + '/products/' + currentProd.id, { method: 'DELETE' });
         currentProd = null;
         await loadProducts();
@@ -873,11 +1498,27 @@ defmodule SymphonyElixir.Server.ReviewUI do
 
       // --- Feature CRUD ---
 
-      function openAddFeatureModal() {
+      function renderDepsChecklist(selectedIds, excludeId) {
+        var container = document.getElementById('feature-deps-checklist');
+        var features = (currentProd && currentProd.features) ? currentProd.features : [];
+        var available = features.filter(function(f) { return f.id !== excludeId; });
+        if (available.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-muted);padding:8px;font-size:0.8rem">No other features to depend on.</div>';
+          return;
+        }
+        container.innerHTML = available.map(function(f) {
+          var checked = selectedIds.indexOf(f.id) !== -1 ? 'checked' : '';
+          return '<label class="project-check-item"><input type="checkbox" value="' + f.id + '" ' + checked + '> ' + esc(f.name) + '</label>';
+        }).join('');
+      }
+
+      function openAddFeatureModal(defaultCategory) {
         document.getElementById('feature-modal-title').textContent = 'Add Feature';
         document.getElementById('feature-edit-id').value = '';
         document.getElementById('feature-name').value = '';
         document.getElementById('feature-desc').value = '';
+        document.getElementById('feature-category').value = defaultCategory && defaultCategory !== 'Uncategorized' ? defaultCategory : '';
+        renderDepsChecklist([], null);
         document.getElementById('feature-modal').style.display = '';
         document.getElementById('feature-name').focus();
       }
@@ -889,13 +1530,13 @@ defmodule SymphonyElixir.Server.ReviewUI do
         document.getElementById('feature-edit-id').value = fid;
         document.getElementById('feature-name').value = f.name || '';
         document.getElementById('feature-desc').value = f.description || '';
+        document.getElementById('feature-category').value = f.category || '';
+        renderDepsChecklist(f.depends_on || [], fid);
         document.getElementById('feature-modal').style.display = '';
         document.getElementById('feature-name').focus();
       }
 
-      function closeFeatureModal() {
-        document.getElementById('feature-modal').style.display = 'none';
-      }
+      function closeFeatureModal() { document.getElementById('feature-modal').style.display = 'none'; }
 
       async function saveFeature() {
         var editId = document.getElementById('feature-edit-id').value;
@@ -903,26 +1544,27 @@ defmodule SymphonyElixir.Server.ReviewUI do
         if (!name) { document.getElementById('feature-name').focus(); return; }
 
         var desc = document.getElementById('feature-desc').value.trim();
-        var payload = { name: name, description: desc || null };
+        var category = document.getElementById('feature-category').value.trim();
+        var depChecks = document.querySelectorAll('#feature-deps-checklist input[type=checkbox]:checked');
+        var dependsOn = Array.from(depChecks).map(function(c) { return c.value; });
+        var payload = { name: name, description: desc || null, category: category || null, depends_on: dependsOn };
 
+        var fRes;
         if (editId) {
-          await fetch(API + '/products/' + currentProd.id + '/features/' + editId, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+          fRes = await fetch(API + '/products/' + currentProd.id + '/features/' + editId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         } else {
-          await fetch(API + '/products/' + currentProd.id + '/features', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+          fRes = await fetch(API + '/products/' + currentProd.id + '/features', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        }
+
+        if (fRes.status === 409) {
+          alert('A feature with that name already exists in this product.');
+          return;
         }
 
         closeFeatureModal();
         var res = await fetch(API + '/products/' + currentProd.id);
         currentProd = await res.json();
-        renderMatrix();
+        renderSpecSheet();
       }
 
       async function deleteFeature(fid) {
@@ -930,150 +1572,76 @@ defmodule SymphonyElixir.Server.ReviewUI do
         await fetch(API + '/products/' + currentProd.id + '/features/' + fid, { method: 'DELETE' });
         var res = await fetch(API + '/products/' + currentProd.id);
         currentProd = await res.json();
-        renderMatrix();
+        renderSpecSheet();
       }
 
-      // --- Gap Analysis ---
+      // --- Analyze Gaps (AI) ---
 
-      var lastGaps = [];
+      var lastAIGaps = [];
 
       async function analyzeGaps() {
         if (!currentProd) return;
-        var btn = document.getElementById('analyze-btn');
-        btn.textContent = 'Analyzing...';
+        if (!confirm('This will create an agent task to analyze codebases and identify gaps in the feature matrix. Continue?')) return;
+
+        var btn = document.getElementById('analyze-gaps-btn');
+        btn.textContent = 'Creating task...';
         btn.disabled = true;
 
         try {
           var res = await fetch(API + '/products/' + currentProd.id + '/analyze-gaps', { method: 'POST' });
           var data = await res.json();
-          lastGaps = data.gaps || [];
-          renderGapModal();
-          document.getElementById('gap-modal').style.display = '';
+          alert(data.message || 'Gap analysis task created. The agent will pick it up and report findings as follow-ups.');
         } catch (e) {
           alert('Gap analysis failed: ' + e.message);
         } finally {
-          btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Analyze Gaps';
+          btn.textContent = 'Analyze Gaps';
           btn.disabled = false;
         }
       }
 
-      function renderGapModal() {
-        var html = '';
-        if (lastGaps.length === 0) {
-          html = '<div class="gap-empty">\u2705 No gaps found! All features are covered across all projects.</div>';
-          document.getElementById('create-issues-btn').style.display = 'none';
+      // --- Skill Picker Toggle ---
+
+      function toggleSkillPicker(containerId) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        if (el.style.display === 'none') {
+          renderSkillPicker(containerId, [], []);
+          el.style.display = '';
         } else {
-          html += '<div class="gap-summary"><span>' + lastGaps.length + ' gap(s) found</span><label><input type="checkbox" onchange="toggleAllGaps(this)" checked> Select All</label></div>';
-          html += '<div class="gap-list">';
-          lastGaps.forEach(function(g, idx) {
-            html += '<div class="gap-item">' +
-              '<input type="checkbox" class="gap-check" data-idx="' + idx + '" checked>' +
-              '<div class="gap-info">' +
-                '<div class="gap-feature">' + esc(g.feature_name) + '</div>' +
-                '<div class="gap-project">Project: ' + esc(g.project_name) + '</div>' +
-                '<div class="gap-reason">' + esc(g.reason) + '</div>' +
-              '</div>' +
-            '</div>';
-          });
-          html += '</div>';
-          document.getElementById('create-issues-btn').style.display = '';
-        }
-        document.getElementById('gap-results').innerHTML = html;
-      }
-
-      function toggleAllGaps(master) {
-        document.querySelectorAll('.gap-check').forEach(function(cb) {
-          cb.checked = master.checked;
-        });
-      }
-
-      function closeGapModal() {
-        document.getElementById('gap-modal').style.display = 'none';
-      }
-
-      async function createGapIssues() {
-        var checks = document.querySelectorAll('.gap-check:checked');
-        if (checks.length === 0) { alert('No gaps selected.'); return; }
-
-        var selected = Array.from(checks).map(function(cb) {
-          return lastGaps[parseInt(cb.dataset.idx)];
-        });
-
-        var btn = document.getElementById('create-issues-btn');
-        btn.textContent = 'Creating ' + selected.length + ' issue(s)...';
-        btn.disabled = true;
-
-        try {
-          var res = await fetch(API + '/products/' + currentProd.id + '/create-gap-issues', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gaps: selected })
-          });
-          var data = await res.json();
-          var created = data.created || [];
-
-          // Update statuses to "planned" for the created gaps
-          for (var i = 0; i < selected.length; i++) {
-            var gap = selected[i];
-            await fetch(API + '/products/' + currentProd.id + '/features/' + gap.feature_id + '/status', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ project_id: gap.project_id, status: 'planned' })
-            });
-          }
-
-          closeGapModal();
-          alert('Created ' + created.length + ' issue(s) on the board. Statuses updated to Planned.');
-
-          // Reload product
-          var res2 = await fetch(API + '/products/' + currentProd.id);
-          currentProd = await res2.json();
-          renderMatrix();
-        } catch (e) {
-          alert('Failed to create issues: ' + e.message);
-        } finally {
-          btn.textContent = 'Create Issues for Selected Gaps';
-          btn.disabled = false;
+          el.style.display = 'none';
         }
       }
 
-      // --- Generate Features (creates agent task) ---
+      // --- Generate Features ---
 
       function openGenerateModal() {
         if (!currentProd) return;
         document.getElementById('generate-prompt').value = '';
+        document.getElementById('generate-skills').style.display = 'none';
         document.getElementById('generate-modal').style.display = '';
         document.getElementById('generate-prompt').focus();
       }
 
-      function closeGenerateModal() {
-        document.getElementById('generate-modal').style.display = 'none';
-      }
+      function closeGenerateModal() { document.getElementById('generate-modal').style.display = 'none'; }
 
       async function generateFeatures() {
         var prompt = document.getElementById('generate-prompt').value.trim();
         if (!prompt) { document.getElementById('generate-prompt').focus(); return; }
 
+        var skills = getSelectedSkills('generate-skills');
         var btn = document.getElementById('generate-btn');
         btn.innerHTML = '<span class="spinner"></span> Creating...';
         btn.disabled = true;
 
         try {
           var res = await fetch(API + '/products/' + currentProd.id + '/generate-features', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: prompt, skill_ids: skills.skill_ids, skill_group_ids: skills.skill_group_ids })
           });
           var data = await res.json();
-
-          if (data.error) {
-            alert('Error: ' + (data.message || data.error));
-            return;
-          }
-
+          if (data.error) { alert('Error: ' + (data.message || data.error)); return; }
           closeGenerateModal();
-          var issue = data.issue;
-          alert(issue.identifier + ' created on the board.\n\nThe agent will pick it up, analyze the product, and propose features as follow-up issues.\n\nCheck the board for progress.');
+          alert(data.issue.identifier + ' created on the board.\n\nThe agent will analyze the product and propose features as follow-up issues.\n\nCheck the board for progress.');
         } catch (e) {
           alert('Failed: ' + e.message);
         } finally {
@@ -1082,15 +1650,13 @@ defmodule SymphonyElixir.Server.ReviewUI do
         }
       }
 
-      // --- Check Feature (creates agent tasks per project) ---
+      // --- Check/Verify Feature ---
 
       async function checkFeature(featureId) {
         if (!currentProd) return;
-
         var feature = currentProd.features.find(function(f) { return f.id === featureId; });
         if (!feature) return;
 
-        // Count how many projects will be checked (skip done/n_a)
         var toCheck = (currentProd.project_ids || []).filter(function(pid) {
           var s = feature.statuses[pid] || 'missing';
           return s !== 'done' && s !== 'n_a';
@@ -1101,47 +1667,170 @@ defmodule SymphonyElixir.Server.ReviewUI do
           return;
         }
 
-        if (!confirm('This will create ' + toCheck.length + ' issue(s) on the board — one per project to check.\n\nAgents will verify if "' + feature.name + '" is implemented and propose follow-ups for gaps.\n\nContinue?')) {
-          return;
-        }
-
-        var btn = document.getElementById('check-' + featureId);
-        if (btn) {
-          btn.classList.add('checking');
-          btn.textContent = 'Creating...';
-          btn.disabled = true;
-        }
+        if (!confirm('This will create ' + toCheck.length + ' issue(s) to verify "' + feature.name + '" across projects.\n\nContinue?')) return;
 
         try {
           var res = await fetch(API + '/products/' + currentProd.id + '/features/' + featureId + '/check', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
           });
           var data = await res.json();
+          if (data.error) { alert('Error: ' + (data.message || data.error)); return; }
 
-          if (data.error) {
-            alert('Error: ' + (data.message || data.error));
-            return;
-          }
-
-          // Reload product (statuses updated to in_progress)
           var res2 = await fetch(API + '/products/' + currentProd.id);
           currentProd = await res2.json();
-          renderMatrix();
+          renderSpecSheet();
 
           var issues = data.issues || [];
           var ids = issues.map(function(i) { return i.identifier; }).join(', ');
-          alert('Created ' + issues.length + ' check issue(s): ' + ids + '\n\nAgents will pick these up and report findings. Check the board for results.');
+          alert('Created ' + issues.length + ' check issue(s): ' + ids + '\n\nAgents will pick these up and report findings.');
         } catch (e) {
           alert('Check failed: ' + e.message);
+        }
+      }
+
+      // --- Analyze Existing Features ---
+
+      async function analyzeExistingFeatures() {
+        if (!currentProd) return;
+        if (!confirm('This will create an agent task to scan all project codebases and discover already-implemented features.\n\nContinue?')) return;
+
+        var btn = document.getElementById('analyze-existing-btn');
+        btn.textContent = 'Creating...';
+        btn.disabled = true;
+
+        try {
+          var res = await fetch(API + '/products/' + currentProd.id + '/analyze-existing-features', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+          });
+          var data = await res.json();
+          if (data.error) { alert('Error: ' + (data.message || data.error)); return; }
+          alert(data.issue.identifier + ' created on the board.\n\nThe agent will scan codebases and discover implemented features.');
+        } catch (e) {
+          alert('Failed: ' + e.message);
         } finally {
-          var btn2 = document.getElementById('check-' + featureId);
-          if (btn2) {
-            btn2.classList.remove('checking');
-            btn2.textContent = 'Check';
-            btn2.disabled = false;
-          }
+          btn.textContent = 'Analyze Features';
+          btn.disabled = false;
+        }
+      }
+
+      // --- Code Review ---
+
+      function openCodeReviewModal() {
+        if (!currentProd) return;
+        document.getElementById('review-focus').value = '';
+        document.getElementById('review-skills').style.display = 'none';
+        document.getElementById('code-review-modal').style.display = '';
+        document.getElementById('review-focus').focus();
+      }
+
+      function closeCodeReviewModal() { document.getElementById('code-review-modal').style.display = 'none'; }
+
+      async function startCodeReview() {
+        var focus = document.getElementById('review-focus').value.trim();
+        var skills = getSelectedSkills('review-skills');
+        var btn = document.getElementById('code-review-btn');
+        btn.innerHTML = '<span class="spinner"></span> Creating...';
+        btn.disabled = true;
+
+        try {
+          var res = await fetch(API + '/products/' + currentProd.id + '/code-review', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ focus: focus, skill_ids: skills.skill_ids, skill_group_ids: skills.skill_group_ids })
+          });
+          var data = await res.json();
+          if (data.error) { alert('Error: ' + (data.message || data.error)); return; }
+          closeCodeReviewModal();
+          alert(data.issue.identifier + ' created on the board.\n\nThe agent will review all project codebases and report findings.');
+        } catch (e) {
+          alert('Failed: ' + e.message);
+        } finally {
+          btn.innerHTML = 'Start Code Review';
+          btn.disabled = false;
+        }
+      }
+
+      // --- Generate Definition ---
+
+      function openGenDefModal() {
+        if (!currentProd) return;
+        document.getElementById('gendef-context').value = '';
+        document.getElementById('gendef-skills').style.display = 'none';
+        document.getElementById('gendef-modal').style.display = '';
+        document.getElementById('gendef-context').focus();
+      }
+
+      function closeGenDefModal() { document.getElementById('gendef-modal').style.display = 'none'; }
+
+      async function generateDefinition() {
+        var context = document.getElementById('gendef-context').value.trim();
+        var skills = getSelectedSkills('gendef-skills');
+        var btn = document.getElementById('gendef-btn');
+        btn.innerHTML = '<span class="spinner"></span> Creating...';
+        btn.disabled = true;
+
+        try {
+          var res = await fetch(API + '/products/' + currentProd.id + '/generate-definition', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ context: context, skill_ids: skills.skill_ids, skill_group_ids: skills.skill_group_ids })
+          });
+          var data = await res.json();
+          if (data.error) { alert('Error: ' + (data.message || data.error)); return; }
+          closeGenDefModal();
+          alert(data.issue.identifier + ' created on the board.\n\nThe agent will analyze the projects and propose a product definition. Check the board for progress.');
+        } catch (e) {
+          alert('Failed: ' + e.message);
+        } finally {
+          btn.innerHTML = 'Generate Definition';
+          btn.disabled = false;
+        }
+      }
+
+      // --- Product Task (generic) ---
+
+      function openProductTaskModal() {
+        if (!currentProd) return;
+        document.getElementById('ptask-title').value = '';
+        document.getElementById('ptask-prompt').value = '';
+        document.getElementById('ptask-priority').value = '2';
+        document.getElementById('ptask-skills').style.display = 'none';
+        document.getElementById('product-task-modal').style.display = '';
+        document.getElementById('ptask-title').focus();
+      }
+
+      function closeProductTaskModal() { document.getElementById('product-task-modal').style.display = 'none'; }
+
+      async function createProductTask() {
+        var title = document.getElementById('ptask-title').value.trim();
+        var prompt = document.getElementById('ptask-prompt').value.trim();
+        if (!title) { document.getElementById('ptask-title').focus(); return; }
+        if (!prompt) { document.getElementById('ptask-prompt').focus(); return; }
+
+        var priority = parseInt(document.getElementById('ptask-priority').value) || 2;
+        var skills = getSelectedSkills('ptask-skills');
+        var btn = document.getElementById('ptask-btn');
+        btn.innerHTML = '<span class="spinner"></span> Creating...';
+        btn.disabled = true;
+
+        try {
+          var res = await fetch(API + '/products/' + currentProd.id + '/tasks', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: title,
+              prompt: prompt,
+              priority: priority,
+              skill_ids: skills.skill_ids,
+              skill_group_ids: skills.skill_group_ids
+            })
+          });
+          var data = await res.json();
+          if (data.error) { alert('Error: ' + (data.message || data.error)); return; }
+          closeProductTaskModal();
+          alert(data.issue.identifier + ' created on the board.\n\nThe agent will pick it up and work on it. Check the board for progress.');
+        } catch (e) {
+          alert('Failed: ' + e.message);
+        } finally {
+          btn.innerHTML = 'Create Task';
+          btn.disabled = false;
         }
       }
 
@@ -1150,8 +1839,11 @@ defmodule SymphonyElixir.Server.ReviewUI do
         if (e.key === 'Escape') {
           closeProdModal();
           closeFeatureModal();
-          closeGapModal();
           closeGenerateModal();
+          closeCodeReviewModal();
+          closeGenDefModal();
+          closeProductTaskModal();
+          closeDetailModal();
         }
       });
 

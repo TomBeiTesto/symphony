@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Server.ProjectsUI do
   @moduledoc """
   Dedicated Projects page for Symphony — browse, create, edit, import,
-  and clone projects outside of the board modal.
+  and clone projects. Single source of truth for project management UI.
   """
 
   @doc "Render the full Projects HTML page."
@@ -66,11 +66,18 @@ defmodule SymphonyElixir.Server.ProjectsUI do
             </div>
             <div class="form-group">
               <label for="form-path">Local Directory Path</label>
-              <input type="text" id="form-path" placeholder="/home/user/projects/my-app">
+              <div style="display:flex; gap: 8px;">
+                <input type="text" id="form-path" placeholder="/home/user/projects/my-app" style="flex:1">
+                <button type="button" class="btn" onclick="browseFolder('form-path')">Browse</button>
+              </div>
             </div>
             <div class="form-group">
               <label for="form-repo">Repository URL (optional)</label>
               <input type="text" id="form-repo" placeholder="https://github.com/user/repo.git">
+            </div>
+            <div class="form-group">
+              <label for="form-tags">Tags (comma-separated)</label>
+              <input type="text" id="form-tags" placeholder="python, api, data-pipeline">
             </div>
             <div class="form-actions">
               <button type="button" class="btn btn-ghost" onclick="closeForm()">Cancel</button>
@@ -90,14 +97,15 @@ defmodule SymphonyElixir.Server.ProjectsUI do
           <div class="form-group">
             <label for="scan-root-path">Root Directory</label>
             <div style="display:flex; gap: 8px;">
-              <input type="text" id="scan-root-path" placeholder="/home/user/repos" style="flex:1">
+              <input type="text" id="scan-root-path" placeholder="C:\\Projects or /home/user/repos" style="flex:1">
+              <button class="btn" onclick="browseFolder('scan-root-path')" id="browse-btn">Browse</button>
               <button class="btn btn-primary" onclick="scanDirectory()" id="scan-btn">Scan</button>
             </div>
-            <small class="help-text">Each subdirectory becomes a project. READMEs and package files are analyzed.</small>
+            <small class="help-text">Recursively scans for git repos and projects. Analyzes READMEs, package files, and tech stack to generate titles, descriptions, and tags.</small>
           </div>
           <div style="display:flex; gap: 16px; margin-top: 8px;">
+            <label class="checkbox-label"><input type="checkbox" id="scan-ai-summarize" checked> AI summarize (uses Claude)</label>
             <label class="checkbox-label"><input type="checkbox" id="scan-git-pull"> Git pull latest</label>
-            <label class="checkbox-label"><input type="checkbox" id="scan-recursive"> Detect monorepos</label>
           </div>
           <div id="scan-results" style="margin-top: 12px;"></div>
           <div class="form-actions" style="margin-top: 16px;">
@@ -117,8 +125,14 @@ defmodule SymphonyElixir.Server.ProjectsUI do
 
   defp css do
     alias SymphonyElixir.Server.UIHelpers
-    UIHelpers.base_css() <> UIHelpers.topbar_css() <> UIHelpers.button_css() <>
-    UIHelpers.form_css() <> UIHelpers.modal_css() <>
+
+    UIHelpers.base_css() <>
+      UIHelpers.topbar_css() <>
+      UIHelpers.button_css() <>
+      UIHelpers.form_css() <>
+      UIHelpers.modal_css() <>
+      UIHelpers.badge_css() <>
+      UIHelpers.toast_css() <>
       ~S"""
 
       body { min-height: 100vh; }
@@ -172,6 +186,14 @@ defmodule SymphonyElixir.Server.ProjectsUI do
       .project-card .meta-item {
         display: flex; align-items: center; gap: 4px;
       }
+      .project-card .tags {
+        display: flex; flex-wrap: wrap; gap: 4px;
+      }
+      .project-card .tag {
+        font-size: 0.65rem; padding: 1px 6px; border-radius: 8px;
+        background: rgba(88,166,255,0.1); color: var(--accent);
+        border: 1px solid rgba(88,166,255,0.15);
+      }
       .project-card .actions {
         display: flex; gap: 6px; margin-top: auto; padding-top: 4px;
         border-top: 1px solid var(--border-light);
@@ -219,21 +241,31 @@ defmodule SymphonyElixir.Server.ProjectsUI do
 
     function esc(s) {
       if (s == null) return '';
-      const d = document.createElement('div');
+      var d = document.createElement('div');
       d.textContent = s;
       return d.innerHTML;
     }
 
+    function showToast(msg, opts) {
+      opts = opts || {};
+      var container = document.getElementById('toast-container');
+      if (!container) { container = document.createElement('div'); container.id = 'toast-container'; container.className = 'toast-container'; document.body.appendChild(container); }
+      var toast = document.createElement('div');
+      toast.className = 'toast ' + (opts.type || '');
+      toast.innerHTML = '<span>' + esc(msg) + '</span>';
+      container.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, opts.duration || 4000);
+    }
+
     async function loadProjects() {
       try {
-        const [projRes, snapRes] = await Promise.all([
+        var [projRes, snapRes] = await Promise.all([
           fetch(API + '/projects'),
           fetch(API + '/snapshot')
         ]);
-        const projData = await projRes.json();
-        const snapData = await snapRes.json();
+        var projData = await projRes.json();
+        var snapData = await snapRes.json();
         allProjects = projData.projects || [];
-        // Flatten issues from columns
         allIssues = [];
         (snapData.columns || []).forEach(function(col) {
           (col.issues || []).forEach(function(i) { allIssues.push(i); });
@@ -245,17 +277,18 @@ defmodule SymphonyElixir.Server.ProjectsUI do
     }
 
     function renderProjects() {
-      const q = (document.getElementById('search').value || '').toLowerCase();
-      const filtered = q ? allProjects.filter(function(p) {
+      var q = (document.getElementById('search').value || '').toLowerCase();
+      var filtered = q ? allProjects.filter(function(p) {
         return (p.name || '').toLowerCase().includes(q) ||
                (p.description || '').toLowerCase().includes(q) ||
-               (p.path || '').toLowerCase().includes(q);
+               (p.path || '').toLowerCase().includes(q) ||
+               (p.tags || []).join(' ').toLowerCase().includes(q);
       }) : allProjects;
 
       document.getElementById('project-count').textContent = allProjects.length + ' project' + (allProjects.length !== 1 ? 's' : '');
 
-      const grid = document.getElementById('project-grid');
-      const empty = document.getElementById('empty-state');
+      var grid = document.getElementById('project-grid');
+      var empty = document.getElementById('empty-state');
 
       if (filtered.length === 0 && !q) {
         grid.innerHTML = '';
@@ -273,11 +306,13 @@ defmodule SymphonyElixir.Server.ProjectsUI do
         var issueCount = allIssues.filter(function(i) { return i.project_id === p.id; }).length;
         var pathHtml = p.path ? '<span class="meta-item" title="' + esc(p.path) + '">&#128193; ' + esc(truncPath(p.path)) + '</span>' : '';
         var repoHtml = p.repo_url ? '<span class="meta-item" title="' + esc(p.repo_url) + '">&#128279; repo</span>' : '';
+        var tagsHtml = (p.tags && p.tags.length) ? '<div class="tags">' + p.tags.map(function(t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' : '';
         var cloneBtn = (p.repo_url && !p.path) ? '<button class="btn btn-ghost btn-sm" onclick="cloneProject(\'' + p.id + '\')">Clone</button>' : '';
 
         return '<div class="project-card">' +
           '<h3>' + esc(p.name) + '<span class="issue-count">' + issueCount + '</span></h3>' +
           (p.description ? '<div class="desc">' + esc(p.description) + '</div>' : '') +
+          tagsHtml +
           '<div class="meta">' + pathHtml + repoHtml + '</div>' +
           '<div class="actions">' +
             cloneBtn +
@@ -289,7 +324,6 @@ defmodule SymphonyElixir.Server.ProjectsUI do
     }
 
     function filterProjects() { renderProjects(); }
-
     function truncPath(p) { return p.length > 40 ? '...' + p.slice(-37) : p; }
 
     // --- Create / Edit ---
@@ -299,6 +333,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
       document.getElementById('form-description').value = '';
       document.getElementById('form-path').value = '';
       document.getElementById('form-repo').value = '';
+      document.getElementById('form-tags').value = '';
       document.getElementById('form-title').textContent = 'New Project';
       document.getElementById('form-submit-btn').textContent = 'Create Project';
       document.getElementById('form-overlay').classList.add('active');
@@ -312,6 +347,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
       document.getElementById('form-description').value = p.description || '';
       document.getElementById('form-path').value = p.path || '';
       document.getElementById('form-repo').value = p.repo_url || '';
+      document.getElementById('form-tags').value = (p.tags || []).join(', ');
       document.getElementById('form-title').textContent = 'Edit: ' + p.name;
       document.getElementById('form-submit-btn').textContent = 'Save Changes';
       document.getElementById('form-overlay').classList.add('active');
@@ -324,30 +360,43 @@ defmodule SymphonyElixir.Server.ProjectsUI do
     async function handleSubmit(e) {
       e.preventDefault();
       var id = document.getElementById('form-id').value;
+      var tagsStr = document.getElementById('form-tags').value;
+      var tags = tagsStr ? tagsStr.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
       var data = {
         name: document.getElementById('form-name').value,
         description: document.getElementById('form-description').value,
         path: document.getElementById('form-path').value || null,
-        repo_url: document.getElementById('form-repo').value || null
+        repo_url: document.getElementById('form-repo').value || null,
+        tags: tags
       };
       try {
+        var res;
         if (id) {
-          await fetch(API + '/projects/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+          res = await fetch(API + '/projects/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         } else {
-          await fetch(API + '/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+          res = await fetch(API + '/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        }
+        if (!res.ok) {
+          var errData = await res.json().catch(function() { return {}; });
+          showToast('Save failed: ' + (errData.error || 'unknown error'), { type: 'error' });
+          return;
         }
         closeForm();
         await loadProjects();
-      } catch (err) { console.error('Submit failed:', err); }
+      } catch (err) {
+        showToast('Save failed: ' + err.message, { type: 'error' });
+      }
     }
 
     async function deleteProject(id) {
       var p = allProjects.find(function(x) { return x.id === id; });
-      if (!confirm('Delete project "' + (p ? p.name : '') + '" and unlink its issues?')) return;
+      if (!confirm('Delete project "' + (p ? p.name : '') + '" and all its issues?')) return;
       try {
         await fetch(API + '/projects/' + id, { method: 'DELETE' });
         await loadProjects();
-      } catch (err) { console.error('Delete failed:', err); }
+      } catch (err) {
+        showToast('Delete failed: ' + err.message, { type: 'error' });
+      }
     }
 
     async function cloneProject(id) {
@@ -357,12 +406,27 @@ defmodule SymphonyElixir.Server.ProjectsUI do
         var res = await fetch(API + '/projects/' + id + '/clone', { method: 'POST' });
         var data = await res.json();
         if (res.ok) {
-          alert('Cloned to: ' + data.path);
+          showToast('Cloned to: ' + data.path, { type: 'success' });
           await loadProjects();
         } else {
-          alert('Clone failed: ' + data.error);
+          showToast('Clone failed: ' + (data.error || 'unknown'), { type: 'error' });
         }
-      } catch (err) { alert('Clone request failed.'); }
+      } catch (err) {
+        showToast('Clone failed: ' + err.message, { type: 'error' });
+      }
+    }
+
+    // --- Browse Folder (native OS dialog) ---
+    async function browseFolder(targetInputId) {
+      try {
+        var res = await fetch(API + '/browse-folder', { method: 'POST' });
+        var data = await res.json();
+        if (data.path) {
+          document.getElementById(targetInputId).value = data.path;
+        }
+      } catch (err) {
+        showToast('Failed to open folder dialog: ' + err.message, { type: 'error' });
+      }
     }
 
     // --- Scan / Import ---
@@ -383,8 +447,11 @@ defmodule SymphonyElixir.Server.ProjectsUI do
       if (!rootPath) return;
       var btn = document.getElementById('scan-btn');
       var results = document.getElementById('scan-results');
+      var aiSummarize = document.getElementById('scan-ai-summarize').checked;
       btn.disabled = true; btn.textContent = 'Scanning...';
-      results.innerHTML = '<div style="color:var(--text-muted)">Scanning directories...</div>';
+      results.innerHTML = aiSummarize
+        ? '<div style="color:var(--text-muted)">Scanning directories and running AI analysis... This may take a moment.</div>'
+        : '<div style="color:var(--text-muted)">Scanning directories...</div>';
 
       try {
         var res = await fetch(API + '/projects/scan', {
@@ -393,12 +460,12 @@ defmodule SymphonyElixir.Server.ProjectsUI do
           body: JSON.stringify({
             root_path: rootPath,
             git_pull: document.getElementById('scan-git-pull').checked,
-            recursive: document.getElementById('scan-recursive').checked
+            ai_summarize: aiSummarize
           })
         });
         var data = await res.json();
         if (!res.ok) {
-          results.innerHTML = '<div style="color:var(--red)">Error: ' + data.error + '</div>';
+          results.innerHTML = '<div style="color:var(--red)">Error: ' + esc(data.error || 'unknown') + (data.detail ? ' &mdash; ' + esc(data.detail) : '') + '</div>';
           return;
         }
         scannedCandidates = data.candidates || [];
@@ -409,7 +476,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
         });
         renderScanResults();
       } catch (err) {
-        results.innerHTML = '<div style="color:var(--red)">Scan failed: ' + err.message + '</div>';
+        results.innerHTML = '<div style="color:var(--red)">Scan failed: ' + esc(err.message || 'unknown error') + '</div>';
       } finally {
         btn.disabled = false; btn.textContent = 'Scan';
       }
@@ -418,7 +485,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
     function renderScanResults() {
       var results = document.getElementById('scan-results');
       if (scannedCandidates.length === 0) {
-        results.innerHTML = '<div style="color:var(--text-muted)">No subdirectories found.</div>';
+        results.innerHTML = '<div style="color:var(--text-muted)">No projects found.</div>';
         document.getElementById('import-btn').style.display = 'none';
         return;
       }
@@ -426,20 +493,26 @@ defmodule SymphonyElixir.Server.ProjectsUI do
       var selectedCount = scannedCandidates.filter(function(c) { return c._selected; }).length;
 
       var html = '<div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">' +
-        '<span style="font-size:0.85rem;color:var(--text-secondary)">Found ' + scannedCandidates.length + ' directories (' + selectedCount + ' selected)</span>' +
+        '<span style="font-size:0.85rem;color:var(--text-secondary)">Found ' + scannedCandidates.length + ' project' + (scannedCandidates.length !== 1 ? 's' : '') + ' (' + selectedCount + ' selected)</span>' +
         (selectable.length > 0 ? '<label style="font-size:0.8rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" ' + (selectedCount === selectable.length ? 'checked' : '') + ' onchange="toggleAllScan(this.checked)"> Select all</label>' : '') +
       '</div>';
 
       html += scannedCandidates.map(function(c, i) {
         var disabled = c._existing;
         var badge = disabled ? '<span style="font-size:0.7rem;background:var(--bg-tertiary);color:var(--text-muted);padding:2px 6px;border-radius:4px;margin-left:8px">already imported</span>' : '';
+        var repo = c.repo_url ? '<span style="font-size:0.75rem;color:var(--text-muted)">&#128279; ' + esc(c.repo_url) + '</span>' : '';
+        var tagsHtml = (c.tags && c.tags.length) ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">' + c.tags.map(function(t) { return '<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:rgba(88,166,255,0.1);color:var(--accent);border:1px solid rgba(88,166,255,0.15)">' + esc(t) + '</span>'; }).join('') + '</div>' : '';
+
         return '<div class="scan-card" style="' + (disabled ? 'opacity:0.5' : '') + '">' +
           '<div style="display:flex;align-items:flex-start;gap:10px">' +
             '<input type="checkbox" ' + (c._selected ? 'checked' : '') + ' ' + (disabled ? 'disabled' : '') + ' onchange="toggleScanItem(' + i + ',this.checked)" style="margin-top:4px">' +
             '<div style="flex:1;min-width:0">' +
-              '<strong style="font-size:0.9rem">' + esc(c.name) + '</strong>' + badge +
+              '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
+                '<strong style="font-size:0.9rem">' + esc(c.name) + '</strong>' + badge +
+              '</div>' +
               (c.description ? '<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px">' + esc(c.description) + '</div>' : '') +
-              '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">&#128193; ' + esc(c.path) + '</div>' +
+              tagsHtml +
+              '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">&#128193; ' + esc(c.path) + ' ' + repo + '</div>' +
             '</div>' +
           '</div>' +
         '</div>';
@@ -460,7 +533,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
 
     async function importScanned() {
       var toImport = scannedCandidates.filter(function(c) { return c._selected && !c._existing; })
-        .map(function(c) { return { name: c.name, slug: c.slug, path: c.path, description: c.description, repo_url: c.repo_url }; });
+        .map(function(c) { return { name: c.name, slug: c.slug, path: c.path, description: c.description, repo_url: c.repo_url, tags: c.tags || [] }; });
       if (toImport.length === 0) return;
       var btn = document.getElementById('import-btn');
       btn.disabled = true; btn.textContent = 'Importing...';
@@ -470,10 +543,19 @@ defmodule SymphonyElixir.Server.ProjectsUI do
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ projects: toImport })
         });
-        if (res.ok) { closeScan(); await loadProjects(); }
-        else { alert('Import failed'); }
-      } catch (err) { alert('Import failed: ' + err.message); }
-      finally { btn.disabled = false; }
+        if (res.ok) {
+          closeScan();
+          showToast('Imported ' + toImport.length + ' project' + (toImport.length !== 1 ? 's' : ''), { type: 'success' });
+          await loadProjects();
+        } else {
+          var errData = await res.json().catch(function() { return {}; });
+          showToast('Import failed: ' + (errData.error || 'unknown'), { type: 'error' });
+        }
+      } catch (err) {
+        showToast('Import failed: ' + err.message, { type: 'error' });
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     // Keyboard

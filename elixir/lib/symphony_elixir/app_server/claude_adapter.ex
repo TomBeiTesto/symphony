@@ -10,7 +10,8 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
   require Logger
 
-  alias SymphonyElixir.Config
+  alias SymphonyElixir.AppServer.Events
+  alias SymphonyElixir.{Config, ShellUtils}
 
   @max_line_bytes 10 * 1024 * 1024
   @default_command "claude"
@@ -52,7 +53,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
   defp do_start_session(config, workspace_path, prompt_file, claude_cmd, callback) do
     # Always use bash for spawning — it handles stdin redirection, .cmd shims,
     # and EOF signaling correctly on both Windows and Unix.
-    bash = find_bash()
+    bash = ShellUtils.find_bash_path()
 
     unless bash do
       cleanup_prompt_file(prompt_file)
@@ -113,7 +114,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
         accumulated_tokens: %{input: 0, output: 0}
       }
 
-      emit_event(session, :session_started, %{os_pid: os_pid, provider: :claude_code})
+      Events.emit_event(session, :session_started, %{os_pid: os_pid, provider: :claude_code})
       {:ok, session}
     rescue
       ErlangError ->
@@ -173,7 +174,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     end
 
     cleanup_prompt_file(session[:prompt_file])
-    emit_event(session, :session_stopped, %{})
+    Events.emit_event(session, :session_stopped, %{})
     :ok
   end
 
@@ -183,7 +184,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     remaining = deadline - System.monotonic_time(:millisecond)
 
     if remaining <= 0 do
-      emit_event(session, :turn_timeout, %{})
+      Events.emit_event(session, :turn_timeout, %{})
       {:error, :turn_timeout}
     else
       timeout = min(remaining, 1000)
@@ -199,7 +200,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
         {port, {:exit_status, 0}} when port == session.port ->
           # Drain any remaining data from the mailbox
           session = drain_data(session)
-          emit_event(session, :turn_completed, %{})
+          Events.emit_event(session, :turn_completed, %{})
           {:ok, :completed, %{session | port: nil}}
 
         {port, {:exit_status, status}} when port == session.port ->
@@ -213,7 +214,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
           end
 
           Logger.error("Claude adapter exited with status #{status}")
-          emit_event(session, :port_exit, %{status: status})
+          Events.emit_event(session, :port_exit, %{status: status})
           {:error, :port_exit}
       after
         timeout ->
@@ -260,7 +261,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
       {:error, _} ->
         if String.trim(line) != "" do
           Logger.warning("Claude adapter non-JSON output: #{String.slice(line, 0, 500)}")
-          emit_event(session, :agent_output, %{line: String.slice(line, 0, 500)})
+          Events.emit_event(session, :agent_output, %{line: String.slice(line, 0, 500)})
         end
 
         do_stream(session, deadline)
@@ -284,7 +285,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     if message_text && String.trim(message_text) != "" do
       Logger.info("[Claude] #{String.slice(message_text, 0, 500)}")
-      emit_event(session, :agent_message, %{message: String.slice(message_text, 0, 2000)})
+      Events.emit_event(session, :agent_message, %{message: String.slice(message_text, 0, 2000)})
     end
 
     # Also log and emit tool use events
@@ -296,7 +297,12 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
           input = tool["input"] || %{}
           detail = summarize_tool_input(tool["name"], input)
           Logger.info("[Claude] Using tool: #{tool["name"]} #{detail}")
-          emit_event(session, :tool_use, %{tool: tool["name"], detail: detail, input: input})
+
+          Events.emit_event(session, :tool_use, %{
+            tool: tool["name"],
+            detail: detail,
+            input: input
+          })
         end)
 
       _ ->
@@ -317,7 +323,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     if result_text != "" do
       Logger.info("[Claude] Result: #{String.slice(result_text, 0, 300)}")
-      emit_event(session, :agent_result, %{result: result_text})
+      Events.emit_event(session, :agent_result, %{result: result_text})
     end
 
     # Log all top-level keys (except result text) to discover token fields
@@ -337,7 +343,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     if session.session_id != session_id do
       Logger.info("[Claude] Session started: #{session_id}")
 
-      emit_event(session, :system_info, %{
+      Events.emit_event(session, :system_info, %{
         session_id: session_id,
         tools: msg["tools"] || []
       })
@@ -352,7 +358,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
          "content_block" => %{"type" => "tool_use"} = block
        }) do
     Logger.info("[Claude] Tool start: #{block["name"]}")
-    emit_event(session, :tool_use, %{tool: block["name"], detail: ""})
+    Events.emit_event(session, :tool_use, %{tool: block["name"], detail: ""})
     session
   end
 
@@ -380,7 +386,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     # Emit accumulated totals (cumulative) so the orchestrator's delta tracking works correctly
     if new_acc.input > 0 or new_acc.output > 0 do
-      emit_event(session, :token_usage_updated, %{
+      Events.emit_event(session, :token_usage_updated, %{
         input_tokens: new_acc.input,
         output_tokens: new_acc.output,
         total_tokens: new_acc.input + new_acc.output
@@ -425,7 +431,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     if input > 0 or output > 0 do
       Logger.info("[Claude] Final tokens: #{input} in / #{output} out")
 
-      emit_event(session, :token_usage_updated, %{
+      Events.emit_event(session, :token_usage_updated, %{
         input_tokens: input,
         output_tokens: output,
         total_tokens: input + output
@@ -434,22 +440,6 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
   end
 
   # --- Command Building ---
-
-  defp find_bash do
-    System.find_executable("bash") ||
-      find_file([
-        "C:/Program Files/Git/bin/bash.exe",
-        "C:/Program Files (x86)/Git/bin/bash.exe",
-        "C:/msys64/usr/bin/bash.exe",
-        "C:/cygwin64/bin/bash.exe"
-      ])
-  end
-
-  defp find_file([]), do: nil
-
-  defp find_file([path | rest]) do
-    if File.exists?(path), do: path, else: find_file(rest)
-  end
 
   defp build_allowed_tools_flag do
     tools =
@@ -511,15 +501,5 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
       "ToolSearch" -> input["query"] || ""
       _ -> input |> inspect() |> String.slice(0, 200)
     end
-  end
-
-  defp emit_event(%{callback: callback} = session, event, payload) do
-    callback.(%{
-      event: event,
-      timestamp: DateTime.utc_now(),
-      agent_process_pid: session.os_pid,
-      session_id: session.session_id,
-      payload: payload
-    })
   end
 end

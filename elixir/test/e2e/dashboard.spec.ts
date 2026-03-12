@@ -210,28 +210,28 @@ test.describe("Settings — GET /board/settings", () => {
   });
 });
 
-// --- Product Review (GET /board/review) ---
+// --- Products Page (GET /board/products) ---
 
-test.describe("Product Review — GET /board/review", () => {
-  test("loads the product review page", async ({ page }) => {
-    const response = await page.goto("/board/review");
+test.describe("Products — GET /board/products", () => {
+  test("loads the products page", async ({ page }) => {
+    const response = await page.goto("/board/products");
     expect(response).not.toBeNull();
     expect(response!.status()).toBe(200);
     expect(response!.headers()["content-type"]).toContain("text/html");
   });
 
-  test("contains the product review title", async ({ page }) => {
-    await page.goto("/board/review");
-    await expect(page.locator("h1")).toContainText("Product Review");
+  test("contains the products title", async ({ page }) => {
+    await page.goto("/board/products");
+    await expect(page.locator("h1")).toContainText("Products");
   });
 
   test("has product selector", async ({ page }) => {
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await expect(page.locator("#product-select")).toHaveCount(1);
   });
 
   test("has back link to board", async ({ page }) => {
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     const backLink = page.locator('a[href="/board"]');
     await expect(backLink).toHaveCount(1);
   });

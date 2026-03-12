@@ -69,3 +69,198 @@ defmodule SymphonyElixir.PromptTest do
     end
   end
 end
+
+defmodule SymphonyElixir.PromptContextTest do
+  @moduledoc "Tests for Prompt.render/3 with project, product, blocker, skill, and plan contexts."
+  use ExUnit.Case, async: false
+
+  alias SymphonyElixir.{Issue, LocalBoard, Prompt}
+
+  setup do
+    board_store = "test_prompt_board_#{System.unique_integer([:positive])}.json"
+
+    start_supervised!({LocalBoard, store_path: board_store, project_prefix: "PT"})
+
+    on_exit(fn -> File.rm(board_store) end)
+
+    :ok
+  end
+
+  @template """
+  Work on {{ issue.identifier }}: {{ issue.title }}.
+  {% if project %}Project: {{ project.name }}.{% endif %}
+  {% if product %}Product: {{ product.name }}. {{ product.description }}{% endif %}
+  {% if blocked_by %}Blockers: {% for b in blocked_by %}{{ b.identifier }}({{ b.state }}) {% endfor %}{% endif %}
+  {% if skills %}Skills: {{ skills }}{% endif %}
+  {% if planning_phase %}PLANNING PHASE: Create a plan.{% endif %}
+  {% if execution_phase %}EXECUTION PHASE with plan: {{ plan }}{% endif %}
+  """
+
+  describe "render/3 with project context" do
+    test "renders project name when issue has project_id" do
+      {:ok, project} = LocalBoard.create_project(%{"name" => "Backend API", "path" => "/tmp/be"})
+
+      issue = %Issue{
+        id: "p1",
+        identifier: "PT-1",
+        title: "Add endpoint",
+        state: "Todo",
+        project_id: project.id,
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "Project: Backend API.")
+    end
+  end
+
+  describe "render/3 with product context" do
+    test "renders product details when issue has product_id" do
+      {:ok, product} =
+        LocalBoard.create_product(%{
+          "name" => "Customer Portal",
+          "description" => "B2C portal for customers"
+        })
+
+      issue = %Issue{
+        id: "pd1",
+        identifier: "PT-2",
+        title: "Implement auth",
+        state: "Todo",
+        product_id: product.id,
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "Product: Customer Portal.")
+      assert String.contains?(rendered, "B2C portal for customers")
+    end
+  end
+
+  describe "render/3 with blockers" do
+    test "renders blocker identifiers and states" do
+      issue = %Issue{
+        id: "b1",
+        identifier: "PT-3",
+        title: "Blocked task",
+        state: "Todo",
+        blocked_by: [
+          %{id: "dep1", identifier: "PT-10", state: "In Progress"},
+          %{id: "dep2", identifier: "PT-11", state: "Done"}
+        ],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "Blockers:")
+      assert String.contains?(rendered, "PT-10(In Progress)")
+      assert String.contains?(rendered, "PT-11(Done)")
+    end
+  end
+
+  describe "render/3 with skills" do
+    test "renders skill content when issue has skill_ids" do
+      {:ok, skill} =
+        LocalBoard.create_skill(%{
+          "name" => "Elixir Testing",
+          "content" => "Always use ExUnit. Prefer async: true.",
+          "category" => "testing",
+          "tags" => ["elixir", "testing"]
+        })
+
+      issue = %Issue{
+        id: "s1",
+        identifier: "PT-4",
+        title: "Write tests",
+        state: "Todo",
+        skill_ids: [skill.id],
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "Skills:")
+      assert String.contains?(rendered, "Elixir Testing")
+      assert String.contains?(rendered, "Always use ExUnit")
+    end
+  end
+
+  describe "render/3 in planning phase" do
+    test "sets planning_phase flag when plan_status is planning" do
+      issue = %Issue{
+        id: "plan1",
+        identifier: "PT-5",
+        title: "Plan this feature",
+        state: "Todo",
+        plan_status: "planning",
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "PLANNING PHASE: Create a plan.")
+      refute String.contains?(rendered, "EXECUTION PHASE")
+    end
+  end
+
+  describe "render/3 in execution phase" do
+    test "injects plan text when plan_status is approved" do
+      issue = %Issue{
+        id: "exec1",
+        identifier: "PT-6",
+        title: "Execute this feature",
+        state: "In Progress",
+        plan_status: "approved",
+        plan_text: "Step 1: Refactor. Step 2: Test.",
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "EXECUTION PHASE with plan:")
+      assert String.contains?(rendered, "Step 1: Refactor. Step 2: Test.")
+      refute String.contains?(rendered, "PLANNING PHASE")
+    end
+  end
+
+  describe "render/3 with missing project graceful handling" do
+    test "renders without project section when project_id does not exist" do
+      issue = %Issue{
+        id: "mp1",
+        identifier: "PT-7",
+        title: "Orphan task",
+        state: "Todo",
+        project_id: "nonexistent_project_id",
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      refute String.contains?(rendered, "Project:")
+      # Template still renders the issue fields
+      assert String.contains?(rendered, "PT-7")
+      assert String.contains?(rendered, "Orphan task")
+    end
+  end
+
+  describe "render/3 with missing product graceful handling" do
+    test "renders without product section when product_id does not exist" do
+      issue = %Issue{
+        id: "mp2",
+        identifier: "PT-8",
+        title: "No product task",
+        state: "Todo",
+        product_id: "nonexistent_product_id",
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      refute String.contains?(rendered, "Product:")
+      assert String.contains?(rendered, "PT-8")
+      assert String.contains?(rendered, "No product task")
+    end
+  end
+end

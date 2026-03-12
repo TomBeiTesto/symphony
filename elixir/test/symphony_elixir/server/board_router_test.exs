@@ -566,9 +566,166 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
       assert feature["statuses"][proj.id] == "missing"
     end
 
+    test "adds a feature with category" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
+
+      conn =
+        call(:post, "/api/products/#{product.id}/features", %{
+          "name" => "Auth",
+          "category" => "Security"
+        })
+
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      feature = hd(body["features"])
+      assert feature["category"] == "Security"
+    end
+
     test "returns 404 for missing product" do
       conn = call(:post, "/api/products/bogus/features", %{"name" => "X"})
       assert conn.status == 404
+    end
+  end
+
+  describe "PATCH /api/products/:id/features/bulk-category" do
+    test "sets category on multiple features" do
+      {:ok, product} = LocalBoard.create_product(%{"name" => "Bulk Test"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "A"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "B"})
+
+      fids = Enum.map(product.features, & &1.id)
+
+      conn =
+        call(:patch, "/api/products/#{product.id}/features/bulk-category", %{
+          "feature_ids" => fids,
+          "category" => "Infrastructure"
+        })
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      cats = Enum.map(body["features"], & &1["category"])
+      assert cats == ["Infrastructure", "Infrastructure"]
+    end
+
+    test "returns 404 for missing product" do
+      conn =
+        call(:patch, "/api/products/bogus/features/bulk-category", %{
+          "feature_ids" => [],
+          "category" => "X"
+        })
+
+      assert conn.status == 404
+    end
+  end
+
+  describe "feature depends_on" do
+    test "adds a feature with depends_on" do
+      {:ok, product} = LocalBoard.create_product(%{"name" => "Deps Test"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Base"})
+      base_id = hd(product.features).id
+
+      conn =
+        call(:post, "/api/products/#{product.id}/features", %{
+          "name" => "Dependent",
+          "depends_on" => [base_id]
+        })
+
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      dep_feature = Enum.find(body["features"], fn f -> f["name"] == "Dependent" end)
+      assert dep_feature["depends_on"] == [base_id]
+    end
+
+    test "updates depends_on on existing feature" do
+      {:ok, product} = LocalBoard.create_product(%{"name" => "Deps Test"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "A"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "B"})
+      [a, b] = product.features
+
+      conn =
+        call(
+          :patch,
+          "/api/products/#{product.id}/features/#{b.id}",
+          %{"depends_on" => [a.id]}
+        )
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      updated_b = Enum.find(body["features"], fn f -> f["id"] == b.id end)
+      assert updated_b["depends_on"] == [a.id]
+    end
+  end
+
+  describe "feature status_history" do
+    test "records history when setting feature status" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{"name" => "History Test", "project_ids" => [proj.id]})
+
+      {:ok, product} =
+        LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
+
+      feature = hd(product.features)
+
+      conn =
+        call(
+          :patch,
+          "/api/products/#{product.id}/features/#{feature.id}/status",
+          %{"project_id" => proj.id, "status" => "done", "source" => "agent_check"}
+        )
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      updated_feature = hd(body["features"])
+      assert updated_feature["statuses"][proj.id] == "done"
+
+      history = updated_feature["status_history"]
+      assert length(history) == 1
+      entry = hd(history)
+      assert entry["project_id"] == proj.id
+      assert entry["status"] == "done"
+      assert entry["source"] == "agent_check"
+      assert entry["changed_at"] != nil
+    end
+
+    test "accumulates multiple history entries" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{"name" => "History Test", "project_ids" => [proj.id]})
+
+      {:ok, product} =
+        LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
+
+      feature = hd(product.features)
+
+      # First status change
+      call(
+        :patch,
+        "/api/products/#{product.id}/features/#{feature.id}/status",
+        %{"project_id" => proj.id, "status" => "in_progress"}
+      )
+
+      # Second status change
+      conn =
+        call(
+          :patch,
+          "/api/products/#{product.id}/features/#{feature.id}/status",
+          %{"project_id" => proj.id, "status" => "done"}
+        )
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      updated_feature = hd(body["features"])
+      history = updated_feature["status_history"]
+      assert length(history) == 2
+      # Most recent first
+      assert hd(history)["status"] == "done"
+      assert List.last(history)["status"] == "in_progress"
     end
   end
 
@@ -614,13 +771,106 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     end
   end
 
-  # --- Product Review Page ---
+  # --- Products Page ---
 
-  describe "GET /review" do
-    test "returns HTML product review page" do
-      conn = call(:get, "/review")
+  describe "GET /products" do
+    test "returns HTML products page" do
+      conn = call(:get, "/products")
       assert conn.status == 200
-      assert conn.resp_body =~ "Product Review"
+      assert conn.resp_body =~ "Products"
+    end
+  end
+
+  # --- Analyze Existing Features ---
+
+  describe "POST /api/products/:id/analyze-existing-features" do
+    test "creates an issue to analyze existing features" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "API", "repo_url" => "https://github.com/test/api.git"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{
+          "name" => "My Product",
+          "description" => "A test product",
+          "project_ids" => [proj.id]
+        })
+
+      conn = call(:post, "/api/products/#{product.id}/analyze-existing-features")
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["issue"]["title"] =~ "Analyze existing features"
+      assert body["issue"]["title"] =~ "My Product"
+      assert body["issue"]["state"] == "Todo"
+      assert "product-review" in body["issue"]["labels"]
+      assert "analyze-existing" in body["issue"]["labels"]
+      assert body["message"] =~ body["issue"]["identifier"]
+    end
+
+    test "includes existing features in issue description" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{"name" => "Feat Test", "project_ids" => [proj.id]})
+
+      {:ok, _product} =
+        LocalBoard.add_product_feature(product.id, %{"name" => "Auth", "description" => "Authentication system"})
+
+      conn = call(:post, "/api/products/#{product.id}/analyze-existing-features")
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["issue"]["description"] =~ "Auth"
+      assert body["issue"]["description"] =~ "Authentication system"
+    end
+
+    test "returns 404 for missing product" do
+      conn = call(:post, "/api/products/nonexistent/analyze-existing-features")
+      assert conn.status == 404
+    end
+  end
+
+  # --- Code Review ---
+
+  describe "POST /api/products/:id/code-review" do
+    test "creates a code review issue" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "Backend", "repo_url" => "https://github.com/test/backend.git"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{
+          "name" => "Platform",
+          "description" => "Main platform",
+          "project_ids" => [proj.id]
+        })
+
+      conn = call(:post, "/api/products/#{product.id}/code-review")
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["issue"]["title"] =~ "Code review"
+      assert body["issue"]["title"] =~ "Platform"
+      assert body["issue"]["state"] == "Todo"
+      assert body["issue"]["priority"] == 1
+      assert "code-review" in body["issue"]["labels"]
+      assert "product-review" in body["issue"]["labels"]
+      assert body["message"] =~ body["issue"]["identifier"]
+    end
+
+    test "includes focus areas in description when provided" do
+      {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
+
+      {:ok, product} =
+        LocalBoard.create_product(%{"name" => "Focus Test", "project_ids" => [proj.id]})
+
+      conn =
+        call(:post, "/api/products/#{product.id}/code-review", %{
+          "focus" => "security and error handling"
+        })
+
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["issue"]["description"] =~ "security and error handling"
+    end
+
+    test "returns 404 for missing product" do
+      conn = call(:post, "/api/products/nonexistent/code-review")
+      assert conn.status == 404
     end
   end
 end

@@ -19,7 +19,7 @@ defmodule SymphonyElixir.GitLab.Client do
 
   @behaviour SymphonyElixir.Tracker.Behaviour
 
-  alias SymphonyElixir.{Config, Issue}
+  alias SymphonyElixir.{Config, DateTimeUtils, Issue}
 
   @page_size 100
   @network_timeout 30_000
@@ -196,8 +196,8 @@ defmodule SymphonyElixir.GitLab.Client do
       url: node["web_url"],
       labels: Enum.map(labels, &String.downcase/1),
       blocked_by: [],
-      created_at: parse_datetime(node["created_at"]),
-      updated_at: parse_datetime(node["updated_at"])
+      created_at: DateTimeUtils.parse_datetime(node["created_at"]),
+      updated_at: DateTimeUtils.parse_datetime(node["updated_at"])
     }
   end
 
@@ -286,19 +286,6 @@ defmodule SymphonyElixir.GitLab.Client do
   defp next_page_value(val) when is_binary(val) do
     case Integer.parse(val) do
       {n, ""} when n > 0 -> n
-      _ -> nil
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Misc helpers
-  # ---------------------------------------------------------------------------
-
-  defp parse_datetime(nil), do: nil
-
-  defp parse_datetime(str) when is_binary(str) do
-    case DateTime.from_iso8601(str) do
-      {:ok, dt, _offset} -> dt
       _ -> nil
     end
   end

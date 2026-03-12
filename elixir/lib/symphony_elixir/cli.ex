@@ -10,7 +10,7 @@ defmodule SymphonyElixir.CLI do
 
   alias SymphonyElixir.{Config, Workflow}
 
-  @default_workflow_paths ["WORKFLOW.md", "Workflow.md"]
+  @default_workflow_paths ["Workflow.local.md", "WORKFLOW.md", "Workflow.md"]
 
   @doc "Main escript entry point."
   @spec main([String.t()]) :: no_return()
@@ -65,7 +65,19 @@ defmodule SymphonyElixir.CLI do
       children = build_children(config, prompt, workflow_path)
 
       opts = [strategy: :one_for_one, name: SymphonyElixir.RuntimeSupervisor]
-      Supervisor.start_link(children, opts)
+
+      case Supervisor.start_link(children, opts) do
+        {:ok, pid} ->
+          # Seed built-in skills after LocalBoard is started
+          if Config.local_board?(config) do
+            SymphonyElixir.SkillsSeed.seed()
+          end
+
+          {:ok, pid}
+
+        error ->
+          error
+      end
     end
   end
 

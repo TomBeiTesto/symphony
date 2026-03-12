@@ -121,6 +121,24 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </div>
           </section>
 
+          <!-- Default Skills -->
+          <section class="settings-section">
+            <h2>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Default Skills
+            </h2>
+            <p class="section-desc">Skills and skill groups auto-assigned to every new issue. Manage your skills library at <a href="/board/skills" style="color:var(--accent);">Skills Library</a>.</p>
+
+            <div class="form-group">
+              <label>Default Skills</label>
+              <div class="default-skill-pills" id="default-skill-pills"></div>
+              <select id="default-add-skill" onchange="defaultAddSkill(this.value); this.value='';">
+                <option value="">+ Add skill or group...</option>
+              </select>
+              <small class="help-text">These skills are automatically assigned to all newly created issues.</small>
+            </div>
+          </section>
+
           <!-- Tracker -->
           <section class="settings-section">
             <h2>
@@ -179,8 +197,11 @@ defmodule SymphonyElixir.Server.SettingsUI do
 
   defp css do
     alias SymphonyElixir.Server.UIHelpers
-    UIHelpers.base_css() <> UIHelpers.topbar_css() <> UIHelpers.button_css() <>
-    UIHelpers.form_css() <>
+
+    UIHelpers.base_css() <>
+      UIHelpers.topbar_css() <>
+      UIHelpers.button_css() <>
+      UIHelpers.form_css() <>
       ~S"""
 
       body { min-height: 100vh; }
@@ -226,6 +247,19 @@ defmodule SymphonyElixir.Server.SettingsUI do
         display: flex; justify-content: flex-end; gap: 10px;
         padding-top: 8px;
       }
+
+      .default-skill-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; min-height: 24px; }
+      .ds-pill {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
+        background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.25);
+      }
+      .ds-pill.group { background: rgba(88,166,255,0.12); color: var(--accent); border-color: rgba(88,166,255,0.25); }
+      .ds-pill button {
+        background: none; border: none; color: inherit; cursor: pointer;
+        font-size: 0.8rem; padding: 0 2px; opacity: 0.6; line-height: 1;
+      }
+      .ds-pill button:hover { opacity: 1; }
 
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -367,8 +401,116 @@ defmodule SymphonyElixir.Server.SettingsUI do
       }
     });
 
+    // --- Default Skills ---
+    var allSkills = [];
+    var allGroups = [];
+    var defaultSkillIds = [];
+    var defaultGroupIds = [];
+
+    function esc(s) {
+      if (s == null) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    async function loadDefaultSkillsUI() {
+      try {
+        var [sr, gr, setRes] = await Promise.all([
+          fetch(API + '/skills'), fetch(API + '/skill-groups'), fetch(API + '/settings')
+        ]);
+        if (sr.ok) { var d = await sr.json(); allSkills = d.skills || []; }
+        if (gr.ok) { var d = await gr.json(); allGroups = d.skill_groups || []; }
+        if (setRes.ok) {
+          var s = await setRes.json();
+          defaultSkillIds = (s.default_skill_ids || '').split(',').filter(Boolean);
+          defaultGroupIds = (s.default_skill_group_ids || '').split(',').filter(Boolean);
+        }
+        renderDefaultSkillPills();
+      } catch(e) { console.error('Default skills load error:', e); }
+    }
+
+    function renderDefaultSkillPills() {
+      var container = document.getElementById('default-skill-pills');
+      var pills = [];
+      defaultSkillIds.forEach(function(sid) {
+        var s = allSkills.find(function(sk) { return sk.id === sid; });
+        if (s) pills.push('<span class="ds-pill">' + esc(s.name) + '<button onclick="defaultRemoveSkill(\'' + sid + '\')">&times;</button></span>');
+      });
+      defaultGroupIds.forEach(function(gid) {
+        var g = allGroups.find(function(gr) { return gr.id === gid; });
+        if (g) pills.push('<span class="ds-pill group">' + esc(g.name) + '<button onclick="defaultRemoveGroup(\'' + gid + '\')">&times;</button></span>');
+      });
+      container.innerHTML = pills.length > 0 ? pills.join('') : '<span style="font-size:0.75rem;color:var(--text-muted)">No default skills</span>';
+      populateDefaultSkillSelect();
+    }
+
+    function populateDefaultSkillSelect() {
+      var sel = document.getElementById('default-add-skill');
+      sel.innerHTML = '<option value="">+ Add skill or group...</option>';
+      var optSkills = document.createElement('optgroup');
+      optSkills.label = 'Skills';
+      allSkills.forEach(function(s) {
+        if (defaultSkillIds.indexOf(s.id) === -1) {
+          var opt = document.createElement('option');
+          opt.value = 'skill:' + s.id;
+          opt.textContent = '[' + s.category + '] ' + s.name;
+          optSkills.appendChild(opt);
+        }
+      });
+      sel.appendChild(optSkills);
+      var optGroups = document.createElement('optgroup');
+      optGroups.label = 'Groups';
+      allGroups.forEach(function(g) {
+        if (defaultGroupIds.indexOf(g.id) === -1) {
+          var opt = document.createElement('option');
+          opt.value = 'group:' + g.id;
+          opt.textContent = g.name + ' (' + (g.skill_ids || []).length + ' skills)';
+          optGroups.appendChild(opt);
+        }
+      });
+      sel.appendChild(optGroups);
+    }
+
+    function defaultAddSkill(val) {
+      if (!val) return;
+      if (val.startsWith('skill:')) {
+        var id = val.substring(6);
+        if (defaultSkillIds.indexOf(id) === -1) defaultSkillIds.push(id);
+      } else if (val.startsWith('group:')) {
+        var id = val.substring(6);
+        if (defaultGroupIds.indexOf(id) === -1) defaultGroupIds.push(id);
+      }
+      saveDefaultSkills();
+    }
+
+    function defaultRemoveSkill(sid) {
+      defaultSkillIds = defaultSkillIds.filter(function(id) { return id !== sid; });
+      saveDefaultSkills();
+    }
+
+    function defaultRemoveGroup(gid) {
+      defaultGroupIds = defaultGroupIds.filter(function(id) { return id !== gid; });
+      saveDefaultSkills();
+    }
+
+    async function saveDefaultSkills() {
+      try {
+        await fetch(API + '/settings', {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            default_skill_ids: defaultSkillIds.join(','),
+            default_skill_group_ids: defaultGroupIds.join(',')
+          })
+        });
+        renderDefaultSkillPills();
+      } catch(e) { console.error('Save default skills error:', e); }
+    }
+
     // Init
     loadSettings();
+    loadDefaultSkillsUI();
     """
   end
 end

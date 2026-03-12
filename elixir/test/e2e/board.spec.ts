@@ -652,22 +652,25 @@ test.describe("Task Lineage — Interaction", () => {
 });
 
 // ============================================================
-// Product Review Page
+// Products Page
 // ============================================================
 
-test.describe("Product Review — Interaction", () => {
+test.describe("Products — Interaction", () => {
   test.beforeEach(async ({ request }) => {
     await cleanupAll(request);
   });
 
   test("empty state shows select prompt", async ({ page }) => {
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(500);
 
     await expect(page.locator("#product-select")).toHaveCount(1);
   });
 
-  test("selecting a product shows the matrix", async ({ page, request }) => {
+  test("selecting a product shows the spec sheet", async ({
+    page,
+    request,
+  }) => {
     // Create a product with a project and feature
     const project = await createProject(request, { name: "Review Project" });
     const prodRes = await request.post("/board/api/products", {
@@ -684,7 +687,7 @@ test.describe("Product Review — Interaction", () => {
       data: { name: "Auth", description: "Authentication feature" },
     });
 
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(1000);
 
     // Select the product
@@ -700,30 +703,31 @@ test.describe("Product Review — Interaction", () => {
     }
     await page.waitForTimeout(1000);
 
-    // Matrix table should appear
-    await expect(page.locator(".matrix-table")).toHaveCount(1);
+    // Spec sheet should appear with product header
+    await expect(page.locator(".spec-sheet")).toBeVisible();
 
-    // Feature should be listed
-    await expect(page.locator(".matrix-table")).toContainText("Auth");
+    // Feature should be listed in a card
+    await expect(page.locator(".feature-card")).toHaveCount(1);
+    await expect(page.locator(".feature-card")).toContainText("Auth");
 
-    // Project column should be present
-    await expect(page.locator(".matrix-table")).toContainText("Review Project");
+    // Project tag should be present
+    await expect(page.locator(".project-tag")).toContainText("Review Project");
   });
 
-  test("clicking a status badge cycles through statuses", async ({
+  test("feature card shows overall status and project tags", async ({
     page,
     request,
   }) => {
-    const project = await createProject(request, { name: "Cycle Project" });
+    const project = await createProject(request, { name: "Status Project" });
     const prodRes = await request.post("/board/api/products", {
-      data: { name: "Cycle Product", project_ids: [project.id] },
+      data: { name: "Status Product", project_ids: [project.id] },
     });
     const product = await prodRes.json();
     await request.post(`/board/api/products/${product.id}/features`, {
       data: { name: "Feature X" },
     });
 
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(1000);
 
     const select = page.locator("#product-select");
@@ -737,23 +741,19 @@ test.describe("Product Review — Interaction", () => {
     }
     await page.waitForTimeout(1000);
 
-    // Click the first status cell
-    const statusCell = page.locator(".status-cell").first();
-    if ((await statusCell.count()) > 0) {
-      const initialBadge = await statusCell.locator(".status-badge").textContent();
+    // Feature card should show a status badge
+    await expect(page.locator(".feature-status-badge")).toHaveCount(1);
 
-      await statusCell.click();
-      await page.waitForTimeout(500);
-
-      // Status should have changed (the badge text/icon should be different)
-      const updatedBadge = await statusCell
-        .locator(".status-badge")
-        .textContent();
-      expect(updatedBadge).not.toBe(initialBadge);
-    }
+    // Feature project tag should show project name with status
+    await expect(page.locator(".feature-project-tag")).toContainText(
+      "Status Project"
+    );
   });
 
-  test("score bar shows overall completeness", async ({ page, request }) => {
+  test("overall progress bar shows completeness", async ({
+    page,
+    request,
+  }) => {
     const project = await createProject(request, { name: "Score Project" });
     const prodRes = await request.post("/board/api/products", {
       data: { name: "Score Product", project_ids: [project.id] },
@@ -763,7 +763,7 @@ test.describe("Product Review — Interaction", () => {
       data: { name: "F1" },
     });
 
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(1000);
 
     const select = page.locator("#product-select");
@@ -777,24 +777,27 @@ test.describe("Product Review — Interaction", () => {
     }
     await page.waitForTimeout(1000);
 
-    // Score bar should be present
-    await expect(page.locator(".score-bar")).toHaveCount(1);
-    await expect(page.locator(".score-bar")).toContainText(
+    // Overall progress bar should be present
+    await expect(page.locator(".overall-bar")).toHaveCount(1);
+    await expect(page.locator(".overall-bar")).toContainText(
       "Overall Completeness"
     );
   });
 
-  test("footer row shows per-project scores", async ({ page, request }) => {
-    const project = await createProject(request, { name: "Footer Project" });
+  test("feature detail modal shows per-project statuses", async ({
+    page,
+    request,
+  }) => {
+    const project = await createProject(request, { name: "Detail Project" });
     const prodRes = await request.post("/board/api/products", {
-      data: { name: "Footer Product", project_ids: [project.id] },
+      data: { name: "Detail Product", project_ids: [project.id] },
     });
     const product = await prodRes.json();
     await request.post(`/board/api/products/${product.id}/features`, {
       data: { name: "F1" },
     });
 
-    await page.goto("/board/review");
+    await page.goto("/board/products");
     await page.waitForTimeout(1000);
 
     const select = page.locator("#product-select");
@@ -808,9 +811,17 @@ test.describe("Product Review — Interaction", () => {
     }
     await page.waitForTimeout(1000);
 
-    // Footer row should show "Project Score"
-    const tfoot = page.locator(".matrix-table tfoot");
-    await expect(tfoot).toContainText("Project Score");
+    // Hover over the feature card to reveal the detail button, then click it
+    await page.locator(".feature-card").first().hover();
+    const detailBtn = page.locator('.feature-action-btn[title="Per-project details"]').first();
+    if ((await detailBtn.count()) > 0) {
+      await detailBtn.click();
+      await page.waitForTimeout(500);
+
+      // Detail modal should show project name and status
+      await expect(page.locator("#detail-modal")).toBeVisible();
+      await expect(page.locator(".detail-project-row")).toContainText("Detail Project");
+    }
   });
 });
 
@@ -942,7 +953,7 @@ test.describe("Cross-page Navigation", () => {
     await expect(lineageLink).toHaveCount(1);
 
     // Review link
-    const reviewLink = page.locator('a[href="/board/review"]');
+    const reviewLink = page.locator('a[href="/board/products"]');
     await expect(reviewLink).toHaveCount(1);
 
     // Settings link
@@ -958,7 +969,7 @@ test.describe("Cross-page Navigation", () => {
     const subPages = [
       "/board/projects",
       "/board/task-lineage",
-      "/board/review",
+      "/board/products",
       "/board/settings",
     ];
 

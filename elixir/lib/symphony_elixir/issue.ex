@@ -26,6 +26,10 @@ defmodule SymphonyElixir.Issue do
           product_id: String.t() | nil,
           parent_issue_id: String.t() | nil,
           propose_followups: boolean(),
+          skill_ids: [String.t()],
+          skill_group_ids: [String.t()],
+          plan_status: String.t() | nil,
+          plan_text: String.t() | nil,
           created_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
@@ -43,11 +47,15 @@ defmodule SymphonyElixir.Issue do
     :project_id,
     :product_id,
     :parent_issue_id,
+    :plan_status,
+    :plan_text,
     :created_at,
     :updated_at,
     labels: [],
     blocked_by: [],
-    propose_followups: true
+    propose_followups: true,
+    skill_ids: [],
+    skill_group_ids: []
   ]
 
   @doc """

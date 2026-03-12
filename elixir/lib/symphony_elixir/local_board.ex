@@ -11,7 +11,7 @@ defmodule SymphonyElixir.LocalBoard do
 
   require Logger
 
-  alias SymphonyElixir.Issue
+  alias SymphonyElixir.LocalBoard.{Issues, Projects, Products, Skills, Persistence}
 
   @type issue_record :: %{
           id: String.t(),
@@ -36,6 +36,7 @@ defmodule SymphonyElixir.LocalBoard do
           path: String.t() | nil,
           repo_url: String.t() | nil,
           description: String.t() | nil,
+          tags: [String.t()],
           created_at: String.t(),
           updated_at: String.t()
         }
@@ -43,11 +44,20 @@ defmodule SymphonyElixir.LocalBoard do
   @type feature_status :: String.t()
   # "missing" | "planned" | "in_progress" | "done" | "n_a"
 
+  @type status_history_entry :: %{
+          status: feature_status(),
+          changed_at: String.t(),
+          source: String.t()
+        }
+
   @type feature :: %{
           id: String.t(),
           name: String.t(),
           description: String.t() | nil,
-          statuses: %{String.t() => feature_status()}
+          category: String.t() | nil,
+          depends_on: [String.t()],
+          statuses: %{String.t() => feature_status()},
+          status_history: [status_history_entry()]
         }
 
   @type product :: %{
@@ -60,12 +70,35 @@ defmodule SymphonyElixir.LocalBoard do
           updated_at: String.t()
         }
 
+  @type skill_record :: %{
+          id: String.t(),
+          name: String.t(),
+          description: String.t() | nil,
+          content: String.t(),
+          category: String.t(),
+          tags: [String.t()],
+          built_in: boolean(),
+          created_at: String.t(),
+          updated_at: String.t()
+        }
+
+  @type skill_group_record :: %{
+          id: String.t(),
+          name: String.t(),
+          description: String.t() | nil,
+          skill_ids: [String.t()],
+          created_at: String.t(),
+          updated_at: String.t()
+        }
+
   @default_states ["Backlog", "Todo", "In Progress", "Review", "Done", "Archived", "Cancelled"]
   @default_store_path "local_board.json"
 
   defstruct issues: %{},
             projects: %{},
             products: %{},
+            skills: %{},
+            skill_groups: %{},
             states: @default_states,
             next_number: 1,
             project_prefix: "SYM",
@@ -81,7 +114,8 @@ defmodule SymphonyElixir.LocalBoard do
       description:
         "## Code Review\n\n**PR/Branch:** \n**Author:** \n\n### Checklist\n- [ ] Code compiles without warnings\n- [ ] Tests pass\n- [ ] No security vulnerabilities introduced\n- [ ] Code style follows project conventions\n- [ ] Documentation updated if needed\n- [ ] Edge cases handled\n- [ ] Error handling is appropriate\n\n### Notes\n",
       labels: ["code-review"],
-      priority: 2
+      priority: 2,
+      skill_names: ["verification-before-completion", "code-review", "scope-discipline"]
     },
     %{
       id: "bug-report",
@@ -90,7 +124,12 @@ defmodule SymphonyElixir.LocalBoard do
       description:
         "## Bug Report\n\n**Environment:** \n**Version:** \n\n### Steps to Reproduce\n1. \n2. \n3. \n\n### Expected Behavior\n\n\n### Actual Behavior\n\n\n### Screenshots/Logs\n",
       labels: ["bug"],
-      priority: 1
+      priority: 1,
+      skill_names: [
+        "systematic-debugging",
+        "verification-before-completion",
+        "incremental-verification"
+      ]
     },
     %{
       id: "feature-request",
@@ -99,7 +138,13 @@ defmodule SymphonyElixir.LocalBoard do
       description:
         "## Feature Request\n\n### Problem Statement\n\n\n### Proposed Solution\n\n\n### Alternatives Considered\n\n\n### Acceptance Criteria\n- [ ] \n- [ ] \n- [ ] \n",
       labels: ["feature"],
-      priority: 3
+      priority: 3,
+      skill_names: [
+        "design-before-code",
+        "test-driven-development",
+        "executing-plans",
+        "scope-discipline"
+      ]
     },
     %{
       id: "security-review",
@@ -108,7 +153,8 @@ defmodule SymphonyElixir.LocalBoard do
       description:
         "## Security Review\n\n**Component:** \n**Risk Level:** \n\n### Checklist\n- [ ] Input validation reviewed\n- [ ] Authentication/authorization checked\n- [ ] No secrets in source code\n- [ ] SQL injection prevention verified\n- [ ] XSS prevention verified\n- [ ] CSRF protection in place\n- [ ] Dependencies checked for known vulnerabilities\n- [ ] Logging does not expose sensitive data\n\n### Findings\n",
       labels: ["security", "code-review"],
-      priority: 1
+      priority: 1,
+      skill_names: ["verification-before-completion", "code-review", "evidence-based-decisions"]
     },
     %{
       id: "tech-debt",
@@ -117,7 +163,13 @@ defmodule SymphonyElixir.LocalBoard do
       description:
         "## Technical Debt\n\n**Area:** \n**Effort Estimate:** \n\n### Current State\n\n\n### Desired State\n\n\n### Migration Plan\n1. \n2. \n3. \n\n### Risks\n",
       labels: ["tech-debt"],
-      priority: 4
+      priority: 4,
+      skill_names: [
+        "design-before-code",
+        "executing-plans",
+        "scope-discipline",
+        "incremental-verification"
+      ]
     },
     %{
       id: "research",
@@ -126,7 +178,33 @@ defmodule SymphonyElixir.LocalBoard do
       description:
         "## Research Task\n\n**Topic:** \n**Scope:** \n\n### Questions to Answer\n1. \n2. \n3. \n\n### Expected Output\nA report saved to `reports/<identifier>.md` in the workspace.\n\n### Context\n",
       labels: ["research"],
-      priority: 3
+      priority: 3,
+      skill_names: ["source-verification", "structured-reporting", "scope-discipline"]
+    },
+    %{
+      id: "documentation",
+      name: "Documentation",
+      title: "Docs: ",
+      description:
+        "## Documentation Task\n\n**Target Audience:** \n**Document Type:** (guide / reference / tutorial / changelog)\n\n### Scope\n\n\n### Outline\n1. \n2. \n3. \n\n### Acceptance Criteria\n- [ ] Content is accurate and tested\n- [ ] Examples are complete and runnable\n- [ ] Prerequisites are listed\n",
+      labels: ["documentation"],
+      priority: 3,
+      skill_names: ["audience-aware-writing", "structured-reporting", "content-hierarchy"]
+    },
+    %{
+      id: "ui-design",
+      name: "UI / Design Task",
+      title: "UI: ",
+      description:
+        "## UI / Design Task\n\n**Component/Page:** \n**User Goal:** \n\n### Current State\n\n\n### Desired State\n\n\n### Acceptance Criteria\n- [ ] Visually consistent with existing design\n- [ ] Responsive at common breakpoints\n- [ ] Empty, loading, and error states handled\n- [ ] Keyboard accessible\n",
+      labels: ["ui", "design"],
+      priority: 3,
+      skill_names: [
+        "user-journey-first",
+        "cognitive-load-budget",
+        "spatial-consistency",
+        "content-hierarchy"
+      ]
     }
   ]
 
@@ -241,6 +319,14 @@ defmodule SymphonyElixir.LocalBoard do
     end
   end
 
+  @doc "Resolve skill_names on a template to actual skill_ids from the board."
+  @spec resolve_template_skill_ids(map()) :: [String.t()]
+  def resolve_template_skill_ids(%{skill_names: names}) when is_list(names) and names != [] do
+    GenServer.call(__MODULE__, {:resolve_template_skill_ids, names})
+  end
+
+  def resolve_template_skill_ids(_), do: []
+
   # --- Product API ---
 
   @spec list_products() :: [product()]
@@ -288,14 +374,91 @@ defmodule SymphonyElixir.LocalBoard do
     GenServer.call(__MODULE__, {:delete_product_feature, product_id, feature_id})
   end
 
-  @spec set_feature_status(String.t(), String.t(), String.t(), String.t()) ::
+  @spec set_feature_status(String.t(), String.t(), String.t(), String.t(), String.t()) ::
           {:ok, product()} | {:error, :not_found}
-  def set_feature_status(product_id, feature_id, project_id, status) do
+  def set_feature_status(product_id, feature_id, project_id, status, source \\ "manual") do
     GenServer.call(
       __MODULE__,
-      {:set_feature_status, product_id, feature_id, project_id, status}
+      {:set_feature_status, product_id, feature_id, project_id, status, source}
     )
   end
+
+  # --- Skills API ---
+
+  @spec list_skills() :: [skill_record()]
+  def list_skills do
+    GenServer.call(__MODULE__, :list_skills)
+  end
+
+  @spec get_skill(String.t()) :: {:ok, skill_record()} | {:error, :not_found}
+  def get_skill(id) do
+    GenServer.call(__MODULE__, {:get_skill, id})
+  end
+
+  @spec get_skills_by_ids([String.t()]) :: [skill_record()]
+  def get_skills_by_ids(ids) do
+    GenServer.call(__MODULE__, {:get_skills_by_ids, ids})
+  end
+
+  @spec create_skill(map()) :: {:ok, skill_record()}
+  def create_skill(attrs) do
+    GenServer.call(__MODULE__, {:create_skill, attrs})
+  end
+
+  @spec update_skill(String.t(), map()) :: {:ok, skill_record()} | {:error, :not_found}
+  def update_skill(id, attrs) do
+    GenServer.call(__MODULE__, {:update_skill, id, attrs})
+  end
+
+  @spec delete_skill(String.t()) :: :ok | {:error, :not_found} | {:error, :built_in}
+  def delete_skill(id) do
+    GenServer.call(__MODULE__, {:delete_skill, id})
+  end
+
+  @spec duplicate_skill(String.t()) :: {:ok, skill_record()} | {:error, :not_found}
+  def duplicate_skill(id) do
+    GenServer.call(__MODULE__, {:duplicate_skill, id})
+  end
+
+  # --- Skill Groups API ---
+
+  @spec list_skill_groups() :: [skill_group_record()]
+  def list_skill_groups do
+    GenServer.call(__MODULE__, :list_skill_groups)
+  end
+
+  @spec get_skill_group(String.t()) :: {:ok, skill_group_record()} | {:error, :not_found}
+  def get_skill_group(id) do
+    GenServer.call(__MODULE__, {:get_skill_group, id})
+  end
+
+  @spec create_skill_group(map()) :: {:ok, skill_group_record()}
+  def create_skill_group(attrs) do
+    GenServer.call(__MODULE__, {:create_skill_group, attrs})
+  end
+
+  @spec update_skill_group(String.t(), map()) ::
+          {:ok, skill_group_record()} | {:error, :not_found}
+  def update_skill_group(id, attrs) do
+    GenServer.call(__MODULE__, {:update_skill_group, id, attrs})
+  end
+
+  @spec delete_skill_group(String.t()) :: :ok | {:error, :not_found}
+  def delete_skill_group(id) do
+    GenServer.call(__MODULE__, {:delete_skill_group, id})
+  end
+
+  @doc "Resolve all skill records for an issue, expanding skill groups and deduplicating."
+  @spec resolve_issue_skills(map()) :: [skill_record()]
+  def resolve_issue_skills(issue) do
+    GenServer.call(__MODULE__, {:resolve_issue_skills, issue})
+  end
+
+  # --- Conversion to Issue struct (delegated) ---
+
+  @doc "Convert an internal issue record to an `Issue` struct."
+  @spec to_issue_struct(issue_record()) :: SymphonyElixir.Issue.t()
+  defdelegate to_issue_struct(record), to: Issues
 
   # --- Server Callbacks ---
 
@@ -311,10 +474,10 @@ defmodule SymphonyElixir.LocalBoard do
       project_prefix: prefix
     }
 
-    board = load_from_disk(board)
+    board = Persistence.load_from_disk(board)
 
     # Persist immediately so any merged-in states are saved to disk
-    persist(board)
+    Persistence.persist(board)
 
     Logger.info(
       "LocalBoard started: #{map_size(board.issues)} issues, states=#{inspect(board.states)}"
@@ -323,798 +486,115 @@ defmodule SymphonyElixir.LocalBoard do
     {:ok, board}
   end
 
+  # --- Issue Callbacks ---
+
   @impl true
-  def handle_call(:list_issues, _from, board) do
-    issues = board.issues |> Map.values() |> sort_issues()
-    {:reply, issues, board}
-  end
+  def handle_call(:list_issues, _from, board), do: Issues.list_issues(board)
 
-  def handle_call({:list_issues_by_states, state_names}, _from, board) do
-    normalized = MapSet.new(state_names, &String.downcase/1)
+  def handle_call({:list_issues_by_states, state_names}, _from, board),
+    do: Issues.list_issues_by_states(board, state_names)
 
-    issues =
-      board.issues
-      |> Map.values()
-      |> Enum.filter(fn i -> MapSet.member?(normalized, String.downcase(i.state)) end)
-      |> sort_issues()
+  def handle_call({:get_issue, id}, _from, board), do: Issues.get_issue(board, id)
 
-    {:reply, issues, board}
-  end
+  def handle_call({:get_issues_by_ids, ids}, _from, board),
+    do: Issues.get_issues_by_ids(board, ids)
 
-  def handle_call({:get_issue, id}, _from, board) do
-    case Map.get(board.issues, id) do
-      nil -> {:reply, {:error, :not_found}, board}
-      issue -> {:reply, {:ok, issue}, board}
-    end
-  end
+  def handle_call({:create_issue, attrs}, _from, board), do: Issues.create_issue(board, attrs)
 
-  def handle_call({:get_issues_by_ids, ids}, _from, board) do
-    issues =
-      ids
-      |> Enum.map(&Map.get(board.issues, &1))
-      |> Enum.reject(&is_nil/1)
+  def handle_call({:update_issue, id, attrs}, _from, board),
+    do: Issues.update_issue(board, id, attrs)
 
-    {:reply, issues, board}
-  end
+  def handle_call({:move_issue, id, new_state}, _from, board),
+    do: Issues.move_issue(board, id, new_state)
 
-  def handle_call({:create_issue, attrs}, _from, board) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-    id = generate_id()
-    identifier = "#{board.project_prefix}-#{board.next_number}"
+  def handle_call({:delete_issue, id}, _from, board), do: Issues.delete_issue(board, id)
 
-    issue = %{
-      id: id,
-      identifier: identifier,
-      title: Map.get(attrs, "title", "Untitled"),
-      description: Map.get(attrs, "description"),
-      priority: parse_priority(Map.get(attrs, "priority", 0)),
-      state: Map.get(attrs, "state", hd(board.states)),
-      branch_name: Map.get(attrs, "branch_name"),
-      url: nil,
-      labels: parse_labels(Map.get(attrs, "labels", [])),
-      project_id: Map.get(attrs, "project_id"),
-      product_id: Map.get(attrs, "product_id"),
-      parent_issue_id: Map.get(attrs, "parent_issue_id"),
-      propose_followups: Map.get(attrs, "propose_followups", true) != false,
-      created_at: now,
-      updated_at: now
-    }
+  def handle_call({:save_agent_run, issue_id, run_data}, _from, board),
+    do: Issues.save_agent_run(board, issue_id, run_data)
 
-    board = %{
-      board
-      | issues: Map.put(board.issues, id, issue),
-        next_number: board.next_number + 1
-    }
+  def handle_call(:list_states, _from, board), do: Issues.list_states(board)
 
-    persist(board)
-
-    {:reply, {:ok, issue}, board}
-  end
-
-  def handle_call({:update_issue, id, attrs}, _from, board) do
-    case Map.get(board.issues, id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
-
-      existing ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-        updated =
-          existing
-          |> maybe_update(:title, attrs)
-          |> maybe_update(:description, attrs)
-          |> maybe_update(:priority, attrs, &parse_priority/1)
-          |> maybe_update(:state, attrs)
-          |> maybe_update(:branch_name, attrs)
-          |> maybe_update(:labels, attrs, &parse_labels/1)
-          |> maybe_update(:propose_followups, attrs, &parse_boolean/1)
-          |> Map.put(:updated_at, now)
-
-        board = %{board | issues: Map.put(board.issues, id, updated)}
-        persist(board)
-
-        {:reply, {:ok, updated}, board}
-    end
-  end
-
-  def handle_call({:move_issue, id, new_state}, _from, board) do
-    case Map.get(board.issues, id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
-
-      existing ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
-        updated = %{existing | state: new_state, updated_at: now}
-        board = %{board | issues: Map.put(board.issues, id, updated)}
-        persist(board)
-
-        {:reply, {:ok, updated}, board}
-    end
-  end
-
-  def handle_call({:delete_issue, id}, _from, board) do
-    if Map.has_key?(board.issues, id) do
-      board = %{board | issues: Map.delete(board.issues, id)}
-      persist(board)
-      {:reply, :ok, board}
-    else
-      {:reply, {:error, :not_found}, board}
-    end
-  end
-
-  def handle_call({:save_agent_run, issue_id, run_data}, _from, board) do
-    case Map.get(board.issues, issue_id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
-
-      issue ->
-        updated = Map.put(issue, :agent_run, run_data)
-        board = %{board | issues: Map.put(board.issues, issue_id, updated)}
-        persist(board)
-        {:reply, :ok, board}
-    end
-  end
-
-  def handle_call(:list_states, _from, board) do
-    {:reply, board.states, board}
-  end
-
-  def handle_call(:get_board_snapshot, _from, board) do
-    columns =
-      Enum.map(board.states, fn state ->
-        issues =
-          board.issues
-          |> Map.values()
-          |> Enum.filter(fn i -> i.state == state end)
-          |> sort_issues()
-
-        %{state: state, issues: issues}
-      end)
-
-    snapshot = %{
-      states: board.states,
-      columns: columns,
-      total_issues: map_size(board.issues),
-      project_prefix: board.project_prefix,
-      projects: Map.values(board.projects)
-    }
-
-    {:reply, snapshot, board}
-  end
+  def handle_call(:get_board_snapshot, _from, board), do: Issues.get_board_snapshot(board)
 
   # --- Project Callbacks ---
 
-  def handle_call(:list_projects, _from, board) do
-    projects = board.projects |> Map.values() |> Enum.sort_by(& &1.name)
-    {:reply, projects, board}
-  end
+  def handle_call(:list_projects, _from, board), do: Projects.list_projects(board)
 
-  def handle_call({:get_project, id}, _from, board) do
-    case Map.get(board.projects, id) do
-      nil -> {:reply, {:error, :not_found}, board}
-      project -> {:reply, {:ok, project}, board}
-    end
-  end
+  def handle_call({:get_project, id}, _from, board), do: Projects.get_project(board, id)
 
-  def handle_call({:create_project, attrs}, _from, board) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-    id = generate_id()
-    name = Map.get(attrs, "name", "Untitled Project")
-    slug = Map.get(attrs, "slug") || slugify(name)
+  def handle_call({:create_project, attrs}, _from, board),
+    do: Projects.create_project(board, attrs)
 
-    project = %{
-      id: id,
-      name: name,
-      slug: slug,
-      path: Map.get(attrs, "path"),
-      repo_url: Map.get(attrs, "repo_url"),
-      description: Map.get(attrs, "description"),
-      created_at: now,
-      updated_at: now
-    }
+  def handle_call({:update_project, id, attrs}, _from, board),
+    do: Projects.update_project(board, id, attrs)
 
-    board = %{board | projects: Map.put(board.projects, id, project)}
-    persist(board)
+  def handle_call({:delete_project, id}, _from, board), do: Projects.delete_project(board, id)
 
-    {:reply, {:ok, project}, board}
-  end
-
-  def handle_call({:update_project, id, attrs}, _from, board) do
-    case Map.get(board.projects, id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
-
-      existing ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-        updated =
-          existing
-          |> maybe_update(:name, attrs)
-          |> maybe_update(:slug, attrs)
-          |> maybe_update(:path, attrs)
-          |> maybe_update(:repo_url, attrs)
-          |> maybe_update(:description, attrs)
-          |> Map.put(:updated_at, now)
-
-        board = %{board | projects: Map.put(board.projects, id, updated)}
-        persist(board)
-
-        {:reply, {:ok, updated}, board}
-    end
-  end
-
-  def handle_call({:delete_project, id}, _from, board) do
-    if Map.has_key?(board.projects, id) do
-      # Cascade: delete all issues belonging to this project
-      issues =
-        board.issues
-        |> Enum.reject(fn {_id, issue} -> issue.project_id == id end)
-        |> Map.new()
-
-      board = %{board | projects: Map.delete(board.projects, id), issues: issues}
-      persist(board)
-      {:reply, :ok, board}
-    else
-      {:reply, {:error, :not_found}, board}
-    end
-  end
-
-  def handle_call({:clone_project_repo, id}, _from, board) do
-    case Map.get(board.projects, id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
-
-      %{repo_url: nil} ->
-        {:reply, {:error, :no_repo_url}, board}
-
-      %{repo_url: ""} ->
-        {:reply, {:error, :no_repo_url}, board}
-
-      project ->
-        result = do_clone(project)
-
-        case result do
-          {:ok, clone_path} ->
-            now = DateTime.utc_now() |> DateTime.to_iso8601()
-            updated = %{project | path: clone_path, updated_at: now}
-            board = %{board | projects: Map.put(board.projects, id, updated)}
-            persist(board)
-            {:reply, {:ok, clone_path}, board}
-
-          {:error, _} = err ->
-            {:reply, err, board}
-        end
-    end
-  end
+  def handle_call({:clone_project_repo, id}, _from, board),
+    do: Projects.clone_project_repo(board, id)
 
   # --- Product Callbacks ---
 
-  def handle_call(:list_products, _from, board) do
-    products = board.products |> Map.values() |> Enum.sort_by(& &1.name)
-    {:reply, products, board}
-  end
+  def handle_call(:list_products, _from, board), do: Products.list_products(board)
 
-  def handle_call({:get_product, id}, _from, board) do
-    case Map.get(board.products, id) do
-      nil -> {:reply, {:error, :not_found}, board}
-      prod -> {:reply, {:ok, prod}, board}
-    end
-  end
+  def handle_call({:get_product, id}, _from, board), do: Products.get_product(board, id)
 
-  def handle_call({:create_product, attrs}, _from, board) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-    id = generate_id()
+  def handle_call({:create_product, attrs}, _from, board),
+    do: Products.create_product(board, attrs)
 
-    prod = %{
-      id: id,
-      name: Map.get(attrs, "name", "Untitled Product"),
-      description: Map.get(attrs, "description"),
-      project_ids: Map.get(attrs, "project_ids", []),
-      features: [],
-      created_at: now,
-      updated_at: now
-    }
+  def handle_call({:update_product, id, attrs}, _from, board),
+    do: Products.update_product(board, id, attrs)
 
-    board = %{board | products: Map.put(board.products, id, prod)}
-    persist(board)
-    {:reply, {:ok, prod}, board}
-  end
+  def handle_call({:delete_product, id}, _from, board), do: Products.delete_product(board, id)
 
-  def handle_call({:update_product, id, attrs}, _from, board) do
-    case Map.get(board.products, id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
+  def handle_call({:add_product_feature, prod_id, feature_attrs}, _from, board),
+    do: Products.add_product_feature(board, prod_id, feature_attrs)
 
-      existing ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
+  def handle_call({:update_product_feature, prod_id, feature_id, attrs}, _from, board),
+    do: Products.update_product_feature(board, prod_id, feature_id, attrs)
 
-        updated =
-          existing
-          |> maybe_update(:name, attrs)
-          |> maybe_update(:description, attrs)
-          |> maybe_update(:project_ids, attrs)
-          |> Map.put(:updated_at, now)
+  def handle_call({:delete_product_feature, prod_id, feature_id}, _from, board),
+    do: Products.delete_product_feature(board, prod_id, feature_id)
 
-        board = %{board | products: Map.put(board.products, id, updated)}
-        persist(board)
-        {:reply, {:ok, updated}, board}
-    end
-  end
+  def handle_call({:set_feature_status, prod_id, feature_id, project_id, status, source}, _from, board),
+    do: Products.set_feature_status(board, prod_id, feature_id, project_id, status, source)
 
-  def handle_call({:delete_product, id}, _from, board) do
-    if Map.has_key?(board.products, id) do
-      board = %{board | products: Map.delete(board.products, id)}
-      persist(board)
-      {:reply, :ok, board}
-    else
-      {:reply, {:error, :not_found}, board}
-    end
-  end
+  # --- Skills Callbacks ---
 
-  def handle_call({:add_product_feature, prod_id, feature_attrs}, _from, board) do
-    case Map.get(board.products, prod_id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
+  def handle_call(:list_skills, _from, board), do: Skills.list_skills(board)
 
-      prod ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
-        feature_id = generate_id()
+  def handle_call({:get_skill, id}, _from, board), do: Skills.get_skill(board, id)
 
-        # Initialize statuses for all projects as "missing"
-        statuses =
-          Map.new(prod.project_ids, fn pid -> {pid, "missing"} end)
+  def handle_call({:get_skills_by_ids, ids}, _from, board),
+    do: Skills.get_skills_by_ids(board, ids)
 
-        feature = %{
-          id: feature_id,
-          name: Map.get(feature_attrs, "name", "Untitled Feature"),
-          description: Map.get(feature_attrs, "description"),
-          statuses: Map.merge(statuses, Map.get(feature_attrs, "statuses", %{}))
-        }
+  def handle_call({:create_skill, attrs}, _from, board), do: Skills.create_skill(board, attrs)
 
-        updated = %{prod | features: prod.features ++ [feature], updated_at: now}
-        board = %{board | products: Map.put(board.products, prod_id, updated)}
-        persist(board)
-        {:reply, {:ok, updated}, board}
-    end
-  end
+  def handle_call({:update_skill, id, attrs}, _from, board),
+    do: Skills.update_skill(board, id, attrs)
 
-  def handle_call({:update_product_feature, prod_id, feature_id, attrs}, _from, board) do
-    case Map.get(board.products, prod_id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
+  def handle_call({:delete_skill, id}, _from, board), do: Skills.delete_skill(board, id)
 
-      prod ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
+  def handle_call({:duplicate_skill, id}, _from, board), do: Skills.duplicate_skill(board, id)
 
-        features =
-          Enum.map(prod.features, fn f ->
-            if f.id == feature_id do
-              f
-              |> maybe_update(:name, attrs)
-              |> maybe_update(:description, attrs)
-            else
-              f
-            end
-          end)
+  # --- Skill Groups Callbacks ---
 
-        updated = %{prod | features: features, updated_at: now}
-        board = %{board | products: Map.put(board.products, prod_id, updated)}
-        persist(board)
-        {:reply, {:ok, updated}, board}
-    end
-  end
+  def handle_call(:list_skill_groups, _from, board), do: Skills.list_skill_groups(board)
 
-  def handle_call({:delete_product_feature, prod_id, feature_id}, _from, board) do
-    case Map.get(board.products, prod_id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
+  def handle_call({:get_skill_group, id}, _from, board), do: Skills.get_skill_group(board, id)
 
-      prod ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
-        features = Enum.reject(prod.features, &(&1.id == feature_id))
-        updated = %{prod | features: features, updated_at: now}
-        board = %{board | products: Map.put(board.products, prod_id, updated)}
-        persist(board)
-        {:reply, {:ok, updated}, board}
-    end
-  end
+  def handle_call({:create_skill_group, attrs}, _from, board),
+    do: Skills.create_skill_group(board, attrs)
 
-  def handle_call({:set_feature_status, prod_id, feature_id, project_id, status}, _from, board) do
-    case Map.get(board.products, prod_id) do
-      nil ->
-        {:reply, {:error, :not_found}, board}
+  def handle_call({:update_skill_group, id, attrs}, _from, board),
+    do: Skills.update_skill_group(board, id, attrs)
 
-      prod ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
+  def handle_call({:delete_skill_group, id}, _from, board),
+    do: Skills.delete_skill_group(board, id)
 
-        features =
-          Enum.map(prod.features, fn f ->
-            if f.id == feature_id do
-              %{f | statuses: Map.put(f.statuses, project_id, status)}
-            else
-              f
-            end
-          end)
+  def handle_call({:resolve_issue_skills, issue}, _from, board),
+    do: Skills.resolve_issue_skills(board, issue)
 
-        updated = %{prod | features: features, updated_at: now}
-        board = %{board | products: Map.put(board.products, prod_id, updated)}
-        persist(board)
-        {:reply, {:ok, updated}, board}
-    end
-  end
-
-  # Ensure any new default states are inserted in the correct position.
-  # Persisted states take priority; missing defaults are spliced in
-  # just before the state that follows them in the defaults list.
-  defp merge_states(persisted, defaults) do
-    missing = defaults -- persisted
-
-    Enum.reduce(missing, persisted, fn state, acc ->
-      idx = Enum.find_index(defaults, &(&1 == state))
-      # Find the next default state that already exists in acc
-      insert_before =
-        defaults
-        |> Enum.drop(idx + 1)
-        |> Enum.find(&(&1 in acc))
-
-      case insert_before do
-        nil -> acc ++ [state]
-        anchor -> List.insert_at(acc, Enum.find_index(acc, &(&1 == anchor)), state)
-      end
-    end)
-  end
-
-  # --- Persistence ---
-
-  defp persist(%__MODULE__{} = board) do
-    data = %{
-      "issues" => Map.values(board.issues) |> Enum.map(&issue_to_json/1),
-      "projects" => Map.values(board.projects) |> Enum.map(&project_to_json/1),
-      "products" => Map.values(board.products) |> Enum.map(&product_to_json/1),
-      "states" => board.states,
-      "next_number" => board.next_number,
-      "project_prefix" => board.project_prefix
-    }
-
-    json = Jason.encode!(data, pretty: true)
-    File.write!(board.store_path, json)
-  end
-
-  defp load_from_disk(%__MODULE__{} = board) do
-    case File.read(board.store_path) do
-      {:ok, contents} ->
-        case Jason.decode(contents) do
-          {:ok, data} ->
-            issues_list = Map.get(data, "issues", [])
-
-            issues =
-              Map.new(issues_list, fn raw ->
-                issue = json_to_issue(raw)
-                {issue.id, issue}
-              end)
-
-            max_number =
-              issues_list
-              |> Enum.map(fn raw ->
-                id_str = Map.get(raw, "identifier", "X-0")
-
-                case String.split(id_str, "-") |> List.last() |> Integer.parse() do
-                  {n, ""} -> n
-                  _ -> 0
-                end
-              end)
-              |> Enum.max(fn -> 0 end)
-
-            projects_list = Map.get(data, "projects", [])
-
-            projects =
-              Map.new(projects_list, fn raw ->
-                project = json_to_project(raw)
-                {project.id, project}
-              end)
-
-            # Support legacy "compositions" key for backward compatibility
-            products_list = Map.get(data, "products", Map.get(data, "compositions", []))
-
-            products =
-              Map.new(products_list, fn raw ->
-                prod = json_to_product(raw)
-                {prod.id, prod}
-              end)
-
-            %{
-              board
-              | issues: issues,
-                projects: projects,
-                products: products,
-                states: merge_states(Map.get(data, "states", board.states), @default_states),
-                next_number: max(Map.get(data, "next_number", max_number + 1), max_number + 1),
-                project_prefix: Map.get(data, "project_prefix", board.project_prefix)
-            }
-
-          {:error, _} ->
-            Logger.warning("Corrupt board file at #{board.store_path}, starting fresh")
-            board
-        end
-
-      {:error, :enoent} ->
-        board
-
-      {:error, reason} ->
-        Logger.warning("Failed to read #{board.store_path}: #{inspect(reason)}, starting fresh")
-        board
-    end
-  end
-
-  defp issue_to_json(issue) do
-    base = %{
-      "id" => issue.id,
-      "identifier" => issue.identifier,
-      "title" => issue.title,
-      "description" => issue.description,
-      "priority" => issue.priority,
-      "state" => issue.state,
-      "branch_name" => issue.branch_name,
-      "url" => issue.url,
-      "labels" => issue.labels,
-      "project_id" => issue[:project_id],
-      "product_id" => issue[:product_id],
-      "parent_issue_id" => issue[:parent_issue_id],
-      "propose_followups" => Map.get(issue, :propose_followups, true),
-      "created_at" => issue.created_at,
-      "updated_at" => issue.updated_at
-    }
-
-    case issue[:agent_run] do
-      nil -> base
-      run -> Map.put(base, "agent_run", run)
-    end
-  end
-
-  defp json_to_issue(raw) do
-    base = %{
-      id: raw["id"],
-      identifier: raw["identifier"],
-      title: raw["title"],
-      description: raw["description"],
-      priority: raw["priority"] || 0,
-      state: raw["state"] || "Backlog",
-      branch_name: raw["branch_name"],
-      url: raw["url"],
-      labels: raw["labels"] || [],
-      project_id: raw["project_id"],
-      product_id: raw["product_id"],
-      parent_issue_id: raw["parent_issue_id"],
-      propose_followups: Map.get(raw, "propose_followups", true) != false,
-      created_at: raw["created_at"],
-      updated_at: raw["updated_at"]
-    }
-
-    case raw["agent_run"] do
-      nil -> base
-      run -> Map.put(base, :agent_run, run)
-    end
-  end
-
-  defp project_to_json(project) do
-    %{
-      "id" => project.id,
-      "name" => project.name,
-      "slug" => project.slug,
-      "path" => project.path,
-      "repo_url" => project.repo_url,
-      "description" => project.description,
-      "created_at" => project.created_at,
-      "updated_at" => project.updated_at
-    }
-  end
-
-  defp json_to_project(raw) do
-    %{
-      id: raw["id"],
-      name: raw["name"],
-      slug: raw["slug"],
-      path: raw["path"],
-      repo_url: raw["repo_url"],
-      description: raw["description"],
-      created_at: raw["created_at"],
-      updated_at: raw["updated_at"]
-    }
-  end
-
-  defp product_to_json(prod) do
-    %{
-      "id" => prod.id,
-      "name" => prod.name,
-      "description" => prod.description,
-      "project_ids" => prod.project_ids,
-      "features" =>
-        Enum.map(prod.features, fn f ->
-          %{
-            "id" => f.id,
-            "name" => f.name,
-            "description" => f.description,
-            "statuses" => f.statuses
-          }
-        end),
-      "created_at" => prod.created_at,
-      "updated_at" => prod.updated_at
-    }
-  end
-
-  defp json_to_product(raw) do
-    %{
-      id: raw["id"],
-      name: raw["name"],
-      description: raw["description"],
-      project_ids: raw["project_ids"] || [],
-      features:
-        Enum.map(raw["features"] || [], fn f ->
-          %{
-            id: f["id"],
-            name: f["name"],
-            description: f["description"],
-            statuses: f["statuses"] || %{}
-          }
-        end),
-      created_at: raw["created_at"],
-      updated_at: raw["updated_at"]
-    }
-  end
-
-  # --- Conversion to Issue struct (for behaviour compatibility) ---
-
-  @doc "Convert an internal issue record to an `Issue` struct."
-  @spec to_issue_struct(issue_record()) :: Issue.t()
-  def to_issue_struct(record) do
-    %Issue{
-      id: record.id,
-      identifier: record.identifier,
-      title: record.title,
-      description: record.description,
-      priority: record.priority,
-      state: record.state,
-      branch_name: record.branch_name,
-      url: record.url,
-      labels: record.labels || [],
-      blocked_by: [],
-      project_id: record[:project_id],
-      product_id: record[:product_id],
-      parent_issue_id: record[:parent_issue_id],
-      propose_followups: Map.get(record, :propose_followups, true) != false,
-      created_at: parse_dt(record.created_at),
-      updated_at: parse_dt(record.updated_at)
-    }
-  end
-
-  # --- Helpers ---
-
-  defp generate_id do
-    :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
-  end
-
-  defp parse_priority(val) when is_integer(val), do: val
-
-  defp parse_priority(val) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} -> n
-      _ -> 0
-    end
-  end
-
-  defp parse_priority(_), do: 0
-
-  defp parse_labels(val) when is_list(val), do: Enum.map(val, &to_string/1)
-
-  defp parse_labels(val) when is_binary(val),
-    do: String.split(val, ",") |> Enum.map(&String.trim/1)
-
-  defp parse_labels(_), do: []
-
-  defp parse_boolean(true), do: true
-  defp parse_boolean(false), do: false
-  defp parse_boolean("true"), do: true
-  defp parse_boolean(_), do: false
-
-  defp sort_issues(issues) do
-    Enum.sort_by(issues, fn i -> {-(i.priority || 0), i.created_at || ""} end)
-  end
-
-  defp maybe_update(issue, key, attrs) do
-    str_key = Atom.to_string(key)
-
-    if Map.has_key?(attrs, str_key) do
-      Map.put(issue, key, attrs[str_key])
-    else
-      issue
-    end
-  end
-
-  defp maybe_update(issue, key, attrs, transform) do
-    str_key = Atom.to_string(key)
-
-    if Map.has_key?(attrs, str_key) do
-      Map.put(issue, key, transform.(attrs[str_key]))
-    else
-      issue
-    end
-  end
-
-  defp parse_dt(nil), do: nil
-
-  defp parse_dt(str) when is_binary(str) do
-    case DateTime.from_iso8601(str) do
-      {:ok, dt, _offset} -> dt
-      _ -> nil
-    end
-  end
-
-  defp slugify(name) when is_binary(name) do
-    name
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/, "-")
-    |> String.trim("-")
-    |> String.slice(0, 32)
-  end
-
-  defp slugify(_), do: "project"
-
-  defp do_clone(%{repo_url: url, name: name}) do
-    target_dir =
-      Path.join([
-        System.tmp_dir!(),
-        "symphony_projects",
-        slugify(name) <>
-          "_" <> (:crypto.strong_rand_bytes(4) |> Base.url_encode64(padding: false))
-      ])
-
-    File.mkdir_p!(Path.dirname(target_dir))
-
-    # Inject git token from Settings if available and URL is HTTPS
-    clone_url = inject_git_token(url)
-
-    case System.cmd("git", ["clone", "--depth", "1", clone_url, target_dir],
-           stderr_to_stdout: true
-         ) do
-      {_output, 0} ->
-        Logger.info("Cloned #{url} to #{target_dir}")
-        {:ok, target_dir}
-
-      {output, code} ->
-        Logger.error("git clone failed (exit #{code}): #{output}")
-        {:error, {:clone_failed, output}}
-    end
-  rescue
-    e -> {:error, {:clone_error, Exception.message(e)}}
-  end
-
-  defp inject_git_token(url) do
-    token = safe_get_setting("git_token")
-    provider = safe_get_setting("git_provider")
-
-    if token != "" and String.starts_with?(url, "https://") do
-      uri = URI.parse(url)
-
-      userinfo =
-        case provider do
-          "gitlab" -> "oauth2:#{token}"
-          "github" -> "x-access-token:#{token}"
-          _ -> "token:#{token}"
-        end
-
-      URI.to_string(%{uri | userinfo: userinfo})
-    else
-      url
-    end
-  end
-
-  defp safe_get_setting(key) do
-    if GenServer.whereis(SymphonyElixir.Settings) do
-      SymphonyElixir.Settings.get(key) || ""
-    else
-      ""
-    end
-  rescue
-    _ -> ""
-  end
+  def handle_call({:resolve_template_skill_ids, names}, _from, board),
+    do: Skills.resolve_template_skill_ids(board, names)
 end

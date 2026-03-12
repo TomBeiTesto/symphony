@@ -97,6 +97,48 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                 </div>
               </div>
             </div>
+            <!-- Skills Panel -->
+            <div class="panel skills-panel" id="skills-panel">
+              <div class="skills-panel-header">
+                <h3>Skills</h3>
+                <button class="btn btn-ghost btn-sm" onclick="toggleSkillPicker()">+ Add</button>
+              </div>
+              <div class="skill-pills" id="skill-pills">
+                <span class="meta">No skills assigned</span>
+              </div>
+              <div id="skill-picker" style="display:none;" class="skill-picker">
+                <div class="picker-section">
+                  <label class="picker-label">Skills</label>
+                  <select id="add-skill-select" onchange="addSkillToIssue(this.value); this.value='';">
+                    <option value="">Select a skill...</option>
+                  </select>
+                </div>
+                <div class="picker-section">
+                  <label class="picker-label">Skill Groups</label>
+                  <select id="add-group-select" onchange="addGroupToIssue(this.value); this.value='';">
+                    <option value="">Select a group...</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="panel plan-review-panel" id="plan-review-panel" style="display:none;">
+              <div class="plan-review-header">
+                <h3>Plan Review</h3>
+                <span class="plan-status-badge" id="plan-status-badge"></span>
+              </div>
+              <div class="plan-text" id="plan-text"></div>
+              <div class="plan-actions" id="plan-actions" style="display:none;">
+                <button class="btn btn-primary" onclick="approvePlan()">Approve &amp; Execute</button>
+                <button class="btn btn-ghost" onclick="showRejectForm()">Reject with Feedback</button>
+              </div>
+              <div class="plan-reject-form" id="plan-reject-form" style="display:none;">
+                <textarea id="plan-feedback" placeholder="What should the agent change in its plan?" rows="3" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--border-primary);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;resize:vertical;"></textarea>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-primary" onclick="rejectPlan()" style="background:var(--orange);">Re-plan with Feedback</button>
+                  <button class="btn btn-ghost" onclick="hideRejectForm()">Cancel</button>
+                </div>
+              </div>
+            </div>
             <div class="panel result-panel" id="result-panel" style="display:none;">
               <h3>Agent Result</h3>
               <div class="result-text" id="result-text"></div>
@@ -163,134 +205,182 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
   defp format_time(_), do: ""
 
   defp css do
-    UIHelpers.theme_css() <> UIHelpers.topbar_css() <>
+    UIHelpers.theme_css() <>
+      UIHelpers.topbar_css() <>
       ~S"""
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
-    h1 { color: var(--text-primary); font-size: 1.15rem; }
-    .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
-    .state-badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
-    .state-badge.done { background: rgba(63,185,80,0.15); color: var(--green); }
-    .state-badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
-    .state-badge.in-progress { background: rgba(88,166,255,0.15); color: var(--accent); }
-    .state-badge.review { background: rgba(188,140,255,0.15); color: var(--purple); }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-    .meta { color: var(--text-muted); font-size: 0.8rem; }
-    .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
-    .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
-    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-    .panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow: hidden; }
-    .left-column { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
-    .issue-panel { flex-shrink: 0; }
-    .issue-panel h2 { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 12px; }
-    .issue-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
-    .priority { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--border-light); color: var(--text-muted); }
-    .priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
-    .priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
-    .priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
-    .label { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
-    .description { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
-    .description p { margin-bottom: 8px; }
-    .activity-panel { display: flex; flex-direction: column; }
-    .activity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
-    .activity-header h3 { color: var(--text-primary); font-size: 1rem; }
-    .token-display { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 12px; }
-    .token-display .tok { background: var(--border-light); padding: 2px 8px; border-radius: 4px; }
-    .activity-feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-    .empty-state { color: var(--text-muted); font-style: italic; text-align: center; padding: 40px; opacity: 0.6; }
-    .event { padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; font-family: 'SF Mono', 'Fira Code', monospace; border-left: 3px solid transparent; }
-    .event .time { color: var(--text-muted); margin-right: 8px; font-size: 0.7rem; opacity: 0.6; }
-    .event.has-detail { cursor: pointer; }
-    .event.has-detail:hover { background: var(--bg-secondary); }
-    .event .detail-summary { color: var(--text-muted); margin-left: 8px; font-weight: 400; }
-    .event .detail-block { display: none; margin-top: 6px; padding: 8px 10px; background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 4px; font-size: 0.75rem; color: var(--text-muted); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
-    .event.expanded .detail-block { display: block; }
-    .event.tool_use { border-left-color: var(--accent); background: var(--bg-primary); }
-    .event.tool_use .tool-name { color: var(--accent); font-weight: 600; }
-    .event.agent_message { border-left-color: var(--green); background: var(--bg-primary); }
-    .event.agent_message .msg { color: var(--text-secondary); }
-    .event.agent_output { border-left-color: var(--text-muted); background: var(--bg-primary); }
-    .event.agent_output .msg { color: var(--text-muted); }
-    .event.system_info { border-left-color: var(--yellow); background: var(--bg-primary); }
-    .event.session_started { border-left-color: var(--yellow); background: var(--bg-primary); }
-    .event.turn_completed { border-left-color: var(--green); background: rgba(63,185,80,0.05); }
-    .event.token_usage_updated { border-left-color: var(--text-muted); }
-    .event.default { border-left-color: var(--border); background: var(--bg-primary); }
-    .result-panel { flex-shrink: 0; }
-    .result-panel h3 { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .result-panel h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
-    .result-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
-    .result-text p { margin-bottom: 10px; }
-    .result-text strong { color: var(--text-primary); }
-    .result-text h2, .result-text h3 { color: var(--text-primary); margin: 16px 0 8px; font-size: 1rem; }
-    .result-text code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
-    .result-text ul, .result-text ol { margin-left: 20px; margin-bottom: 10px; }
-    .result-text li { margin-bottom: 4px; }
-    .followups-panel { flex-shrink: 0; }
-    .followups-title { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .followups-title::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
-    .followup-card { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--bg-primary); }
-    .followup-card.accepted { border-color: var(--green); opacity: 0.7; }
-    .followup-card.rejected { border-color: var(--border); opacity: 0.4; }
-    .fu-title { color: var(--text-primary); font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
-    .fu-desc { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px; line-height: 1.4; }
-    .fu-labels { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
-    .fu-label { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.65rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
-    .fu-actions { display: flex; gap: 8px; align-items: center; }
-    .btn-accept { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--green); background: var(--green); color: #fff; font-size: 0.75rem; cursor: pointer; }
-    .btn-accept:hover { opacity: 0.9; }
-    .btn-reject { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; }
-    .btn-reject:hover { border-color: var(--red); color: var(--red); }
-    .fu-status { font-size: 0.75rem; font-weight: 600; }
-    .fu-status.accepted { color: var(--green); }
-    .fu-status.rejected { color: var(--text-muted); text-decoration: line-through; }
-    .fu-link { color: var(--accent); text-decoration: none; font-size: 0.75rem; margin-left: 8px; }
-    .fu-link:hover { text-decoration: underline; }
-    .report-panel { flex-shrink: 0; }
-    .report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .report-header h3 { color: var(--text-primary); font-size: 1rem; display: flex; align-items: center; gap: 8px; }
-    .report-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-    .report-content { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; }
-    .report-content h1, .report-content h2 { color: var(--text-primary); font-size: 1.1rem; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); }
-    .report-content h3 { color: var(--text-primary); font-size: 1rem; margin: 16px 0 8px; }
-    .report-content h4 { color: var(--text-primary); font-size: 0.95rem; margin: 12px 0 6px; }
-    .report-content p { margin-bottom: 12px; }
-    .report-content strong { color: var(--text-primary); }
-    .report-content em { color: var(--text-secondary); font-style: italic; }
-    .report-content code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
-    .report-content pre { background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; overflow-x: auto; }
-    .report-content pre code { background: none; padding: 0; color: var(--text-secondary); }
-    .report-content ul, .report-content ol { margin-left: 20px; margin-bottom: 12px; }
-    .report-content li { margin-bottom: 4px; }
-    .report-content blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--text-muted); margin: 12px 0; }
-    .report-content hr { border: none; border-top: 1px solid var(--border-light); margin: 20px 0; }
-    .report-content a { color: var(--accent); text-decoration: none; }
-    .report-content a:hover { text-decoration: underline; }
-    .report-content table { border-collapse: collapse; margin: 12px 0; width: 100%; }
-    .report-content th, .report-content td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
-    .report-content th { background: var(--bg-secondary); color: var(--text-primary); font-weight: 600; }
-    .btn-edit { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
-    .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-edit.active { border-color: var(--accent); background: var(--accent); color: #fff; }
-    .edit-field { margin-bottom: 12px; }
-    .edit-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .edit-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
-    .edit-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,0.15); }
-    .edit-textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
-    .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .edit-actions { display: flex; gap: 8px; margin-top: 4px; }
-    .btn-save { padding: 6px 20px; border-radius: 4px; border: none; background: var(--accent); color: #fff; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
-    .btn-save:hover { background: var(--accent-hover); }
-    .btn-cancel { padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }
-    .btn-cancel:hover { border-color: var(--text-muted); }
-    .project-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
-    .project-badge:empty { display: none; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    """
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; overflow: hidden; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
+      h1 { color: var(--text-primary); font-size: 1.15rem; }
+      .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
+      .state-badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
+      .state-badge.done { background: rgba(63,185,80,0.15); color: var(--green); }
+      .state-badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
+      .state-badge.in-progress { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .state-badge.review { background: rgba(188,140,255,0.15); color: var(--purple); }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+      .meta { color: var(--text-muted); font-size: 0.8rem; }
+      .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
+      .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
+      @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+      .panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow: hidden; }
+      .left-column { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+      .issue-panel { flex-shrink: 0; }
+      .issue-panel h2 { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 12px; }
+      .issue-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+      .priority { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--border-light); color: var(--text-muted); }
+      .priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
+      .priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
+      .priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .label { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      .description { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+      .description p { margin-bottom: 8px; }
+      .activity-panel { display: flex; flex-direction: column; }
+      .activity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+      .activity-header h3 { color: var(--text-primary); font-size: 1rem; }
+      .token-display { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 12px; }
+      .token-display .tok { background: var(--border-light); padding: 2px 8px; border-radius: 4px; }
+      .activity-feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+      .empty-state { color: var(--text-muted); font-style: italic; text-align: center; padding: 40px; opacity: 0.6; }
+      .event { padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; font-family: 'SF Mono', 'Fira Code', monospace; border-left: 3px solid transparent; }
+      .event .time { color: var(--text-muted); margin-right: 8px; font-size: 0.7rem; opacity: 0.6; }
+      .event.has-detail { cursor: pointer; }
+      .event.has-detail:hover { background: var(--bg-secondary); }
+      .event .detail-summary { color: var(--text-muted); margin-left: 8px; font-weight: 400; }
+      .event .detail-block { display: none; margin-top: 6px; padding: 8px 10px; background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 4px; font-size: 0.75rem; color: var(--text-muted); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+      .event.expanded .detail-block { display: block; }
+      .event.tool_use { border-left-color: var(--accent); background: var(--bg-primary); }
+      .event.tool_use .tool-name { color: var(--accent); font-weight: 600; }
+      .event.agent_message { border-left-color: var(--green); background: var(--bg-primary); }
+      .event.agent_message .msg { color: var(--text-secondary); }
+      .event.agent_output { border-left-color: var(--text-muted); background: var(--bg-primary); }
+      .event.agent_output .msg { color: var(--text-muted); }
+      .event.system_info { border-left-color: var(--yellow); background: var(--bg-primary); }
+      .event.session_started { border-left-color: var(--yellow); background: var(--bg-primary); }
+      .event.turn_completed { border-left-color: var(--green); background: rgba(63,185,80,0.05); }
+      .event.token_usage_updated { border-left-color: var(--text-muted); }
+      .event.default { border-left-color: var(--border); background: var(--bg-primary); }
+      .plan-review-panel { flex-shrink: 0; }
+      .plan-review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .plan-review-header h3 { color: var(--text-primary); font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+      .plan-review-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; }
+      .plan-status-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+      .plan-status-badge.review { color: #58a6ff; background: rgba(88,166,255,0.15); }
+      .plan-status-badge.approved { color: var(--green); background: rgba(63,185,80,0.12); }
+      .plan-status-badge.planning { color: var(--orange); background: rgba(255,180,50,0.12); }
+      .plan-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-height: 500px; overflow-y: auto; margin-bottom: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border-light); }
+      .plan-text p { margin-bottom: 10px; }
+      .plan-text strong { color: var(--text-primary); }
+      .plan-text h2, .plan-text h3 { color: var(--text-primary); margin: 16px 0 8px; font-size: 1rem; }
+      .plan-text code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
+      .plan-text ul, .plan-text ol { margin-left: 20px; margin-bottom: 10px; }
+      .plan-text li { margin-bottom: 4px; }
+      .plan-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+      .result-panel { flex-shrink: 0; }
+      .result-panel h3 { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+      .result-panel h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+      .result-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+      .result-text p { margin-bottom: 10px; }
+      .result-text strong { color: var(--text-primary); }
+      .result-text h2, .result-text h3 { color: var(--text-primary); margin: 16px 0 8px; font-size: 1rem; }
+      .result-text code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
+      .result-text ul, .result-text ol { margin-left: 20px; margin-bottom: 10px; }
+      .result-text li { margin-bottom: 4px; }
+      .skills-panel { flex-shrink: 0; }
+      .skills-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .skills-panel-header h3 { color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
+      .skills-panel-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--purple); }
+      .skill-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+      .skill-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
+        background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.25);
+        cursor: default;
+      }
+      .skill-pill.group-pill {
+        background: rgba(88,166,255,0.12); color: var(--accent); border-color: rgba(88,166,255,0.25);
+      }
+      .skill-pill-remove {
+        background: none; border: none; color: inherit; cursor: pointer;
+        font-size: 0.85rem; opacity: 0.6; padding: 0 2px; line-height: 1;
+      }
+      .skill-pill-remove:hover { opacity: 1; }
+      .skill-picker {
+        margin-top: 10px; padding: 10px; background: var(--bg-primary);
+        border: 1px solid var(--border); border-radius: var(--radius-sm);
+      }
+      .picker-section { margin-bottom: 8px; }
+      .picker-section:last-child { margin-bottom: 0; }
+      .picker-label { font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+      .picker-section select {
+        width: 100%; padding: 5px 8px; background: var(--bg-secondary);
+        border: 1px solid var(--border); border-radius: var(--radius-sm);
+        color: var(--text-primary); font-size: 0.8rem;
+      }
+      .followups-panel { flex-shrink: 0; }
+      .followups-title { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+      .followups-title::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+      .followup-card { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--bg-primary); }
+      .followup-card.accepted { border-color: var(--green); opacity: 0.7; }
+      .followup-card.rejected { border-color: var(--border); opacity: 0.4; }
+      .fu-title { color: var(--text-primary); font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+      .fu-desc { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px; line-height: 1.4; }
+      .fu-labels { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+      .fu-label { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.65rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      .fu-actions { display: flex; gap: 8px; align-items: center; }
+      .btn-accept { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--green); background: var(--green); color: #fff; font-size: 0.75rem; cursor: pointer; }
+      .btn-accept:hover { opacity: 0.9; }
+      .btn-reject { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; }
+      .btn-reject:hover { border-color: var(--red); color: var(--red); }
+      .fu-status { font-size: 0.75rem; font-weight: 600; }
+      .fu-status.accepted { color: var(--green); }
+      .fu-status.rejected { color: var(--text-muted); text-decoration: line-through; }
+      .fu-link { color: var(--accent); text-decoration: none; font-size: 0.75rem; margin-left: 8px; }
+      .fu-link:hover { text-decoration: underline; }
+      .report-panel { flex-shrink: 0; }
+      .report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .report-header h3 { color: var(--text-primary); font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+      .report-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+      .report-content { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; }
+      .report-content h1, .report-content h2 { color: var(--text-primary); font-size: 1.1rem; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); }
+      .report-content h3 { color: var(--text-primary); font-size: 1rem; margin: 16px 0 8px; }
+      .report-content h4 { color: var(--text-primary); font-size: 0.95rem; margin: 12px 0 6px; }
+      .report-content p { margin-bottom: 12px; }
+      .report-content strong { color: var(--text-primary); }
+      .report-content em { color: var(--text-secondary); font-style: italic; }
+      .report-content code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
+      .report-content pre { background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; overflow-x: auto; }
+      .report-content pre code { background: none; padding: 0; color: var(--text-secondary); }
+      .report-content ul, .report-content ol { margin-left: 20px; margin-bottom: 12px; }
+      .report-content li { margin-bottom: 4px; }
+      .report-content blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--text-muted); margin: 12px 0; }
+      .report-content hr { border: none; border-top: 1px solid var(--border-light); margin: 20px 0; }
+      .report-content a { color: var(--accent); text-decoration: none; }
+      .report-content a:hover { text-decoration: underline; }
+      .report-content table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+      .report-content th, .report-content td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
+      .report-content th { background: var(--bg-secondary); color: var(--text-primary); font-weight: 600; }
+      .btn-edit { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+      .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
+      .btn-edit.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+      .edit-field { margin-bottom: 12px; }
+      .edit-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+      .edit-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
+      .edit-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,0.15); }
+      .edit-textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+      .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .edit-actions { display: flex; gap: 8px; margin-top: 4px; }
+      .btn-save { padding: 6px 20px; border-radius: 4px; border: none; background: var(--accent); color: #fff; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
+      .btn-save:hover { background: var(--accent-hover); }
+      .btn-cancel { padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }
+      .btn-cancel:hover { border-color: var(--text-muted); }
+      .project-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      .project-badge:empty { display: none; }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      """
   end
 
   defp js(issue_id, identifier) do
@@ -387,6 +477,33 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         renderEvents(events);
       }
 
+      // Show plan review panel
+      const planPanel = document.getElementById('plan-review-panel');
+      const planText = document.getElementById('plan-text');
+      const planActions = document.getElementById('plan-actions');
+      const planBadge = document.getElementById('plan-status-badge');
+      if (issue.plan_status === 'plan_review' && issue.plan_text) {
+        planPanel.style.display = 'block';
+        planText.innerHTML = renderMarkdown(issue.plan_text);
+        planActions.style.display = 'flex';
+        planBadge.textContent = 'Awaiting Review';
+        planBadge.className = 'plan-status-badge review';
+      } else if (issue.plan_status === 'approved' && issue.plan_text) {
+        planPanel.style.display = 'block';
+        planText.innerHTML = renderMarkdown(issue.plan_text);
+        planActions.style.display = 'none';
+        planBadge.textContent = 'Approved';
+        planBadge.className = 'plan-status-badge approved';
+      } else if (issue.plan_status === 'planning') {
+        planPanel.style.display = 'block';
+        planText.innerHTML = '<div class="empty-state">Agent is producing a plan...</div>';
+        planActions.style.display = 'none';
+        planBadge.textContent = 'Planning';
+        planBadge.className = 'plan-status-badge planning';
+      } else {
+        planPanel.style.display = 'none';
+      }
+
       // Show result panel when completed
       const resultPanel = document.getElementById('result-panel');
       const resultText = document.getElementById('result-text');
@@ -465,7 +582,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       });
 
       feed.innerHTML = filtered.map((ev, idx) => {
-        const cls = ev.event || 'default';
+        if (!ev) return '';
+        const cls = (ev.event || 'default').replace(/[^a-zA-Z0-9_-]/g, '');
         const time = ev.timestamp ? formatTime(ev.timestamp) : '';
         let body = '';
         let detailText = '';
@@ -473,23 +591,24 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
 
         switch(ev.event) {
           case 'tool_use':
-            const summary = ev.detail ? `: ${truncate(ev.detail, 80)}` : '';
-            body = `<span class="tool-name">${esc(ev.tool || 'unknown')}</span><span class="detail-summary">${esc(summary)}</span>`;
+            const summary = ev.detail ? `: ${truncate(String(ev.detail), 80)}` : '';
+            body = `<span class="tool-name">${esc(String(ev.tool || 'unknown'))}</span><span class="detail-summary">${esc(summary)}</span>`;
             if (ev.detail) {
               hasDetail = true;
-              detailText = ev.detail;
+              detailText = String(ev.detail);
             }
             break;
           case 'agent_message':
-            const shortMsg = truncate(ev.message || '', 120);
+            const msgText = ev.message != null ? String(ev.message) : '';
+            const shortMsg = truncate(msgText, 120);
             body = `<span class="msg">${esc(shortMsg)}</span>`;
-            if (ev.message && ev.message.length > 120) {
+            if (msgText.length > 120) {
               hasDetail = true;
-              detailText = ev.message;
+              detailText = msgText;
             }
             break;
           case 'agent_output':
-            body = `<span class="msg">${esc(truncate(ev.line || '', 200))}</span>`;
+            body = `<span class="msg">${esc(truncate(ev.line != null ? String(ev.line) : '', 200))}</span>`;
             break;
           case 'session_started':
             body = 'Agent started';
@@ -504,7 +623,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             body = 'Session ended';
             break;
           default:
-            body = ev.event || 'event';
+            body = esc(ev.event || 'event');
         }
 
         const detailHtml = hasDetail
@@ -584,8 +703,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
       // Inline code
       html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-      // Links
-      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      // Links (sanitize href to prevent javascript: XSS)
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, text, url) {
+        if (/^(https?:\/\/|mailto:|\/|#)/.test(url)) {
+          return '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>';
+        }
+        return text;
+      });
       // Blockquotes
       html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
       // Unordered lists
@@ -603,6 +727,14 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       // Clean up empty paragraphs
       html = html.replace(/<p>\s*<\/p>/g, '');
       return html;
+    }
+
+    function showToast(msg) {
+      var toast = document.createElement('div');
+      toast.textContent = msg;
+      toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#f85149;color:#fff;padding:8px 16px;border-radius:6px;font-size:0.85rem;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 4000);
     }
 
     function esc(s) {
@@ -739,9 +871,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           document.getElementById('issue-project').textContent = selOpt && selOpt.value ? selOpt.textContent : '';
           // Exit edit mode
           toggleEdit();
+        } else {
+          var errData = await res.json().catch(function() { return {}; });
+          showToast('Save failed: ' + esc(errData.error || 'unknown error'));
         }
       } catch(e) {
         console.error('Save error:', e);
+        showToast('Save failed: ' + esc(e.message || 'network error'));
       }
     }
 
@@ -756,8 +892,172 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       }
     });
 
+    // --- Skills Management ---
+    var allSkills = [];
+    var allGroups = [];
+    var issueSkillIds = [];
+    var issueGroupIds = [];
+
+    async function loadSkillsData() {
+      try {
+        var [skillsRes, groupsRes, issueRes] = await Promise.all([
+          fetch('/board/api/skills'),
+          fetch('/board/api/skill-groups'),
+          fetch('/board/api/issues/' + ISSUE_ID)
+        ]);
+        if (skillsRes.ok) { var d = await skillsRes.json(); allSkills = d.skills || []; }
+        if (groupsRes.ok) { var d = await groupsRes.json(); allGroups = d.skill_groups || []; }
+        if (issueRes.ok) {
+          var d = await issueRes.json();
+          issueSkillIds = d.skill_ids || [];
+          issueGroupIds = d.skill_group_ids || [];
+        }
+        renderSkillPills();
+        populateSkillPicker();
+      } catch(e) { console.error('Skills load error:', e); }
+    }
+
+    function renderSkillPills() {
+      var container = document.getElementById('skill-pills');
+      var pills = [];
+
+      issueSkillIds.forEach(function(sid) {
+        var s = allSkills.find(function(sk) { return sk.id === sid; });
+        if (s) {
+          pills.push('<span class="skill-pill" title="' + esc(s.description || '') + '">' +
+            esc(s.name) +
+            '<button class="skill-pill-remove" onclick="removeSkillFromIssue(\'' + sid + '\')">&times;</button>' +
+          '</span>');
+        }
+      });
+
+      issueGroupIds.forEach(function(gid) {
+        var g = allGroups.find(function(gr) { return gr.id === gid; });
+        if (g) {
+          pills.push('<span class="skill-pill group-pill" title="Group: ' + esc(g.description || '') + '">' +
+            esc(g.name) + ' (' + (g.skill_ids || []).length + ')' +
+            '<button class="skill-pill-remove" onclick="removeGroupFromIssue(\'' + gid + '\')">&times;</button>' +
+          '</span>');
+        }
+      });
+
+      container.innerHTML = pills.length > 0 ? pills.join('') : '<span class="meta">No skills assigned</span>';
+    }
+
+    function populateSkillPicker() {
+      var skillSelect = document.getElementById('add-skill-select');
+      skillSelect.innerHTML = '<option value="">Select a skill...</option>';
+      allSkills.forEach(function(s) {
+        if (issueSkillIds.indexOf(s.id) === -1) {
+          skillSelect.innerHTML += '<option value="' + s.id + '">[' + esc(s.category) + '] ' + esc(s.name) + '</option>';
+        }
+      });
+
+      var groupSelect = document.getElementById('add-group-select');
+      groupSelect.innerHTML = '<option value="">Select a group...</option>';
+      allGroups.forEach(function(g) {
+        if (issueGroupIds.indexOf(g.id) === -1) {
+          groupSelect.innerHTML += '<option value="' + g.id + '">' + esc(g.name) + ' (' + (g.skill_ids || []).length + ' skills)</option>';
+        }
+      });
+    }
+
+    function toggleSkillPicker() {
+      var picker = document.getElementById('skill-picker');
+      picker.style.display = picker.style.display === 'none' ? '' : 'none';
+    }
+
+    async function addSkillToIssue(skillId) {
+      if (!skillId) return;
+      issueSkillIds.push(skillId);
+      await saveIssueSkills();
+    }
+
+    async function addGroupToIssue(groupId) {
+      if (!groupId) return;
+      issueGroupIds.push(groupId);
+      await saveIssueSkills();
+    }
+
+    async function removeSkillFromIssue(skillId) {
+      issueSkillIds = issueSkillIds.filter(function(id) { return id !== skillId; });
+      await saveIssueSkills();
+    }
+
+    async function removeGroupFromIssue(groupId) {
+      issueGroupIds = issueGroupIds.filter(function(id) { return id !== groupId; });
+      await saveIssueSkills();
+    }
+
+    async function saveIssueSkills() {
+      try {
+        var res = await fetch('/board/api/issues/' + ISSUE_ID + '/skills', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ skill_ids: issueSkillIds, skill_group_ids: issueGroupIds })
+        });
+        if (!res.ok) {
+          var errData = await res.json().catch(function() { return {}; });
+          showToast('Save skills failed: ' + esc(errData.error || 'unknown error'));
+        }
+        renderSkillPills();
+        populateSkillPicker();
+      } catch(e) {
+        console.error('Save skills error:', e);
+        showToast('Save skills failed: ' + esc(e.message || 'network error'));
+      }
+    }
+
     // Load issue data on init
     loadIssueData();
+    loadSkillsData();
+
+    // --- Plan Review Actions ---
+    async function approvePlan() {
+      try {
+        const res = await fetch('/board/api/issues/' + ISSUE_ID + '/approve-plan', { method: 'POST' });
+        if (res.ok) {
+          pollActivity();
+        } else {
+          const data = await res.json();
+          alert('Failed to approve plan: ' + (data.error || 'unknown error'));
+        }
+      } catch(e) {
+        console.error('Approve plan error:', e);
+      }
+    }
+
+    function showRejectForm() {
+      document.getElementById('plan-actions').style.display = 'none';
+      document.getElementById('plan-reject-form').style.display = 'block';
+      document.getElementById('plan-feedback').focus();
+    }
+
+    function hideRejectForm() {
+      document.getElementById('plan-reject-form').style.display = 'none';
+      document.getElementById('plan-actions').style.display = 'flex';
+    }
+
+    async function rejectPlan() {
+      var feedback = document.getElementById('plan-feedback').value.trim();
+      try {
+        const res = await fetch('/board/api/issues/' + ISSUE_ID + '/reject-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback: feedback || null })
+        });
+        if (res.ok) {
+          document.getElementById('plan-reject-form').style.display = 'none';
+          document.getElementById('plan-feedback').value = '';
+          pollActivity();
+        } else {
+          const data = await res.json();
+          alert('Failed to reject plan: ' + (data.error || 'unknown error'));
+        }
+      } catch(e) {
+        console.error('Reject plan error:', e);
+      }
+    }
 
     // Poll every 2 seconds
     pollActivity();
