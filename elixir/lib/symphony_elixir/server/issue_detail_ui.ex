@@ -24,20 +24,17 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       </style>
     </head>
     <body>
-      <header class="topbar">
-        <div class="topbar-left">
-          <nav class="breadcrumb">
-            <a href="/board">Board</a>
-            <span class="sep">/</span>
-          </nav>
-          <h1>#{esc(issue.identifier)}</h1>
+    #{UIHelpers.nav_topbar("")}
+      <div class="issue-actions-bar">
+        <div class="page-actions-left">
+          <h2 class="issue-identifier">#{esc(issue.identifier)}</h2>
           <span class="state-badge" id="state-badge">#{esc(issue.state)}</span>
         </div>
-        <div class="topbar-right">
+        <div class="page-actions-right">
           <button class="btn-edit" id="edit-btn" onclick="toggleEdit()">Edit</button>
           <span class="meta" id="agent-status">Loading...</span>
         </div>
-      </header>
+      </div>
 
       <div class="content">
         <div class="main-grid">
@@ -207,12 +204,18 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
   defp css do
     UIHelpers.theme_css() <>
       UIHelpers.topbar_css() <>
+      UIHelpers.nav_active_css() <>
+      UIHelpers.button_css() <>
       ~S"""
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { height: 100%; overflow: hidden; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
       h1 { color: var(--text-primary); font-size: 1.15rem; }
+      .issue-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
+      .page-actions-left { display: flex; align-items: center; gap: 10px; }
+      .page-actions-right { display: flex; align-items: center; gap: 8px; }
+      .issue-identifier { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
       .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
       .state-badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
       .state-badge.done { background: rgba(63,185,80,0.15); color: var(--green); }

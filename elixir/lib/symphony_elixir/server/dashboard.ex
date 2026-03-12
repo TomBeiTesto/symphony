@@ -20,18 +20,11 @@ defmodule SymphonyElixir.Server.Dashboard do
       <title>Symphony Dashboard</title>
       <meta http-equiv="refresh" content="10">
       <style>
-        #{SymphonyElixir.Server.UIHelpers.theme_css()}
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); padding: 0; }
-        .dash-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 24px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
-        .dash-topbar-left { display: flex; align-items: center; gap: 16px; }
-        .dash-topbar-left h1 { color: var(--accent); font-size: 1.2rem; margin: 0; }
-        .dash-topbar-left .meta { color: var(--text-muted); font-size: 0.8rem; margin: 0; }
-        .dash-topbar-right { display: flex; align-items: center; gap: 8px; }
-        .board-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--radius-sm); font-size: 0.82rem; font-weight: 500; background: var(--accent); color: #fff; text-decoration: none; border: 1px solid var(--accent); transition: background 150ms ease; }
-        .board-link:hover { background: var(--accent-hover); }
-        .nav-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-secondary); text-decoration: none; border: 1px solid var(--border); transition: all 150ms ease; }
-        .nav-link:hover { background: var(--bg-hover); color: var(--text-primary); }
+        #{SymphonyElixir.Server.UIHelpers.base_css()}
+        #{SymphonyElixir.Server.UIHelpers.topbar_css()}
+        #{SymphonyElixir.Server.UIHelpers.nav_active_css()}
+        #{SymphonyElixir.Server.UIHelpers.button_css()}
+        .dash-subtitle { padding: 8px 24px; font-size: 0.8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
         .dash-content { padding: 20px 24px; max-width: 1200px; }
         h1 { color: var(--accent); margin-bottom: 8px; font-size: 1.5rem; }
         h2 { color: var(--text-muted); margin: 16px 0 8px; font-size: 1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; }
@@ -65,19 +58,10 @@ defmodule SymphonyElixir.Server.Dashboard do
       </style>
     </head>
     <body>
-      <header class="dash-topbar">
-        <div class="dash-topbar-left">
-          <h1>Symphony</h1>
-          <div class="meta">Generated at #{format_datetime(snapshot[:generated_at])} &middot; Auto-refreshes every 10s</div>
-        </div>
-        <div class="dash-topbar-right">
-          <a href="/board" class="board-link">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            Board
-          </a>
-          <a href="/board/settings" class="nav-link">Settings</a>
-        </div>
-      </header>
+    #{SymphonyElixir.Server.UIHelpers.nav_topbar("dashboard")}
+      <div class="dash-subtitle">
+        <span class="meta">Generated at #{format_datetime(snapshot[:generated_at])} &middot; Auto-refreshes every 10s</span>
+      </div>
 
       <div class="dash-content">
       #{render_budget_banner(snapshot)}

@@ -19,13 +19,13 @@ defmodule SymphonyElixir.Server.ProjectsUI do
       </style>
     </head>
     <body>
-      <header class="topbar">
-        <div class="topbar-left">
-          <nav class="breadcrumb"><a href="/board">Board</a><span class="sep">/</span></nav>
-          <h1>Projects</h1>
+    #{SymphonyElixir.Server.UIHelpers.nav_topbar("projects")}
+      <div class="page-actions-bar">
+        <div class="page-actions-left">
+          <h2 class="page-title">Projects</h2>
           <span class="project-count" id="project-count"></span>
         </div>
-        <div class="topbar-right">
+        <div class="page-actions-right">
           <input type="text" class="search-input" id="search" placeholder="Filter projects..." oninput="filterProjects()">
           <button class="btn btn-accent" onclick="showScanView()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -36,7 +36,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
             New Project
           </button>
         </div>
-      </header>
+      </div>
 
       <main class="projects-page">
         <div id="project-grid" class="project-grid"></div>
@@ -128,6 +128,7 @@ defmodule SymphonyElixir.Server.ProjectsUI do
 
     UIHelpers.base_css() <>
       UIHelpers.topbar_css() <>
+      UIHelpers.nav_active_css() <>
       UIHelpers.button_css() <>
       UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
@@ -137,6 +138,10 @@ defmodule SymphonyElixir.Server.ProjectsUI do
 
       body { min-height: 100vh; }
       .topbar { position: sticky; top: 0; }
+      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
+      .page-actions-left { display: flex; align-items: center; gap: 10px; }
+      .page-actions-right { display: flex; align-items: center; gap: 6px; }
+      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
 
       .project-count {
         font-size: 0.8rem; color: var(--text-muted);

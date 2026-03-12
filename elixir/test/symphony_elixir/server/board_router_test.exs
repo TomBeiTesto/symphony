@@ -38,11 +38,19 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
   end
 
   describe "GET /" do
-    test "returns HTML board page" do
+    test "returns HTML product hub page" do
       conn = call(:get, "/")
       assert conn.status == 200
-      assert conn.resp_body =~ "Symphony Board"
-      assert conn.resp_body =~ "<main class=\"board\""
+      assert conn.resp_body =~ "Symphony"
+      assert conn.resp_body =~ "hub-layout"
+    end
+  end
+
+  describe "GET /kanban" do
+    test "redirects to Hub" do
+      conn = call(:get, "/kanban")
+      assert conn.status == 302
+      assert Plug.Conn.get_resp_header(conn, "location") == ["/board"]
     end
   end
 
@@ -290,31 +298,12 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
 
   # --- Template Endpoints ---
 
-  describe "GET /api/templates" do
-    test "returns built-in templates" do
-      conn = call(:get, "/api/templates")
-      assert conn.status == 200
+  describe "POST /api/ai/draft-issue" do
+    test "returns 400 when hint is empty" do
+      conn = call(:post, "/api/ai/draft-issue", %{"hint" => ""})
+      assert conn.status == 400
       body = Jason.decode!(conn.resp_body)
-      templates = body["templates"]
-      assert is_list(templates)
-      assert length(templates) >= 5
-      ids = Enum.map(templates, & &1["id"])
-      assert "code-review" in ids
-      assert "bug-report" in ids
-    end
-  end
-
-  describe "GET /api/templates/:id" do
-    test "returns specific template" do
-      conn = call(:get, "/api/templates/code-review")
-      assert conn.status == 200
-      body = Jason.decode!(conn.resp_body)
-      assert body["name"] == "Code Review"
-    end
-
-    test "returns 404 for unknown template" do
-      conn = call(:get, "/api/templates/nonexistent")
-      assert conn.status == 404
+      assert body["error"] == "hint_required"
     end
   end
 
@@ -447,15 +436,10 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
   end
 
   describe "board UI auto-add bar" do
-    test "renders auto-add and segregation controls" do
-      conn = call(:get, "/")
-      assert conn.status == 200
-      assert conn.resp_body =~ "auto-add-dropdown"
-      assert conn.resp_body =~ "auto-add-toggle"
-      assert conn.resp_body =~ "max-todo-select"
-      assert conn.resp_body =~ "Auto-dispatch issues"
-      assert conn.resp_body =~ "segregate-toggle"
-      assert conn.resp_body =~ "Group by Project"
+    test "kanban redirects to hub (auto-add is in hub issues tab)" do
+      conn = call(:get, "/kanban")
+      assert conn.status == 302
+      assert Plug.Conn.get_resp_header(conn, "location") == ["/board"]
     end
   end
 
@@ -774,10 +758,10 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
   # --- Products Page ---
 
   describe "GET /products" do
-    test "returns HTML products page" do
+    test "redirects to hub" do
       conn = call(:get, "/products")
-      assert conn.status == 200
-      assert conn.resp_body =~ "Products"
+      assert conn.status == 302
+      assert Plug.Conn.get_resp_header(conn, "location") == ["/board"]
     end
   end
 

@@ -41,6 +41,8 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     claude_cmd = resolve_command(config)
     prompt_file = Path.join(workspace_path, ".symphony_prompt_#{:rand.uniform(999_999)}.txt")
 
+    ensure_workspace_sandbox(workspace_path)
+
     case File.write(prompt_file, prompt) do
       :ok ->
         do_start_session(config, workspace_path, prompt_file, claude_cmd, callback)
@@ -51,6 +53,122 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
   end
 
   defp do_start_session(config, workspace_path, prompt_file, claude_cmd, callback) do
+    sandbox = resolve_sandbox_mode(config)
+
+    if sandbox in ["podman", "docker"] do
+      config = %{config | sandbox: sandbox, sandbox_image: resolve_sandbox_image(config)}
+      do_start_sandboxed_session(config, workspace_path, prompt_file, callback)
+    else
+      do_start_local_session(config, workspace_path, prompt_file, claude_cmd, callback)
+    end
+  end
+
+  # Runtime settings override workflow config for sandbox mode
+  defp resolve_sandbox_mode(config) do
+    runtime =
+      try do
+        SymphonyElixir.Settings.get("agent_sandbox")
+      catch
+        :exit, _ -> nil
+      end
+
+    cond do
+      is_binary(runtime) and runtime != "" -> runtime
+      is_binary(config.sandbox) and config.sandbox != "" -> config.sandbox
+      true -> nil
+    end
+  end
+
+  defp resolve_sandbox_image(config) do
+    runtime =
+      try do
+        SymphonyElixir.Settings.get("agent_sandbox_image")
+      catch
+        :exit, _ -> nil
+      end
+
+    cond do
+      is_binary(runtime) and runtime != "" -> runtime
+      is_binary(config.sandbox_image) and config.sandbox_image != "" -> config.sandbox_image
+      true -> "symphony-agent-sandbox"
+    end
+  end
+
+  # ---------- Container-sandboxed execution (podman/docker) ----------
+
+  defp do_start_sandboxed_session(config, workspace_path, prompt_file, callback) do
+    runtime = config.sandbox
+    image = config.sandbox_image || "symphony-agent-sandbox"
+    allowed_tools_flag = build_allowed_tools_flag()
+
+    # Convert Windows path to a WSL-compatible mount path for podman
+    mount_path = to_container_mount_path(workspace_path)
+    # Build the container command
+    # --rm: auto-cleanup  --network host: allow API calls
+    # -v: mount ONLY the workspace directory as /workspace
+    # -e: pass through API key (Claude Code needs ANTHROPIC_API_KEY)
+    api_key = System.get_env("ANTHROPIC_API_KEY") || ""
+
+    container_args = [
+      "run", "--rm", "-i",
+      "--network", "host",
+      "-v", "#{mount_path}:/workspace:rw",
+      "-w", "/workspace",
+      "-e", "ANTHROPIC_API_KEY=#{api_key}",
+      "-e", "CLAUDE_CODE_DISABLE_NONINTERACTIVE_CHECK=1",
+      image,
+      "-p", "--output-format", "stream-json", "--verbose"
+    ] ++ split_allowed_tools_args(allowed_tools_flag)
+
+    Logger.info("Sandbox: #{runtime} run #{image} (workspace: #{mount_path})")
+    Logger.info("Sandbox: prompt file #{prompt_file}")
+
+    bash = ShellUtils.find_bash_path()
+
+    unless bash do
+      cleanup_prompt_file(prompt_file)
+      raise "bash not found"
+    end
+
+    # MSYS_NO_PATHCONV prevents Git Bash on Windows from mangling the -v mount path
+    env = [
+      {String.to_charlist("CLAUDECODE"), false},
+      {String.to_charlist("CLAUDE_CODE_ENTRYPOINT"), false},
+      {String.to_charlist("MSYS_NO_PATHCONV"), String.to_charlist("1")}
+    ]
+
+    # Pipe prompt file into the container's stdin (cat avoids shell escaping issues with large prompts)
+    shell_command =
+      "cat #{shell_escape(prompt_file)} | #{runtime} #{Enum.map_join(container_args, " ", &shell_escape/1)} 2>&1"
+
+    port_opts = [
+      :binary,
+      :exit_status,
+      :use_stdio,
+      :stderr_to_stdout,
+      {:cd, workspace_path},
+      {:args, ["-lc", shell_command]},
+      {:env, env},
+      {:line, @max_line_bytes}
+    ]
+
+    try do
+      port = Port.open({:spawn_executable, bash}, port_opts)
+      build_session(port, config, workspace_path, prompt_file, callback)
+    rescue
+      ErlangError ->
+        cleanup_prompt_file(prompt_file)
+        {:error, :container_not_found}
+
+      e ->
+        cleanup_prompt_file(prompt_file)
+        {:error, {:container_failed, Exception.message(e)}}
+    end
+  end
+
+  # ---------- Local (unsandboxed) execution ----------
+
+  defp do_start_local_session(config, workspace_path, prompt_file, claude_cmd, callback) do
     # Always use bash for spawning — it handles stdin redirection, .cmd shims,
     # and EOF signaling correctly on both Windows and Unix.
     bash = ShellUtils.find_bash_path()
@@ -94,28 +212,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     try do
       port = Port.open({:spawn_executable, bash}, port_opts)
-      {:os_pid, os_pid} = Port.info(port, :os_pid)
-
-      session_id = "claude-#{:rand.uniform(999_999)}"
-
-      session = %{
-        port: port,
-        os_pid: os_pid,
-        thread_id: session_id,
-        turn_id: "turn-1",
-        session_id: session_id,
-        turn_count: 1,
-        buffer: "",
-        config: config,
-        workspace_path: workspace_path,
-        callback: callback,
-        provider: :claude_code,
-        prompt_file: prompt_file,
-        accumulated_tokens: %{input: 0, output: 0}
-      }
-
-      Events.emit_event(session, :session_started, %{os_pid: os_pid, provider: :claude_code})
-      {:ok, session}
+      build_session(port, config, workspace_path, prompt_file, callback)
     rescue
       ErlangError ->
         cleanup_prompt_file(prompt_file)
@@ -125,6 +222,30 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
         cleanup_prompt_file(prompt_file)
         {:error, {:agent_not_found, Exception.message(e)}}
     end
+  end
+
+  defp build_session(port, config, workspace_path, prompt_file, callback) do
+    {:os_pid, os_pid} = Port.info(port, :os_pid)
+    session_id = "claude-#{:rand.uniform(999_999)}"
+
+    session = %{
+      port: port,
+      os_pid: os_pid,
+      thread_id: session_id,
+      turn_id: "turn-1",
+      session_id: session_id,
+      turn_count: 1,
+      buffer: "",
+      config: config,
+      workspace_path: workspace_path,
+      callback: callback,
+      provider: :claude_code,
+      prompt_file: prompt_file,
+      accumulated_tokens: %{input: 0, output: 0}
+    }
+
+    Events.emit_event(session, :session_started, %{os_pid: os_pid, provider: :claude_code})
+    {:ok, session}
   end
 
   @doc """
@@ -461,6 +582,30 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     end
   end
 
+  @doc false
+  defp ensure_workspace_sandbox(workspace_path) do
+    claude_md = Path.join(workspace_path, "CLAUDE.md")
+
+    # Don't overwrite if the project already has its own CLAUDE.md
+    if File.exists?(claude_md) do
+      :ok
+    else
+      normalized = String.replace(workspace_path, "\\", "/")
+
+      content = """
+      # Workspace Boundary
+
+      CRITICAL: Your workspace is strictly limited to: `#{normalized}`
+
+      You MUST NOT read, search, list, or access any files or directories outside this path.
+      Do not use absolute paths pointing elsewhere. Do not use `..` to escape this directory.
+      If the task cannot be completed within this workspace, report it as a blocker — do not look elsewhere.
+      """
+
+      File.write(claude_md, content)
+    end
+  end
+
   defp resolve_command(%Config{agent_command: cmd}) when is_binary(cmd) and cmd != "" do
     if String.contains?(cmd, "claude") do
       cmd
@@ -476,6 +621,29 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     path
     |> String.replace("\\", "/")
     |> then(&"\"#{&1}\"")
+  end
+
+  # Convert Windows path (C:\Users\...) to a mount path podman/docker can use.
+  # On Windows with WSL-backed podman, paths need /c/Users/... format.
+  defp to_container_mount_path(path) do
+    normalized = String.replace(path, "\\", "/")
+
+    case Regex.run(~r/^([A-Za-z]):\/(.*)$/, normalized) do
+      [_, drive, rest] ->
+        "/#{String.downcase(drive)}/#{rest}"
+
+      _ ->
+        normalized
+    end
+  end
+
+  # Split the allowed_tools_flag string into a list of args for the container command.
+  defp split_allowed_tools_args(""), do: []
+
+  defp split_allowed_tools_args(flag_string) do
+    # flag_string looks like: " --allowedTools 'Read' --allowedTools 'Write'"
+    Regex.scan(~r/--allowedTools\s+'([^']+)'/, flag_string)
+    |> Enum.flat_map(fn [_, tool] -> ["--allowedTools", tool] end)
   end
 
   defp cleanup_prompt_file(nil), do: :ok

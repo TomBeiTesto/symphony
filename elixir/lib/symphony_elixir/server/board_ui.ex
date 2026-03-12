@@ -22,28 +22,22 @@ defmodule SymphonyElixir.Server.BoardUI do
       </style>
     </head>
     <body>
-      <header class="topbar">
-        <div class="topbar-left">
-          <svg class="logo" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
-          <h1>Symphony Board</h1>
+    #{SymphonyElixir.Server.UIHelpers.nav_topbar("kanban")}
+      <div class="board-actions-bar">
+        <div class="board-actions-left">
+          <h2 class="page-title">Kanban Board</h2>
           <select id="project-filter" class="project-select" onchange="handleProjectFilter()">
             <option value="">All Projects</option>
           </select>
         </div>
-        <div class="topbar-right">
-          <!-- Actions group -->
+        <div class="board-actions-right">
           <div class="dropdown" id="template-dropdown">
-            <button class="btn btn-ghost" onclick="toggleTemplateDropdown()">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-              Templates
-            </button>
+            <button class="btn btn-ghost" onclick="toggleTemplateDropdown()">Templates</button>
             <div class="dropdown-menu template-menu-wide" id="template-menu"></div>
           </div>
           <span class="topbar-divider"></span>
-          <!-- Auto-add popover -->
           <div class="dropdown" id="auto-add-dropdown">
             <button class="btn btn-ghost" onclick="toggleAutoAddDropdown()">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-7-7H1m22 0h-4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83m0-14.14l-2.83 2.83m-8.48 8.48l-2.83 2.83"/></svg>
               <span id="auto-add-label">Auto</span>
             </button>
             <div class="dropdown-menu auto-add-popover" id="auto-add-menu">
@@ -71,38 +65,12 @@ defmodule SymphonyElixir.Server.BoardUI do
               </div>
             </div>
           </div>
-          <span class="topbar-divider"></span>
-          <!-- Nav group -->
-          <div class="topbar-nav">
-            <a href="/board/projects" class="btn btn-ghost" title="Projects">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-              Projects
-            </a>
-            <a href="/board/task-lineage" class="btn btn-ghost" title="Task Lineage">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="20" cy="12" r="2"/><line x1="6" y1="12" x2="10" y2="7"/><line x1="6" y1="12" x2="10" y2="17"/><line x1="14" y1="7" x2="18" y2="11"/><line x1="14" y1="17" x2="18" y2="13"/></svg>
-              Lineage
-            </a>
-            <a href="/board/products" class="btn btn-ghost" title="Products">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-              Products
-            </a>
-            <a href="/board/skills" class="btn btn-ghost" title="Skills Library">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              Skills
-            </a>
-            <a href="/" class="btn btn-ghost" title="Dashboard">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            </a>
-            <a href="/board/settings" class="btn btn-ghost" title="Settings">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-            </a>
-          </div>
           <button class="btn btn-primary" onclick="openCreateModal()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Issue
           </button>
         </div>
-      </header>
+      </div>
 
       <!-- Metrics bar -->
       <div class="metrics-bar" id="metrics-bar"></div>
@@ -222,6 +190,7 @@ defmodule SymphonyElixir.Server.BoardUI do
 
     UIHelpers.base_css() <>
       UIHelpers.topbar_css() <>
+      UIHelpers.nav_active_css() <>
       UIHelpers.button_css() <>
       UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
@@ -236,6 +205,10 @@ defmodule SymphonyElixir.Server.BoardUI do
         flex-direction: column;
         overflow: hidden;
       }
+      .board-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); flex-shrink: 0; }
+      .board-actions-left { display: flex; align-items: center; gap: 10px; }
+      .board-actions-right { display: flex; align-items: center; gap: 6px; }
+      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
 
       /* --- Metrics Bar (#6) --- */
       .metrics-bar {

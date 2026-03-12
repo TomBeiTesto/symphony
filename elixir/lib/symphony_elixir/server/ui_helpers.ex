@@ -253,4 +253,142 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .skeleton-text { height: 14px; width: 60%; margin-bottom: 8px; }
     """
   end
+
+  @doc "Hub layout CSS: sidebar + main content with tabs."
+  @spec hub_layout_css() :: String.t()
+  def hub_layout_css do
+    ~S"""
+      .hub-layout { display: flex; flex: 1; overflow: hidden; }
+
+      /* --- Sidebar --- */
+      .sidebar {
+        width: 240px; min-width: 240px; flex-shrink: 0;
+        background: var(--bg-secondary); border-right: 1px solid var(--border);
+        display: flex; flex-direction: column; overflow: hidden;
+        transition: width 200ms ease, min-width 200ms ease;
+      }
+      .sidebar.collapsed { width: 48px; min-width: 48px; }
+      .sidebar-scroll { flex: 1; overflow-y: auto; padding: 8px 0; }
+      .sidebar-section { padding: 4px 10px; }
+      .sidebar-title {
+        font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em;
+        color: var(--text-muted); font-weight: 600; padding: 8px 6px 4px; user-select: none;
+      }
+      .sidebar-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 5px 10px; border-radius: var(--radius-sm); cursor: pointer;
+        transition: background var(--transition); font-size: 0.82rem; color: var(--text-secondary);
+        gap: 8px; user-select: none;
+      }
+      .sidebar-item:hover { background: var(--bg-hover); }
+      .sidebar-item.active {
+        background: rgba(88,166,255,0.1); color: var(--accent); font-weight: 600;
+      }
+      .sidebar-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sidebar-badge {
+        font-size: 0.65rem; background: var(--bg-tertiary); color: var(--text-muted);
+        padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; flex-shrink: 0;
+      }
+      .sidebar-item.active .sidebar-badge { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .sidebar-footer {
+        border-top: 1px solid var(--border); padding: 8px 10px;
+        display: flex; flex-wrap: wrap; gap: 2px;
+      }
+      .sidebar-footer a {
+        font-size: 0.75rem; color: var(--text-muted); text-decoration: none;
+        padding: 3px 6px; border-radius: var(--radius-sm);
+        transition: all var(--transition);
+      }
+      .sidebar-footer a:hover { color: var(--accent); background: var(--bg-hover); }
+      .sidebar-toggle {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 6px; border-radius: var(--radius-sm); transition: all var(--transition);
+      }
+      .sidebar-toggle:hover { color: var(--text-primary); background: var(--bg-hover); }
+      .sidebar.collapsed .sidebar-item-name,
+      .sidebar.collapsed .sidebar-badge,
+      .sidebar.collapsed .sidebar-title,
+      .sidebar.collapsed .sidebar-footer a span { display: none; }
+      .sidebar.collapsed .sidebar-item { justify-content: center; padding: 6px; }
+      .sidebar.collapsed .sidebar-footer { justify-content: center; }
+
+      /* --- Tab Bar --- */
+      .tab-bar {
+        display: flex; align-items: center; gap: 0; padding: 0 20px;
+        border-bottom: 1px solid var(--border); background: var(--bg-secondary); flex-shrink: 0;
+      }
+      .tab-item {
+        padding: 10px 16px; font-size: 0.82rem; font-weight: 500;
+        color: var(--text-muted); cursor: pointer;
+        border-bottom: 2px solid transparent; transition: all var(--transition);
+        display: flex; align-items: center; gap: 6px; user-select: none;
+      }
+      .tab-item:hover { color: var(--text-primary); }
+      .tab-item.active { color: var(--accent); border-bottom-color: var(--accent); }
+      .tab-badge {
+        font-size: 0.65rem; padding: 1px 6px; border-radius: 10px;
+        background: var(--bg-tertiary); color: var(--text-muted);
+      }
+      .tab-item.active .tab-badge { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .tab-item.tab-disabled { opacity: 0.4; pointer-events: none; }
+      .tab-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+      /* Hub main */
+      .hub-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+      .tab-content { flex: 1; overflow: auto; }
+
+      @media (max-width: 768px) {
+        .sidebar { width: 48px; min-width: 48px; }
+        .sidebar .sidebar-item-name, .sidebar .sidebar-badge, .sidebar .sidebar-title { display: none; }
+        .sidebar .sidebar-item { justify-content: center; padding: 6px; }
+        .tab-item { padding: 8px 10px; font-size: 0.78rem; }
+      }
+    """
+  end
+
+  @doc "Shared navigation topbar HTML. `active` is the current page key."
+  @spec nav_topbar(String.t()) :: String.t()
+  def nav_topbar(active \\ "") do
+    nav_items = [
+      {"hub", "/board", "Hub"},
+      {"lineage", "/board/task-lineage", "Issue Lineage"},
+      {"skills", "/board/skills", "Skills"},
+      {"dashboard", "/", "Dashboard"},
+      {"settings", "/board/settings", "Settings"}
+    ]
+
+    links =
+      nav_items
+      |> Enum.map(fn {key, href, label} ->
+        cls = if key == active, do: "btn btn-ghost nav-active", else: "btn btn-ghost"
+        ~s(<a href="#{href}" class="#{cls}">#{label}</a>)
+      end)
+      |> Enum.join("\n            ")
+
+    back_btn = if active != "hub", do: ~s[<button class="btn btn-ghost btn-back" onclick="history.back()" title="Go back">&larr;</button>], else: ""
+
+    """
+      <header class="topbar">
+        <div class="topbar-left">
+          #{back_btn}
+          <svg class="logo" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
+          <h1>Symphony</h1>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-nav">
+            #{links}
+          </div>
+        </div>
+      </header>
+    """
+  end
+
+  @doc "CSS for active nav item highlight."
+  @spec nav_active_css() :: String.t()
+  def nav_active_css do
+    ~S"""
+      .nav-active { color: var(--accent) !important; background: rgba(88,166,255,0.08) !important; }
+      .btn-back { font-size: 1.1rem; padding: 2px 8px; min-height: 0; line-height: 1; margin-right: 4px; }
+    """
+  end
 end

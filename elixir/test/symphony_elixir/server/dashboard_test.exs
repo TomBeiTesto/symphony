@@ -127,9 +127,9 @@ defmodule SymphonyElixir.Server.DashboardTest do
 
     test "includes prominent board link in topbar" do
       html = Dashboard.render(@empty_snapshot)
-      assert String.contains?(html, "dash-topbar")
+      assert String.contains?(html, "topbar")
       assert String.contains?(html, ~s(href="/board"))
-      assert String.contains?(html, "Board")
+      assert String.contains?(html, "Hub")
     end
 
     test "renders rate limits when present" do

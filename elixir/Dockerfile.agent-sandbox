@@ -1,0 +1,22 @@
+FROM node:22-slim
+
+# Install essential tools agents typically need
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Create non-root user for agent execution
+RUN useradd -m -s /bin/bash agent
+USER agent
+
+# Workspace is the only writable mount point
+WORKDIR /workspace
+
+# Default entrypoint — caller overrides args
+ENTRYPOINT ["claude"]

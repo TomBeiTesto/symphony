@@ -21,15 +21,15 @@ defmodule SymphonyElixir.Server.TechTreeUI do
       </style>
     </head>
     <body>
-      <header class="topbar">
-        <div class="topbar-left">
-          <nav class="breadcrumb"><a href="/board">Board</a><span class="sep">/</span></nav>
-          <h1>Task Lineage</h1>
+    #{SymphonyElixir.Server.UIHelpers.nav_topbar("lineage")}
+      <div class="page-actions-bar">
+        <div class="page-actions-left">
+          <h2 class="page-title">Issue Lineage</h2>
           <select id="project-filter" class="project-select" onchange="filterProject()">
             <option value="">All Projects</option>
           </select>
         </div>
-        <div class="topbar-right">
+        <div class="page-actions-right">
           <span class="legend">
             <span class="legend-item"><span class="dot dot-root"></span> Root</span>
             <span class="legend-item"><span class="dot dot-done"></span> Done</span>
@@ -37,7 +37,7 @@ defmodule SymphonyElixir.Server.TechTreeUI do
             <span class="legend-item"><span class="dot dot-review"></span> Review</span>
           </span>
         </div>
-      </header>
+      </div>
 
       <div class="tree-viewport" id="viewport">
         <svg class="connectors" id="connectors"></svg>
@@ -57,6 +57,9 @@ defmodule SymphonyElixir.Server.TechTreeUI do
 
     UIHelpers.base_css() <>
       UIHelpers.topbar_css() <>
+      UIHelpers.nav_active_css() <>
+      UIHelpers.button_css() <>
+      UIHelpers.toast_css() <>
       ~S"""
 
       body {
@@ -65,6 +68,10 @@ defmodule SymphonyElixir.Server.TechTreeUI do
         display: flex;
         flex-direction: column;
       }
+      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
+      .page-actions-left { display: flex; align-items: center; gap: 10px; }
+      .page-actions-right { display: flex; align-items: center; gap: 6px; }
+      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
 
       .project-select {
         background: var(--bg-tertiary);
@@ -206,6 +213,19 @@ defmodule SymphonyElixir.Server.TechTreeUI do
       .node-age.stale { color: var(--yellow); opacity: 1; }
       .node-age.old { color: var(--red); opacity: 1; }
 
+      /* Follow-ups panel */
+      .node-followups { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 6px; }
+      .fu-item { display: flex; align-items: center; gap: 4px; font-size: 0.65rem; padding: 2px 0; color: var(--text-secondary); }
+      .fu-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .fu-status { font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
+      .fu-status.proposed { background: rgba(210,153,34,0.15); color: var(--yellow); }
+      .fu-status.accepted { background: rgba(63,185,80,0.15); color: var(--green); }
+      .fu-status.rejected { background: rgba(248,81,73,0.15); color: var(--red); }
+      .fu-action { background: none; border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-size: 0.6rem; cursor: pointer; color: var(--text-muted); font-family: inherit; }
+      .fu-action:hover { color: var(--text-primary); border-color: var(--text-muted); }
+      .fu-action.accept:hover { color: var(--green); border-color: var(--green); }
+      .fu-action.reject:hover { color: var(--red); border-color: var(--red); }
+
       /* Temporal fade — older completed nodes dim */
       .tree-node.temporal-old { opacity: 0.5; }
       .tree-node.temporal-recent { box-shadow: 0 0 0 1px var(--accent); }
@@ -223,6 +243,7 @@ defmodule SymphonyElixir.Server.TechTreeUI do
   end
 
   defp js do
+    SymphonyElixir.Server.UIHelpers.toast_js() <>
     ~S"""
     const API = '/board/api';
     let allIssues = [];
@@ -283,7 +304,11 @@ defmodule SymphonyElixir.Server.TechTreeUI do
       return { roots: roots, children: children };
     }
 
-    const NODE_W = 220, NODE_H = 90, H_GAP = 80, V_GAP = 20;
+    const NODE_W = 220, BASE_NODE_H = 90, H_GAP = 80, V_GAP = 20;
+    function nodeHeight(issue) {
+      var fus = (issue.agent_run && issue.agent_run.follow_ups) || [];
+      return BASE_NODE_H + (fus.length > 0 ? 20 + fus.length * 18 : 0);
+    }
 
     function layoutTree(tree) {
       const nodes = [];
@@ -291,11 +316,12 @@ defmodule SymphonyElixir.Server.TechTreeUI do
 
       function getSubtreeHeight(issue) {
         if (subtreeHeights[issue.id] !== undefined) return subtreeHeights[issue.id];
+        var nh = nodeHeight(issue);
         const kids = tree.children[issue.id] || [];
-        if (kids.length === 0) { subtreeHeights[issue.id] = NODE_H; return NODE_H; }
+        if (kids.length === 0) { subtreeHeights[issue.id] = nh; return nh; }
         let total = 0;
         kids.forEach(function(kid, idx) { if (idx > 0) total += V_GAP; total += getSubtreeHeight(kid); });
-        subtreeHeights[issue.id] = Math.max(NODE_H, total);
+        subtreeHeights[issue.id] = Math.max(nh, total);
         return subtreeHeights[issue.id];
       }
 
@@ -304,10 +330,11 @@ defmodule SymphonyElixir.Server.TechTreeUI do
 
       function placeNode(issue, depth, yStart, parentId) {
         const subtreeH = subtreeHeights[issue.id];
+        var nh = nodeHeight(issue);
         const x = depth * (NODE_W + H_GAP);
-        const y = yStart + (subtreeH - NODE_H) / 2;
+        const y = yStart + (subtreeH - nh) / 2;
         const kids = tree.children[issue.id] || [];
-        nodes.push({ issue: issue, x: x, y: y, depth: depth, parentId: parentId, isRoot: !parentId, childCount: kids.length });
+        nodes.push({ issue: issue, x: x, y: y, nh: nh, depth: depth, parentId: parentId, isRoot: !parentId, childCount: kids.length });
         let childY = yStart;
         kids.forEach(function(kid, idx) { if (idx > 0) childY += V_GAP; placeNode(kid, depth + 1, childY, issue.id); childY += subtreeHeights[kid.id]; });
       }
@@ -334,7 +361,7 @@ defmodule SymphonyElixir.Server.TechTreeUI do
       const nodes = layoutTree(tree);
 
       let maxX = 0, maxY = 0;
-      nodes.forEach(function(n) { if (n.x + NODE_W > maxX) maxX = n.x + NODE_W; if (n.y + NODE_H > maxY) maxY = n.y + NODE_H; });
+      nodes.forEach(function(n) { if (n.x + NODE_W > maxX) maxX = n.x + NODE_W; if (n.y + n.nh > maxY) maxY = n.y + n.nh; });
       maxX += 80; maxY += 80;
 
       canvas.style.width = maxX + 'px';
@@ -349,8 +376,10 @@ defmodule SymphonyElixir.Server.TechTreeUI do
       nodes.forEach(function(n) {
         if (!n.parentId || !posMap[n.parentId]) return;
         const parent = posMap[n.parentId];
-        const px = parent.x + NODE_W + 40, py = parent.y + NODE_H / 2 + 40;
-        const cx = n.x + 40, cy = n.y + NODE_H / 2 + 40;
+        var parentNode = nodes.find(function(nn) { return nn.issue.id === n.parentId; });
+        var parentNh = parentNode ? parentNode.nh : BASE_NODE_H;
+        const px = parent.x + NODE_W + 40, py = parent.y + parentNh / 2 + 40;
+        const cx = n.x + 40, cy = n.y + n.nh / 2 + 40;
         const midX = (px + cx) / 2;
         paths += '<path d="M' + px + ' ' + py + ' C' + midX + ' ' + py + ' ' + midX + ' ' + cy + ' ' + cx + ' ' + cy + '" fill="none" stroke="#58687a" stroke-width="2" opacity="0.7"/>';
         paths += '<polygon points="' + cx + ',' + cy + ' ' + (cx - 8) + ',' + (cy - 4) + ' ' + (cx - 8) + ',' + (cy + 4) + '" fill="#58687a" opacity="0.7"/>';
@@ -387,6 +416,29 @@ defmodule SymphonyElixir.Server.TechTreeUI do
           else if (days <= 3) temporalClass = ' temporal-recent';
         }
 
+        // Build proposed follow-ups section
+        var followUps = (issue.agent_run && issue.agent_run.follow_ups) || [];
+        var fuHtml = '';
+        if (followUps.length > 0) {
+          fuHtml = '<div class="node-followups">';
+          followUps.forEach(function(fu) {
+            fuHtml += '<div class="fu-item">';
+            fuHtml += '<span class="fu-status ' + fu.status + '">' + fu.status + '</span>';
+            fuHtml += '<span class="fu-title" title="' + esc(fu.title) + '">' + esc(fu.title) + '</span>';
+            if (fu.status === 'proposed') {
+              fuHtml += '<button class="fu-action accept" onclick="event.stopPropagation(); acceptFollowUp(\'' + issue.id + '\',\'' + fu.id + '\')" title="Accept">\u2713</button>';
+              fuHtml += '<button class="fu-action reject" onclick="event.stopPropagation(); rejectFollowUp(\'' + issue.id + '\',\'' + fu.id + '\')" title="Reject">\u2717</button>';
+            }
+            if (fu.created_issue_identifier) {
+              fuHtml += '<a href="/board/issues/' + fu.created_issue_id + '" onclick="event.stopPropagation()" style="font-size:0.6rem;color:var(--accent)">' + esc(fu.created_issue_identifier) + '</a>';
+            } else if (fu.created_feature_id) {
+              fuHtml += '<a href="/board?product=' + fu.created_product_id + '&tab=spec" onclick="event.stopPropagation()" style="font-size:0.6rem;color:var(--green)" title="Feature added to product">\u2705 feature</a>';
+            }
+            fuHtml += '</div>';
+          });
+          fuHtml += '</div>';
+        }
+
         const div = document.createElement('div');
         div.className = 'tree-node ' + stateClass + temporalClass;
         div.style.left = (n.x + 40) + 'px';
@@ -395,7 +447,8 @@ defmodule SymphonyElixir.Server.TechTreeUI do
         div.innerHTML =
           '<div class="node-identifier">' + esc(issue.identifier) + ' ' + ageHtml + '</div>' +
           '<div class="node-title">' + esc(issue.title) + '</div>' +
-          '<div class="node-meta"><span class="node-state ' + stateSlug + '">' + esc(issue.state) + '</span>' + labelsHtml + childBadge + '</div>';
+          '<div class="node-meta"><span class="node-state ' + stateSlug + '">' + esc(issue.state) + '</span>' + labelsHtml + childBadge + '</div>' +
+          fuHtml;
         canvas.appendChild(div);
       });
     }
@@ -410,6 +463,22 @@ defmodule SymphonyElixir.Server.TechTreeUI do
       window.addEventListener('mousemove', function(e) { if (!dragging) return; vp.scrollLeft = scrollL - (e.clientX - startX); vp.scrollTop = scrollT - (e.clientY - startY); });
       window.addEventListener('mouseup', function() { dragging = false; });
     })();
+
+    async function acceptFollowUp(issueId, fuId) {
+      try {
+        var res = await fetch(API + '/issues/' + issueId + '/follow-ups/' + fuId + '/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (res.ok) { showToast('Follow-up accepted', { type: 'success' }); await loadIssues(); }
+        else { var data = await res.json().catch(function() { return {}; }); showToast('Failed: ' + (data.error || 'unknown'), { type: 'error' }); }
+      } catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
+    }
+
+    async function rejectFollowUp(issueId, fuId) {
+      try {
+        var res = await fetch(API + '/issues/' + issueId + '/follow-ups/' + fuId + '/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (res.ok) { showToast('Follow-up rejected', { type: 'success' }); await loadIssues(); }
+        else { var data = await res.json().catch(function() { return {}; }); showToast('Failed: ' + (data.error || 'unknown'), { type: 'error' }); }
+      } catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
+    }
 
     loadIssues();
     """

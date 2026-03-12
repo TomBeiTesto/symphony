@@ -32,19 +32,20 @@ defmodule SymphonyElixir.Server.BoardRouter do
   # --- Board UI ---
 
   get "/" do
-    html = SymphonyElixir.Server.BoardUI.render()
+    html = SymphonyElixir.Server.ProductHubUI.render()
 
     conn
     |> put_resp_content_type("text/html")
     |> send_resp(200, html)
   end
 
-  get "/projects" do
-    html = SymphonyElixir.Server.ProjectsUI.render()
+  # Legacy routes — redirect to Hub
+  get "/kanban" do
+    conn |> put_resp_header("location", "/board") |> send_resp(302, "")
+  end
 
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+  get "/projects" do
+    conn |> put_resp_header("location", "/board") |> send_resp(302, "")
   end
 
   get "/skills" do
@@ -64,11 +65,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
   end
 
   get "/products" do
-    html = SymphonyElixir.Server.ReviewUI.render()
-
+    # Redirect to hub — products view is now the default
     conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    |> put_resp_header("location", "/board")
+    |> send_resp(302, "")
   end
 
   get "/task-lineage" do
@@ -254,9 +254,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
          true <- follow_up["status"] == "proposed" do
       # Check if this is a product feature-generation issue
       prod_id = extract_product_id(issue)
+      is_feature_issue = is_feature_generation_issue(issue)
 
       result =
-        if prod_id do
+        if prod_id && is_feature_issue do
           feature_attrs = %{
             "name" => follow_up["title"],
             "description" => follow_up["description"],
@@ -311,9 +312,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
           create_follow_up_issue(issue, follow_up, id)
         end
 
-      # Update follow-up status
+      # Update follow-up status with created entity info
       updated_run =
-        update_follow_up_status(agent_run, fu_id, "accepted", result[:issue])
+        update_follow_up_status(agent_run, fu_id, "accepted", result)
 
       LocalBoard.save_agent_run(id, updated_run)
       maybe_move_to_done(id, updated_run)
@@ -1313,6 +1314,38 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  # --- Product Activity API ---
+
+  get "/api/products/:id/activity" do
+    case LocalBoard.get_product(id) do
+      {:ok, prod} ->
+        all_issues = LocalBoard.list_issues()
+        project_ids = MapSet.new(prod.project_ids)
+
+        matching =
+          all_issues
+          |> Enum.filter(fn issue ->
+            # Match by product_id field
+            Map.get(issue, :product_id) == id ||
+              # Match by product:<id> label
+              Enum.any?(Map.get(issue, :labels, []), &(&1 == "product:#{id}")) ||
+              # Match by project membership
+              (is_binary(issue.project_id) and MapSet.member?(project_ids, issue.project_id))
+          end)
+          |> Enum.sort_by(fn i -> i.updated_at || "" end, :desc)
+          |> Enum.take(50)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{issues: matching}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
   # --- Skills API ---
 
   get "/api/skills" do
@@ -1557,25 +1590,104 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
   # --- Templates API ---
 
-  get "/api/templates" do
-    templates = LocalBoard.list_templates()
+  post "/api/ai/draft-issue" do
+    hint = Map.get(conn.body_params, "hint", "") |> String.trim()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{templates: templates}))
-  end
+    if hint == "" do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "hint_required"}))
+    else
+      skills = LocalBoard.list_skills()
 
-  get "/api/templates/:id" do
-    case LocalBoard.get_template(id) do
-      {:ok, template} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(template))
+      skill_names =
+        skills
+        |> Enum.map(fn s -> Map.get(s, :name) || s["name"] end)
+        |> Enum.reject(&is_nil/1)
 
-      {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+      product_context =
+        case Map.get(conn.body_params, "product_id") do
+          nil -> ""
+          "" -> ""
+          pid ->
+            case LocalBoard.get_product(pid) do
+              {:ok, prod} -> "\nProduct: #{prod.name}. #{prod.description || ""}"
+              _ -> ""
+            end
+        end
+
+      project_context =
+        case Map.get(conn.body_params, "project_id") do
+          nil -> ""
+          "" -> ""
+          proj_id ->
+            case LocalBoard.get_project(proj_id) do
+              {:ok, proj} -> "\nProject: #{proj.name}. #{Map.get(proj, :description, "") || ""}"
+              _ -> ""
+            end
+        end
+
+      prompt = """
+      You are a project management assistant. Given a brief hint, generate a well-structured issue.
+      Respond with ONLY valid JSON, no markdown fences, no explanation. Use this exact schema:
+      {"title":"...","description":"...","priority":3,"labels":["..."],"skill_names":["..."]}
+
+      Rules:
+      - title: concise, actionable (under 80 chars)
+      - description: 2-4 paragraphs in markdown with acceptance criteria
+      - priority: 1=Urgent, 2=High, 3=Medium, 4=Low
+      - labels: 1-3 relevant labels (lowercase, hyphenated)
+      - skill_names: pick 0-3 from available skills that match the task
+
+      Available skills: #{Enum.join(skill_names, ", ")}#{product_context}#{project_context}
+
+      User hint: #{hint}
+      """
+
+      case agent_draft(prompt) do
+        {:ok, json_str} ->
+          # Strip markdown fences if present
+          clean =
+            json_str
+            |> String.replace(~r/```json\s*/, "")
+            |> String.replace(~r/```\s*/, "")
+            |> String.trim()
+
+          case Jason.decode(clean) do
+            {:ok, draft} ->
+              resolved_skill_ids =
+                (draft["skill_names"] || [])
+                |> Enum.map(fn name ->
+                  Enum.find(skills, fn s ->
+                    (Map.get(s, :name) || s["name"]) == name
+                  end)
+                end)
+                |> Enum.reject(&is_nil/1)
+                |> Enum.map(fn s -> Map.get(s, :id) || s["id"] end)
+
+              result = Map.put(draft, "skill_ids", resolved_skill_ids)
+
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(result))
+
+            {:error, _} ->
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(%{
+                title: hint,
+                description: clean,
+                priority: 3,
+                labels: [],
+                skill_ids: []
+              }))
+          end
+
+        {:error, reason} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(500, Jason.encode!(%{error: "ai_failed", detail: inspect(reason)}))
+      end
     end
   end
 
@@ -1653,19 +1765,30 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
-  defp update_follow_up_status(agent_run, fu_id, status, new_issue_or_nil) do
+  defp update_follow_up_status(agent_run, fu_id, status, result) do
     follow_ups =
       Enum.map(agent_run["follow_ups"] || [], fn fu ->
         if fu["id"] == fu_id do
           updated = Map.put(fu, "status", status)
 
-          case new_issue_or_nil do
-            %{id: iid, identifier: ident} ->
+          cond do
+            # Follow-up created a new issue
+            match?(%{issue: %{id: _, identifier: _}}, result) ->
               updated
-              |> Map.put("created_issue_id", iid)
-              |> Map.put("created_issue_identifier", ident)
+              |> Map.put("created_issue_id", result.issue.id)
+              |> Map.put("created_issue_identifier", result.issue.identifier)
 
-            _ ->
+            # Follow-up created/merged a product feature
+            match?(%{feature: _, product_id: _}, result) ->
+              feature = result[:feature]
+
+              updated
+              |> Map.put("created_feature_id", feature[:id] || feature.id)
+              |> Map.put("created_feature_name", feature[:name] || feature.name)
+              |> Map.put("created_product_id", result.product_id)
+              |> Map.put("merged", result[:merged] || false)
+
+            true ->
               updated
           end
         else
@@ -1792,6 +1915,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
     |> Enum.join("\n")
   end
 
+  @feature_generation_labels ~w(analyze-existing gap-analysis generate-features feature-check)
+
+  defp is_feature_generation_issue(issue) do
+    labels = Map.get(issue, :labels, [])
+    Enum.any?(labels, fn l -> l in @feature_generation_labels end)
+  end
+
   defp format_existing_features(prod) do
     prod.features
     |> Enum.map(fn f -> "- #{f.name}: #{f.description || ""}" end)
@@ -1820,6 +1950,99 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  # --- Agent Draft Helper (uses claude -p like AgentSummarizer) ---
+
+  @agent_draft_timeout_ms 60_000
+
+  defp agent_draft(prompt) do
+    bash = SymphonyElixir.ShellUtils.find_bash_path()
+    unless bash, do: throw({:error, :bash_not_found})
+
+    prompt_file =
+      Path.join(System.tmp_dir!(), "symphony_draft_#{:rand.uniform(999_999)}.txt")
+
+    try do
+      File.write!(prompt_file, prompt)
+      claude_cmd = (System.find_executable("claude") && "claude") || "claude"
+
+      escaped =
+        prompt_file
+        |> String.replace("\\", "/")
+        |> then(&"\"#{&1}\"")
+
+      shell_command = "cat #{escaped} | #{claude_cmd} -p --output-format json 2>/dev/null"
+
+      env = [
+        {~c"CLAUDECODE", false},
+        {~c"CLAUDE_CODE_ENTRYPOINT", false}
+      ]
+
+      port =
+        Port.open({:spawn_executable, bash}, [
+          :binary,
+          :exit_status,
+          :use_stdio,
+          :stderr_to_stdout,
+          {:args, ["-lc", shell_command]},
+          {:env, env},
+          {:line, 1_048_576}
+        ])
+
+      case collect_agent_output(port, "", @agent_draft_timeout_ms) do
+        {:ok, output} ->
+          # claude -p --output-format json wraps in {"type":"result","result":"..."}
+          case Jason.decode(output) do
+            {:ok, %{"result" => text}} -> {:ok, text}
+            {:ok, %{"content" => content}} when is_list(content) ->
+              text = content |> Enum.filter(&(&1["type"] == "text")) |> Enum.map_join("\n", & &1["text"])
+              {:ok, text}
+            _ -> {:ok, String.trim(output)}
+          end
+
+        {:error, _} = err ->
+          err
+      end
+    after
+      File.rm(prompt_file)
+    end
+  rescue
+    e -> {:error, {:agent_error, Exception.message(e)}}
+  catch
+    {:error, _} = err -> err
+  end
+
+  defp collect_agent_output(port, acc, timeout) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_collect_agent(port, acc, deadline)
+  end
+
+  defp do_collect_agent(port, acc, deadline) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {^port, {:data, {:eol, line}}} ->
+        do_collect_agent(port, acc <> line <> "\n", deadline)
+
+      {^port, {:data, {:noeol, chunk}}} ->
+        do_collect_agent(port, acc <> chunk, deadline)
+
+      {^port, {:exit_status, 0}} ->
+        {:ok, acc}
+
+      {^port, {:exit_status, code}} ->
+        {:error, {:exit_code, code, acc}}
+    after
+      remaining ->
+        try do
+          Port.close(port)
+        catch
+          _, _ -> :ok
+        end
+
+        {:error, :timeout}
+    end
+  end
+
   defp open_native_folder_dialog do
     case :os.type() do
       {:win32, _} -> open_folder_dialog_windows()
@@ -1834,10 +2057,22 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     ps_script = ~S"""
     Add-Type -AssemblyName System.Windows.Forms
+    $topForm = New-Object System.Windows.Forms.Form
+    $topForm.TopMost = $true
+    $topForm.MinimizeBox = $false
+    $topForm.MaximizeBox = $false
+    $topForm.Width = 0
+    $topForm.Height = 0
+    $topForm.FormBorderStyle = 'None'
+    $topForm.StartPosition = 'Manual'
+    $topForm.Location = New-Object System.Drawing.Point(-9999, -9999)
+    $topForm.Show()
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dialog.Description = 'Select a directory to scan for projects'
+    $dialog.Description = 'Select a directory'
     $dialog.ShowNewFolderButton = $false
-    if ($dialog.ShowDialog() -eq 'OK') { $dialog.SelectedPath } else { '__CANCELLED__' }
+    $result = $dialog.ShowDialog($topForm)
+    $topForm.Close()
+    if ($result -eq 'OK') { $dialog.SelectedPath } else { '__CANCELLED__' }
     """
 
     File.write!(script_path, ps_script)
@@ -1846,8 +2081,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       case System.cmd(
              "powershell",
              ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script_path],
-             stderr_to_stdout: true,
-             timeout: 120_000
+             stderr_to_stdout: true
            ) do
         {output, 0} ->
           path = String.trim(output)
@@ -1871,7 +2105,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       ~S|POSIX path of (choose folder with prompt "Select a directory to scan for projects")|
     ]
 
-    case System.cmd("osascript", args, stderr_to_stdout: true, timeout: 120_000) do
+    case System.cmd("osascript", args, stderr_to_stdout: true) do
       {output, 0} -> {:ok, String.trim(output)}
       {_, 1} -> :cancelled
       {output, _} -> {:error, output}

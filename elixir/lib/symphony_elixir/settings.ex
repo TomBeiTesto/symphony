@@ -26,6 +26,8 @@ defmodule SymphonyElixir.Settings do
     "agent_command" => "",
     "agent_shell" => "",
     "agent_allowed_tools" => "WebSearch,WebFetch,Read,Write,Edit,Bash,Glob,Grep",
+    "agent_sandbox" => "",
+    "agent_sandbox_image" => "symphony-agent-sandbox",
     # --- Board automation ---
     "auto_add_enabled" => "false",
     "max_todo_parallel" => "3",

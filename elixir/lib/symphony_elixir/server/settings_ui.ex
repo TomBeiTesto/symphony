@@ -19,15 +19,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
       </style>
     </head>
     <body>
-      <header class="topbar">
-        <div class="topbar-left">
-          <nav class="breadcrumb"><a href="/board">Board</a><span class="sep">/</span></nav>
-          <h1>Settings</h1>
-        </div>
-        <div class="topbar-right">
-          <a href="/" class="btn btn-ghost">Dashboard</a>
-        </div>
-      </header>
+    #{SymphonyElixir.Server.UIHelpers.nav_topbar("settings")}
 
       <main class="settings-page">
         <div class="settings-container">
@@ -119,6 +111,22 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <input type="text" id="agent_allowed_tools" placeholder="WebSearch,WebFetch,Read,Write,Edit,Bash,Glob,Grep">
               <small class="help-text">Comma-separated list of tools the agent is allowed to use without prompting. Each becomes a <code>--allowedTools</code> flag. Leave blank to use Claude Code defaults (will prompt for each tool).</small>
             </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label for="agent_sandbox">Sandbox Mode</label>
+                <select id="agent_sandbox">
+                  <option value="">None (local)</option>
+                  <option value="podman">Podman container</option>
+                  <option value="docker">Docker container</option>
+                </select>
+                <small class="help-text">Run agents inside an isolated container. Only the workspace directory is mounted — agents cannot access other files on the host.</small>
+              </div>
+              <div class="form-group">
+                <label for="agent_sandbox_image">Sandbox Image</label>
+                <input type="text" id="agent_sandbox_image" placeholder="symphony-agent-sandbox">
+                <small class="help-text">Container image name. Build with: <code>podman build -t symphony-agent-sandbox -f Dockerfile.agent-sandbox .</code></small>
+              </div>
+            </div>
           </section>
 
           <!-- Default Skills -->
@@ -200,6 +208,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
 
     UIHelpers.base_css() <>
       UIHelpers.topbar_css() <>
+      UIHelpers.nav_active_css() <>
       UIHelpers.button_css() <>
       UIHelpers.form_css() <>
       ~S"""
@@ -278,7 +287,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
 
     const FIELDS = [
       'git_provider', 'git_token', 'git_host',
-      'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell', 'agent_allowed_tools',
+      'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell', 'agent_allowed_tools', 'agent_sandbox', 'agent_sandbox_image',
       'tracker_kind', 'tracker_endpoint', 'tracker_api_key', 'tracker_project_slug'
     ];
 

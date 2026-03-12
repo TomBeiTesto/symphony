@@ -23,19 +23,17 @@ defmodule SymphonyElixir.Server.SkillsUI do
       </style>
     </head>
     <body>
-      <header class="topbar">
-        <div class="topbar-left">
-          <nav class="breadcrumb"><a href="/board">Board</a><span class="sep">/</span></nav>
-          <h1>Skills Library</h1>
-        </div>
-        <div class="topbar-right">
+    #{UIHelpers.nav_topbar("skills")}
+      <div class="page-actions-bar">
+        <div class="page-actions-left"><h2 class="page-title">Skills Library</h2></div>
+        <div class="page-actions-right">
           <button class="btn btn-ghost" onclick="openGroupsModal()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Groups
           </button>
           <button class="btn btn-primary" onclick="openCreateSkillModal()">+ New Skill</button>
         </div>
-      </header>
+      </div>
 
       <main class="skills-page">
         <aside class="sidebar">
@@ -167,14 +165,19 @@ defmodule SymphonyElixir.Server.SkillsUI do
   defp css do
     UIHelpers.base_css() <>
       UIHelpers.topbar_css() <>
+      UIHelpers.nav_active_css() <>
       UIHelpers.button_css() <>
       UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
       UIHelpers.badge_css() <>
       UIHelpers.toast_css() <>
       ~S"""
+      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
+      .page-actions-left { display: flex; align-items: center; gap: 10px; }
+      .page-actions-right { display: flex; align-items: center; gap: 6px; }
+      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
       .skills-page {
-        display: flex; height: calc(100vh - 49px); overflow: hidden;
+        display: flex; height: calc(100vh - 90px); overflow: hidden;
       }
       .sidebar {
         width: 200px; flex-shrink: 0; padding: 16px;
