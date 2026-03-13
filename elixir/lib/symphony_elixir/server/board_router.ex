@@ -1533,22 +1533,6 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
-  get "/api/issues/:id/resolved-skills" do
-    case LocalBoard.get_issue(id) do
-      {:ok, issue} ->
-        skills = LocalBoard.resolve_issue_skills(issue)
-
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{skills: skills}))
-
-      {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
-    end
-  end
-
   # --- Report File API ---
 
   get "/api/issues/:id/report" do

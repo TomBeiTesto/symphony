@@ -60,6 +60,19 @@ defmodule SymphonyElixir.Server.UIHelpers do
     """
   end
 
+  @doc "Shared JS color maps for issue states and priorities."
+  @spec color_maps_js() :: String.t()
+  def color_maps_js do
+    ~S"""
+    const COLUMN_COLORS = {
+      'backlog': '#8b949e', 'todo': '#d29922', 'in progress': '#58a6ff',
+      'review': '#bc8cff', 'done': '#3fb950', 'archived': '#484f58', 'cancelled': '#f85149'
+    };
+    const PRIORITY_COLORS = { 1: '#f85149', 2: '#d18616', 3: '#d29922', 4: '#58a6ff' };
+    function stateColor(state) { return COLUMN_COLORS[(state || '').toLowerCase()] || '#8b949e'; }
+    """
+  end
+
   @doc "Shared base CSS reset, body, and scrollbar styles."
   @spec base_css() :: String.t()
   def base_css do
@@ -123,6 +136,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .btn-ghost:hover { color: var(--text-primary); background: var(--bg-hover); }
       .btn-accent { background: var(--purple); color: #fff; border-color: var(--purple); }
       .btn-accent:hover { opacity: 0.9; }
+      .btn-accent-soft { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+      .btn-accent-soft:hover { background: rgba(188,140,255,0.25); }
       .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
       .btn-danger:hover { background: var(--red); color: #fff; }
       .btn-sm { padding: 3px 8px; font-size: 0.75rem; }

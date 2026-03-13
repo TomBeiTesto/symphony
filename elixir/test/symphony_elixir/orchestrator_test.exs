@@ -139,68 +139,6 @@ defmodule SymphonyElixir.OrchestratorTest do
     end
   end
 
-  # --- extract_follow_ups (private, tested via duplicated logic) ---
-
-  describe "extract_follow_ups/1" do
-    test "parses valid JSON from result_text with follow-ups block" do
-      result_text = """
-      Task completed successfully.
-
-      ```follow-ups
-      [
-        {"title": "Add tests for edge cases", "description": "Cover nil inputs", "labels": ["test"], "priority": 2},
-        {"title": "Update docs", "description": "Reflect new API"}
-      ]
-      ```
-      """
-
-      follow_ups = extract_follow_ups(result_text)
-
-      assert length(follow_ups) == 2
-
-      first = Enum.at(follow_ups, 0)
-      assert first["title"] == "Add tests for edge cases"
-      assert first["description"] == "Cover nil inputs"
-      assert first["labels"] == ["test"]
-      assert first["priority"] == 2
-      assert first["status"] == "proposed"
-      assert String.starts_with?(first["id"], "fu_")
-
-      second = Enum.at(follow_ups, 1)
-      assert second["title"] == "Update docs"
-      assert second["priority"] == 3
-      assert second["labels"] == []
-    end
-
-    test "returns empty list when no follow-ups block present" do
-      assert extract_follow_ups("All done, no follow-ups needed.") == []
-    end
-
-    test "returns empty list for invalid JSON in follow-ups block" do
-      result_text = """
-      ```follow-ups
-      not valid json
-      ```
-      """
-
-      assert extract_follow_ups(result_text) == []
-    end
-
-    test "returns empty list for nil input" do
-      assert extract_follow_ups(nil) == []
-    end
-
-    test "returns empty list when JSON is not a list" do
-      result_text = """
-      ```follow-ups
-      {"title": "not a list"}
-      ```
-      """
-
-      assert extract_follow_ups(result_text) == []
-    end
-  end
-
   # --- auto_archive_done_issues ---
 
   describe "auto_archive_done_issues/0" do
@@ -359,32 +297,4 @@ defmodule SymphonyElixir.OrchestratorTest do
     end
   end
 
-  # --- Private helper: replicate extract_follow_ups logic ---
-
-  defp extract_follow_ups(result_text) when is_binary(result_text) do
-    case Regex.run(~r/```follow-ups\s*\n([\s\S]*?)```/, result_text) do
-      [_, json_str] ->
-        case Jason.decode(json_str) do
-          {:ok, list} when is_list(list) ->
-            Enum.map(list, fn item ->
-              %{
-                "id" => "fu_" <> Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false),
-                "title" => item["title"] || "Untitled follow-up",
-                "description" => item["description"],
-                "labels" => item["labels"] || [],
-                "priority" => item["priority"] || 3,
-                "status" => "proposed"
-              }
-            end)
-
-          _ ->
-            []
-        end
-
-      nil ->
-        []
-    end
-  end
-
-  defp extract_follow_ups(_), do: []
 end

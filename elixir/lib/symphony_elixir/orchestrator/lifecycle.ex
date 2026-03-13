@@ -100,13 +100,10 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
         "Deactivating auto-polling and moving all in-progress issues to Backlog."
     )
 
-    # Move this failed issue to Backlog
+    # Move this failed issue and all other running issues to Backlog
     if state.config.tracker_kind == "local" do
       SymphonyElixir.LocalBoard.move_issue(issue_id, "Backlog")
-    end
 
-    # Move all other running issues to Backlog
-    if state.config.tracker_kind == "local" do
       for {other_id, entry} <- state.running, other_id != issue_id do
         case SymphonyElixir.LocalBoard.move_issue(other_id, "Backlog") do
           :ok ->

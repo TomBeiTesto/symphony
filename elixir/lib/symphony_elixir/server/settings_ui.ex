@@ -196,6 +196,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
       </main>
 
       <script>
+    #{SymphonyElixir.Server.UIHelpers.esc_js()}
     #{javascript()}
       </script>
     </body>
@@ -415,13 +416,6 @@ defmodule SymphonyElixir.Server.SettingsUI do
     var allGroups = [];
     var defaultSkillIds = [];
     var defaultGroupIds = [];
-
-    function esc(s) {
-      if (s == null) return '';
-      var d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
-    }
 
     async function loadDefaultSkillsUI() {
       try {

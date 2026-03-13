@@ -47,10 +47,7 @@ defmodule SymphonyElixir.Orchestrator.Events do
 
         event_log = (entry[:event_log] || []) ++ [log_entry]
 
-        event_log =
-          if length(event_log) > @max_event_log,
-            do: Enum.drop(event_log, length(event_log) - @max_event_log),
-            else: event_log
+        event_log = Enum.take(event_log, -@max_event_log)
 
         entry = Map.put(entry, :event_log, event_log)
 
@@ -106,15 +103,4 @@ defmodule SymphonyElixir.Orchestrator.Events do
     end
   end
 
-  @doc "Normalize token counts to a string-keyed map."
-  def normalize_tokens(nil),
-    do: %{"input_tokens" => 0, "output_tokens" => 0, "total_tokens" => 0}
-
-  def normalize_tokens(t) do
-    %{
-      "input_tokens" => t[:input_tokens] || 0,
-      "output_tokens" => t[:output_tokens] || 0,
-      "total_tokens" => t[:total_tokens] || 0
-    }
-  end
 end

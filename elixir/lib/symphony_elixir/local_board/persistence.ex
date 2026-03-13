@@ -10,8 +10,6 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
 
   alias SymphonyElixir.LocalBoard
 
-  @default_states ["Backlog", "Todo", "In Progress", "Review", "Done", "Archived", "Cancelled"]
-
   @doc "Persist the full board state to its JSON file."
   def persist(%LocalBoard{} = board) do
     data = %{
@@ -95,7 +93,7 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
                 products: products,
                 skills: skills,
                 skill_groups: skill_groups,
-                states: merge_states(Map.get(data, "states", board.states), @default_states),
+                states: merge_states(Map.get(data, "states", board.states), board.states),
                 next_number: max(Map.get(data, "next_number", max_number + 1), max_number + 1),
                 project_prefix: Map.get(data, "project_prefix", board.project_prefix)
             }

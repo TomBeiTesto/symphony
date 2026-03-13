@@ -166,6 +166,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       </div>
 
       <script>
+    #{SymphonyElixir.Server.UIHelpers.esc_js()}
+    #{SymphonyElixir.Server.UIHelpers.toast_js()}
     #{js(issue.id, issue.identifier)}
       </script>
     </body>
@@ -206,6 +208,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       UIHelpers.topbar_css() <>
       UIHelpers.nav_active_css() <>
       UIHelpers.button_css() <>
+      UIHelpers.toast_css() <>
       ~S"""
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -732,20 +735,6 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       return html;
     }
 
-    function showToast(msg) {
-      var toast = document.createElement('div');
-      toast.textContent = msg;
-      toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#f85149;color:#fff;padding:8px 16px;border-radius:6px;font-size:0.85rem;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
-      document.body.appendChild(toast);
-      setTimeout(function() { toast.remove(); }, 4000);
-    }
-
-    function esc(s) {
-      const el = document.createElement('span');
-      el.textContent = s;
-      return el.innerHTML;
-    }
-
     function truncate(s, n) {
       return s.length > n ? s.slice(0, n) + '...' : s;
     }
@@ -876,11 +865,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           toggleEdit();
         } else {
           var errData = await res.json().catch(function() { return {}; });
-          showToast('Save failed: ' + esc(errData.error || 'unknown error'));
+          showToast('Save failed: ' + esc(errData.error || 'unknown error'), {type: 'error'});
         }
       } catch(e) {
         console.error('Save error:', e);
-        showToast('Save failed: ' + esc(e.message || 'network error'));
+        showToast('Save failed: ' + esc(e.message || 'network error'), {type: 'error'});
       }
     }
 
@@ -1001,13 +990,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         });
         if (!res.ok) {
           var errData = await res.json().catch(function() { return {}; });
-          showToast('Save skills failed: ' + esc(errData.error || 'unknown error'));
+          showToast('Save skills failed: ' + esc(errData.error || 'unknown error'), {type: 'error'});
         }
         renderSkillPills();
         populateSkillPicker();
       } catch(e) {
         console.error('Save skills error:', e);
-        showToast('Save skills failed: ' + esc(e.message || 'network error'));
+        showToast('Save skills failed: ' + esc(e.message || 'network error'), {type: 'error'});
       }
     }
 

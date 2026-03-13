@@ -256,7 +256,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
           <div class="ai-draft-bar" id="ai-draft-bar">
             <input type="text" id="ai-draft-input" class="ai-draft-input" placeholder="Describe what you need in a few words..." onkeydown="if(event.key==='Enter'){event.preventDefault();aiDraftIssue();}">
-            <button type="button" class="btn btn-accent btn-sm" id="ai-draft-btn" onclick="aiDraftIssue()">AI Draft</button>
+            <button type="button" class="btn btn-accent-soft btn-sm" id="ai-draft-btn" onclick="aiDraftIssue()">AI Draft</button>
           </div>
           <form id="issue-form" onsubmit="handleIssueSubmit(event)">
             <input type="hidden" id="issue-form-id" value="">
@@ -514,10 +514,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--text-muted); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
       @keyframes spin { to { transform: rotate(360deg); } }
 
-      /* Accent button */
-      .btn-accent { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
-      .btn-accent:hover { background: rgba(188,140,255,0.25); }
-
       /* --- Issues Tab (kanban) --- */
       .kanban { display: flex; gap: 0; flex: 1; overflow-x: auto; overflow-y: hidden; height: 100%; }
       .kb-column { flex: 1 1 0; min-width: 160px; display: flex; flex-direction: column; border-right: 1px solid var(--border-light); height: 100%; }
@@ -586,6 +582,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
   defp javascript do
     SymphonyElixir.Server.UIHelpers.esc_js() <>
       SymphonyElixir.Server.UIHelpers.toast_js() <>
+      SymphonyElixir.Server.UIHelpers.color_maps_js() <>
       ~S"""
 
       const API = '/board/api';
@@ -606,7 +603,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       let _apiLock = false;
 
       // Kanban state
-      const COLUMN_COLORS = { 'backlog':'#8b949e','todo':'#d29922','in progress':'#58a6ff','review':'#bc8cff','done':'#3fb950','archived':'#484f58','cancelled':'#f85149' };
       const TERMINAL_STATES = ['Done','Archived','Cancelled'];
       let collapsedColumns = JSON.parse(localStorage.getItem('symphony_hub_columns') || 'null');
       if (!collapsedColumns) { collapsedColumns = {}; TERMINAL_STATES.forEach(function(s) { collapsedColumns[s] = true; }); }
@@ -616,7 +612,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       const STATUS_LABELS = { done:'Done', partial:'Partial', in_progress:'In Progress', planned:'Planned', missing:'Missing', n_a:'N/A' };
       const STATUS_ICONS = { done:'\u2705', partial:'\uD83D\uDFE1', in_progress:'\uD83D\uDD35', planned:'\uD83D\uDFE0', missing:'\uD83D\uDD34', n_a:'\u2B1C' };
       const BADGE_CLASSES = { 'backlog':'badge-backlog','todo':'badge-todo','in progress':'badge-in-progress','review':'badge-review','done':'badge-done','cancelled':'badge-cancelled','archived':'badge-archived' };
-      const PRIORITY_COLORS = { 1:'#f85149', 2:'#d18616', 3:'#d29922', 4:'#58a6ff' };
 
       // ========== INIT ==========
 
@@ -1065,7 +1060,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             '</div>' +
             '<div class="action-group">' +
               '<div class="dropdown" id="agent-dropdown">' +
-                '<button class="btn btn-accent btn-sm" onclick="toggleDropdown(\'agent-dropdown\')">Agent Actions \u25BE</button>' +
+                '<button class="btn btn-accent-soft btn-sm" onclick="toggleDropdown(\'agent-dropdown\')">Agent Actions \u25BE</button>' +
                 '<div class="dropdown-menu">' +
                   '<button class="dropdown-item" onclick="analyzeExistingFeatures(); closeDropdowns()" id="analyze-existing-btn">Discover Existing Features</button>' +
                   '<button class="dropdown-item" onclick="analyzeGaps(); closeDropdowns()" id="analyze-gaps-btn">Analyze Gaps</button>' +
@@ -1214,7 +1209,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         board.innerHTML = '';
         boardData.columns.forEach(function(col) {
           var issues = col.issues.filter(issueMatchesProduct);
-          var color = COLUMN_COLORS[col.state.toLowerCase()] || '#8b949e';
+          var color = stateColor(col.state);
           var isCollapsed = !!collapsedColumns[col.state];
           var column = document.createElement('div');
           column.className = 'kb-column' + (isCollapsed ? ' collapsed' : '');

@@ -373,34 +373,6 @@ defmodule SymphonyElixir.LocalBoardTest do
     end
   end
 
-  # --- Template Tests ---
-
-  describe "list_templates/0" do
-    test "returns built-in templates" do
-      templates = LocalBoard.list_templates()
-      assert is_list(templates)
-      assert length(templates) >= 5
-      ids = Enum.map(templates, & &1.id)
-      assert "code-review" in ids
-      assert "bug-report" in ids
-      assert "feature-request" in ids
-      assert "security-review" in ids
-      assert "tech-debt" in ids
-    end
-  end
-
-  describe "get_template/1" do
-    test "returns code-review template" do
-      assert {:ok, tmpl} = LocalBoard.get_template("code-review")
-      assert tmpl.name == "Code Review"
-      assert "code-review" in tmpl.labels
-    end
-
-    test "returns not_found for unknown template" do
-      assert {:error, :not_found} = LocalBoard.get_template("nonexistent")
-    end
-  end
-
   # --- Project Persistence ---
 
   describe "project persistence" do

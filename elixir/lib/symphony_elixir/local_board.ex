@@ -104,110 +104,6 @@ defmodule SymphonyElixir.LocalBoard do
             project_prefix: "SYM",
             store_path: @default_store_path
 
-  # --- Built-in Code Review Templates ---
-
-  @templates [
-    %{
-      id: "code-review",
-      name: "Code Review",
-      title: "Review: ",
-      description:
-        "## Code Review\n\n**PR/Branch:** \n**Author:** \n\n### Checklist\n- [ ] Code compiles without warnings\n- [ ] Tests pass\n- [ ] No security vulnerabilities introduced\n- [ ] Code style follows project conventions\n- [ ] Documentation updated if needed\n- [ ] Edge cases handled\n- [ ] Error handling is appropriate\n\n### Notes\n",
-      labels: ["code-review"],
-      priority: 2,
-      skill_names: ["verification-before-completion", "code-review", "scope-discipline"]
-    },
-    %{
-      id: "bug-report",
-      name: "Bug Report",
-      title: "Bug: ",
-      description:
-        "## Bug Report\n\n**Environment:** \n**Version:** \n\n### Steps to Reproduce\n1. \n2. \n3. \n\n### Expected Behavior\n\n\n### Actual Behavior\n\n\n### Screenshots/Logs\n",
-      labels: ["bug"],
-      priority: 1,
-      skill_names: [
-        "systematic-debugging",
-        "verification-before-completion",
-        "incremental-verification"
-      ]
-    },
-    %{
-      id: "feature-request",
-      name: "Feature Request",
-      title: "",
-      description:
-        "## Feature Request\n\n### Problem Statement\n\n\n### Proposed Solution\n\n\n### Alternatives Considered\n\n\n### Acceptance Criteria\n- [ ] \n- [ ] \n- [ ] \n",
-      labels: ["feature"],
-      priority: 3,
-      skill_names: [
-        "design-before-code",
-        "test-driven-development",
-        "executing-plans",
-        "scope-discipline"
-      ]
-    },
-    %{
-      id: "security-review",
-      name: "Security Review",
-      title: "Security: ",
-      description:
-        "## Security Review\n\n**Component:** \n**Risk Level:** \n\n### Checklist\n- [ ] Input validation reviewed\n- [ ] Authentication/authorization checked\n- [ ] No secrets in source code\n- [ ] SQL injection prevention verified\n- [ ] XSS prevention verified\n- [ ] CSRF protection in place\n- [ ] Dependencies checked for known vulnerabilities\n- [ ] Logging does not expose sensitive data\n\n### Findings\n",
-      labels: ["security", "code-review"],
-      priority: 1,
-      skill_names: ["verification-before-completion", "code-review", "evidence-based-decisions"]
-    },
-    %{
-      id: "tech-debt",
-      name: "Tech Debt",
-      title: "Refactor: ",
-      description:
-        "## Technical Debt\n\n**Area:** \n**Effort Estimate:** \n\n### Current State\n\n\n### Desired State\n\n\n### Migration Plan\n1. \n2. \n3. \n\n### Risks\n",
-      labels: ["tech-debt"],
-      priority: 4,
-      skill_names: [
-        "design-before-code",
-        "executing-plans",
-        "scope-discipline",
-        "incremental-verification"
-      ]
-    },
-    %{
-      id: "research",
-      name: "Research Task",
-      title: "Research: ",
-      description:
-        "## Research Task\n\n**Topic:** \n**Scope:** \n\n### Questions to Answer\n1. \n2. \n3. \n\n### Expected Output\nA report saved to `reports/<identifier>.md` in the workspace.\n\n### Context\n",
-      labels: ["research"],
-      priority: 3,
-      skill_names: ["source-verification", "structured-reporting", "scope-discipline"]
-    },
-    %{
-      id: "documentation",
-      name: "Documentation",
-      title: "Docs: ",
-      description:
-        "## Documentation Task\n\n**Target Audience:** \n**Document Type:** (guide / reference / tutorial / changelog)\n\n### Scope\n\n\n### Outline\n1. \n2. \n3. \n\n### Acceptance Criteria\n- [ ] Content is accurate and tested\n- [ ] Examples are complete and runnable\n- [ ] Prerequisites are listed\n",
-      labels: ["documentation"],
-      priority: 3,
-      skill_names: ["audience-aware-writing", "structured-reporting", "content-hierarchy"]
-    },
-    %{
-      id: "ui-design",
-      name: "UI / Design Task",
-      title: "UI: ",
-      description:
-        "## UI / Design Task\n\n**Component/Page:** \n**User Goal:** \n\n### Current State\n\n\n### Desired State\n\n\n### Acceptance Criteria\n- [ ] Visually consistent with existing design\n- [ ] Responsive at common breakpoints\n- [ ] Empty, loading, and error states handled\n- [ ] Keyboard accessible\n",
-      labels: ["ui", "design"],
-      priority: 3,
-      skill_names: [
-        "user-journey-first",
-        "cognitive-load-budget",
-        "spatial-consistency",
-        "content-hierarchy"
-      ]
-    }
-  ]
-
   # --- Client API ---
 
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -303,29 +199,6 @@ defmodule SymphonyElixir.LocalBoard do
   def clone_project_repo(id) do
     GenServer.call(__MODULE__, {:clone_project_repo, id}, 120_000)
   end
-
-  # --- Template API ---
-
-  @spec list_templates() :: [map()]
-  def list_templates do
-    @templates
-  end
-
-  @spec get_template(String.t()) :: {:ok, map()} | {:error, :not_found}
-  def get_template(id) do
-    case Enum.find(@templates, &(&1.id == id)) do
-      nil -> {:error, :not_found}
-      tmpl -> {:ok, tmpl}
-    end
-  end
-
-  @doc "Resolve skill_names on a template to actual skill_ids from the board."
-  @spec resolve_template_skill_ids(map()) :: [String.t()]
-  def resolve_template_skill_ids(%{skill_names: names}) when is_list(names) and names != [] do
-    GenServer.call(__MODULE__, {:resolve_template_skill_ids, names})
-  end
-
-  def resolve_template_skill_ids(_), do: []
 
   # --- Product API ---
 
@@ -595,6 +468,4 @@ defmodule SymphonyElixir.LocalBoard do
   def handle_call({:resolve_issue_skills, issue}, _from, board),
     do: Skills.resolve_issue_skills(board, issue)
 
-  def handle_call({:resolve_template_skill_ids, names}, _from, board),
-    do: Skills.resolve_template_skill_ids(board, names)
 end

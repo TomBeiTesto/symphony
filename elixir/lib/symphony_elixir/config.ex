@@ -218,16 +218,8 @@ defmodule SymphonyElixir.Config do
     end
   end
 
-  defp resolve_env_default(env_name) do
-    case System.get_env(env_name) do
-      nil -> nil
-      "" -> nil
-      val -> val
-    end
-  end
-
   defp resolve_env_default_for_kind("gitlab"),
-    do: resolve_env_default("GITLAB_API_TOKEN")
+    do: resolve_env_var("GITLAB_API_TOKEN")
 
   defp resolve_env_default_for_kind(_kind),
     do: nil

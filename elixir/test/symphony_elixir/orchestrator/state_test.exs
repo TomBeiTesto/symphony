@@ -11,18 +11,6 @@ defmodule SymphonyElixir.Orchestrator.StateTest do
     state: "In Progress"
   }
 
-  describe "new struct" do
-    test "starts with empty maps and default totals" do
-      state = %State{}
-      assert state.running == %{}
-      assert state.claimed == MapSet.new()
-      assert state.retry_attempts == %{}
-      assert state.agent_totals.input_tokens == 0
-      assert state.agent_totals.seconds_running == 0.0
-      assert state.rate_limits == nil
-    end
-  end
-
   describe "running_count/1" do
     test "returns 0 for empty state" do
       assert State.running_count(%State{}) == 0

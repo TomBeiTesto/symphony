@@ -201,17 +201,8 @@ defmodule SymphonyElixir.LocalBoard.Issues do
       propose_followups: Map.get(record, :propose_followups, true) != false,
       skill_ids: Map.get(record, :skill_ids, []),
       skill_group_ids: Map.get(record, :skill_group_ids, []),
-      created_at: parse_dt(record.created_at),
-      updated_at: parse_dt(record.updated_at)
+      created_at: SymphonyElixir.DateTimeUtils.parse_datetime(record.created_at),
+      updated_at: SymphonyElixir.DateTimeUtils.parse_datetime(record.updated_at)
     }
-  end
-
-  defp parse_dt(nil), do: nil
-
-  defp parse_dt(str) when is_binary(str) do
-    case DateTime.from_iso8601(str) do
-      {:ok, dt, _offset} -> dt
-      _ -> nil
-    end
   end
 end

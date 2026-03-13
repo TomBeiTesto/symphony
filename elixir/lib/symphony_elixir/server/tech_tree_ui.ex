@@ -243,6 +243,7 @@ defmodule SymphonyElixir.Server.TechTreeUI do
   end
 
   defp js do
+    SymphonyElixir.Server.UIHelpers.esc_js() <>
     SymphonyElixir.Server.UIHelpers.toast_js() <>
     ~S"""
     const API = '/board/api';
@@ -272,13 +273,6 @@ defmodule SymphonyElixir.Server.TechTreeUI do
     function filterProject() {
       currentProject = document.getElementById('project-filter').value;
       renderTree();
-    }
-
-    function esc(s) {
-      if (s == null) return '';
-      const d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
     }
 
     function buildTree(issues) {

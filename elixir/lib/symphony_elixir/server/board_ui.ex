@@ -31,11 +31,6 @@ defmodule SymphonyElixir.Server.BoardUI do
           </select>
         </div>
         <div class="board-actions-right">
-          <div class="dropdown" id="template-dropdown">
-            <button class="btn btn-ghost" onclick="toggleTemplateDropdown()">Templates</button>
-            <div class="dropdown-menu template-menu-wide" id="template-menu"></div>
-          </div>
-          <span class="topbar-divider"></span>
           <div class="dropdown" id="auto-add-dropdown">
             <button class="btn btn-ghost" onclick="toggleAutoAddDropdown()">
               <span id="auto-add-label">Auto</span>
@@ -178,6 +173,9 @@ defmodule SymphonyElixir.Server.BoardUI do
       <!-- Project Modal -->
 
       <script>
+    #{SymphonyElixir.Server.UIHelpers.esc_js()}
+    #{SymphonyElixir.Server.UIHelpers.toast_js()}
+    #{SymphonyElixir.Server.UIHelpers.color_maps_js()}
     #{javascript()}
       </script>
     </body>
@@ -431,16 +429,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .dropdown-item:hover { background: var(--bg-hover); }
       .dropdown-item small { display: block; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; }
-      .template-menu-wide { min-width: 320px; max-height: 400px; overflow-y: auto; }
-      .template-item { padding: 10px 14px; border-bottom: 1px solid var(--border-light); background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; cursor: pointer; color: var(--text-primary); font-family: inherit; }
-      .template-item:last-child { border-bottom: none; }
-      .template-item:hover { background: var(--bg-hover); }
-      .template-item .tmpl-name { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 3px; }
-      .template-item .tmpl-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
-      .template-item .tmpl-labels { display: flex; gap: 4px; flex-wrap: wrap; }
-      .template-item .tmpl-label { font-size: 0.65rem; background: var(--bg-tertiary); color: var(--text-muted); padding: 1px 6px; border-radius: 3px; }
-      .template-item .tmpl-priority { font-size: 0.65rem; color: var(--text-muted); margin-left: auto; }
-
       /* --- Project List --- */
       .project-filter { width: 100%; padding: 6px 10px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
       .project-filter:focus { outline: none; border-color: var(--accent); }
@@ -513,7 +501,6 @@ defmodule SymphonyElixir.Server.BoardUI do
     let _apiLock = false;
     let boardData = null;
     let projects = [];
-    let templates = [];
     let currentDetailIssue = null;
     let draggedCard = null;
     let currentProjectFilter = '';
@@ -546,16 +533,13 @@ defmodule SymphonyElixir.Server.BoardUI do
           if (el.scrollTop > 0) scrollPositions[el.dataset.state] = el.scrollTop;
         });
 
-        const [snapRes, projRes, tmplRes] = await Promise.all([
+        const [snapRes, projRes] = await Promise.all([
           fetch(`${API}/snapshot`),
-          fetch(`${API}/projects`),
-          fetch(`${API}/templates`)
+          fetch(`${API}/projects`)
         ]);
         boardData = await snapRes.json();
         const projData = await projRes.json();
         projects = projData.projects || [];
-        const tmplData = await tmplRes.json();
-        templates = tmplData.templates || [];
         renderBoard();
         renderMetricsBar();
         populateProjectFilter();
@@ -572,16 +556,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
     }
 
-    const COLUMN_COLORS = {
-      'backlog': '#8b949e',
-      'todo': '#d29922',
-      'in progress': '#58a6ff',
-      'review': '#bc8cff',
-      'done': '#3fb950',
-      'archived': '#484f58',
-      'cancelled': '#f85149'
-    };
-
     const BADGE_CLASSES = {
       'backlog': 'badge-backlog', 'todo': 'badge-todo',
       'in progress': 'badge-in-progress', 'review': 'badge-review',
@@ -592,9 +566,7 @@ defmodule SymphonyElixir.Server.BoardUI do
     // Terminal columns: default collapsed (#17)
     const TERMINAL_STATES = ['Done', 'Archived', 'Cancelled'];
 
-    function getColumnColor(state) {
-      return COLUMN_COLORS[state.toLowerCase()] || '#8b949e';
-    }
+    function getColumnColor(state) { return stateColor(state); }
 
     // Collapse state with localStorage persistence (#18)
     var collapsedColumns = JSON.parse(localStorage.getItem('symphony_collapsed') || 'null');
@@ -748,7 +720,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       return html;
     }
 
-    const PRIORITY_COLORS = { 1: '#f85149', 2: '#d18616', 3: '#d29922', 4: '#58a6ff' };
 
     const DELETABLE_STATES = ['Backlog', 'Cancelled', 'Archived'];
 
@@ -828,60 +799,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       currentProjectFilter = document.getElementById('project-filter').value;
       renderBoard();
     }
-
-    // --- Template Dropdown ---
-    function populateTemplateMenu() {
-      const menu = document.getElementById('template-menu');
-      if (templates.length === 0) {
-        menu.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem;text-align:center">No templates available</div>';
-        return;
-      }
-      const priorityNames = { 1: 'Urgent', 2: 'High', 3: 'Medium', 4: 'Low' };
-      menu.innerHTML = templates.map(t => {
-        const descPreview = (t.description || '').replace(/^##?\s+.+\n*/m, '').replace(/\n/g, ' ').replace(/[-*[\]#]/g, '').trim().slice(0, 80);
-        const labels = (t.labels || []).map(l => '<span class="tmpl-label">' + esc(l) + '</span>').join('');
-        const skillBadge = (t.skill_names && t.skill_names.length > 0) ? '<span class="tmpl-label" style="background:var(--accent-primary);color:#fff">&#9889; ' + t.skill_names.length + ' skills</span>' : '';
-        return '<button class="template-item" onclick="applyTemplate(templates.find(x=>x.id===\'' + t.id + '\'))">' +
-          '<div class="tmpl-name">' + esc(t.name) + '</div>' +
-          (descPreview ? '<div class="tmpl-desc">' + esc(descPreview) + '</div>' : '') +
-          '<div class="tmpl-labels">' + labels + skillBadge +
-            '<span class="tmpl-priority">P' + (t.priority || 0) + ' ' + (priorityNames[t.priority] || '') + '</span>' +
-          '</div>' +
-        '</button>';
-      }).join('');
-    }
-
-    function toggleTemplateDropdown() {
-      const menu = document.getElementById('template-menu');
-      menu.classList.toggle('open');
-    }
-
-    function applyTemplate(tmpl) {
-      document.getElementById('template-menu').classList.remove('open');
-      openCreateModal();
-      document.getElementById('form-title').value = tmpl.title || '';
-      document.getElementById('form-description').value = tmpl.description || '';
-      document.getElementById('form-priority').value = (tmpl.priority || 0).toString();
-      document.getElementById('form-labels').value = (tmpl.labels || []).join(', ');
-
-      // Resolve template skill_names to skill IDs from cache
-      formSkillIds = [];
-      formGroupIds = [];
-      if (tmpl.skill_names && tmpl.skill_names.length > 0) {
-        tmpl.skill_names.forEach(function(name) {
-          var skill = allSkillsCache.find(function(s) { return s.name === name; });
-          if (skill) formSkillIds.push(skill.id);
-        });
-      }
-      renderFormSkillPills();
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#template-dropdown')) {
-        document.getElementById('template-menu').classList.remove('open');
-      }
-    });
 
     // --- Drag & Drop ---
     function handleDragStart(e) {
@@ -1273,24 +1190,6 @@ defmodule SymphonyElixir.Server.BoardUI do
     }
 
     // --- Helpers ---
-    function showToast(msg, opts) {
-      opts = opts || {};
-      var container = document.getElementById('toast-container');
-      if (!container) { container = document.createElement('div'); container.id = 'toast-container'; container.className = 'toast-container'; document.body.appendChild(container); }
-      var toast = document.createElement('div');
-      toast.className = 'toast ' + (opts.type || '');
-      toast.innerHTML = '<span>' + esc(msg) + '</span>';
-      container.appendChild(toast);
-      setTimeout(function() { toast.remove(); }, opts.duration || 4000);
-    }
-
-    function esc(str) {
-      if (!str) return '';
-      const d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
-    }
-
     function priorityLabel(p) {
       return { 1: 'Urgent', 2: 'High', 3: 'Medium', 4: 'Low' }[p] || 'None';
     }

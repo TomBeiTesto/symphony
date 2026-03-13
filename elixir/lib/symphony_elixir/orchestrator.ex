@@ -117,8 +117,11 @@ defmodule SymphonyElixir.Orchestrator do
         SymphonyElixir.LocalBoard.update_issue(issue_id, %{"plan_status" => "approved"})
 
         # Clear completed state so the issue is eligible for dispatch
-        state = %{state | completed: MapSet.delete(state.completed, issue_id)}
-        state = %{state | claimed: MapSet.delete(state.claimed, issue_id)}
+        state = %{
+          state
+          | completed: MapSet.delete(state.completed, issue_id),
+            claimed: MapSet.delete(state.claimed, issue_id)
+        }
 
         # Clear the old agent_run so the execution phase starts fresh
         SymphonyElixir.LocalBoard.save_agent_run(issue_id, nil)
@@ -154,8 +157,11 @@ defmodule SymphonyElixir.Orchestrator do
         })
 
         # Clear completed/claimed so it can be re-dispatched
-        state = %{state | completed: MapSet.delete(state.completed, issue_id)}
-        state = %{state | claimed: MapSet.delete(state.claimed, issue_id)}
+        state = %{
+          state
+          | completed: MapSet.delete(state.completed, issue_id),
+            claimed: MapSet.delete(state.claimed, issue_id)
+        }
 
         # Clear old agent_run
         SymphonyElixir.LocalBoard.save_agent_run(issue_id, nil)

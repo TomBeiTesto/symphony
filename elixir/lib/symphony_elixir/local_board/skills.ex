@@ -233,14 +233,4 @@ defmodule SymphonyElixir.LocalBoard.Skills do
 
     {:reply, skills, board}
   end
-
-  def resolve_template_skill_ids(board, names) do
-    ids =
-      board.skills
-      |> Map.values()
-      |> Enum.filter(fn s -> s.name in names end)
-      |> Enum.map(& &1.id)
-
-    {:reply, ids, board}
-  end
 end
