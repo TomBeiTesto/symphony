@@ -88,6 +88,7 @@ defmodule SymphonyElixir.LocalBoard.Products do
         name: name,
         description: Map.get(attrs, "description"),
         project_ids: Map.get(attrs, "project_ids", []),
+        labels: parse_labels(Map.get(attrs, "labels", [])),
         features: [],
         created_at: now,
         updated_at: now
@@ -112,6 +113,7 @@ defmodule SymphonyElixir.LocalBoard.Products do
           |> maybe_update(:name, attrs)
           |> maybe_update(:description, attrs)
           |> maybe_update(:project_ids, attrs)
+          |> maybe_update(:labels, attrs, &parse_labels/1)
           |> Map.put(:updated_at, now)
 
         # If project_ids changed, clean up feature statuses for removed projects

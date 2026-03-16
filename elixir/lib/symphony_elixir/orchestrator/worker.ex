@@ -46,6 +46,7 @@ defmodule SymphonyElixir.Orchestrator.Worker do
   def run_worker(config, prompt_template, issue, orchestrator_pid) do
     with {:ok, workspace_info} <- Workspace.ensure_workspace(config, issue),
          workspace_path = resolve_project_workspace(config, issue, workspace_info.path),
+         extra_mounts = resolve_extra_mounts(config, issue, workspace_path),
          :ok <- run_before_run_hook(config, workspace_path),
          {:ok, prompt} <- render_prompt(prompt_template, issue, nil),
          :ok <- validate_cwd(workspace_path) do
@@ -56,7 +57,14 @@ defmodule SymphonyElixir.Orchestrator.Worker do
 
       client = agent_client_module()
 
-      case client.start_session(config, workspace_path, prompt, callback) do
+      start_result =
+        if client == ClaudeAdapter and extra_mounts != [] do
+          ClaudeAdapter.start_session(config, workspace_path, prompt, callback, extra_mounts: extra_mounts)
+        else
+          client.start_session(config, workspace_path, prompt, callback)
+        end
+
+      case start_result do
         {:ok, session} ->
           result = run_turn_loop(config, prompt_template, issue, session, 1)
 
@@ -99,16 +107,41 @@ defmodule SymphonyElixir.Orchestrator.Worker do
   @doc """
   Resolve the workspace path for an issue based on its project/product association.
 
-  If the issue belongs to a product, use the first project's path.
-  If the issue belongs to a project, use that project's path.
-  Otherwise, fall back to the default workspace path.
+  Priority: issue's own project_id (most specific) > product's first project > fallback.
   """
   def resolve_project_workspace(
         %Config{tracker_kind: "local"},
-        %Issue{product_id: prod_id},
+        %Issue{project_id: pid} = issue,
         fallback
       )
-      when is_binary(prod_id) and prod_id != "" do
+      when is_binary(pid) and pid != "" do
+    case SymphonyElixir.LocalBoard.get_project(pid) do
+      {:ok, %{path: path}} when is_binary(path) and path != "" ->
+        if File.dir?(path) do
+          Logger.info("Using project path as workspace: #{path}")
+          path
+        else
+          Logger.warning("Project path #{path} does not exist, trying product fallback")
+          resolve_product_workspace(issue, fallback)
+        end
+
+      _ ->
+        resolve_product_workspace(issue, fallback)
+    end
+  end
+
+  def resolve_project_workspace(
+        %Config{tracker_kind: "local"},
+        %Issue{} = issue,
+        fallback
+      ) do
+    resolve_product_workspace(issue, fallback)
+  end
+
+  def resolve_project_workspace(_config, _issue, fallback), do: fallback
+
+  defp resolve_product_workspace(%Issue{product_id: prod_id}, fallback)
+       when is_binary(prod_id) and prod_id != "" do
     case resolve_product_project_paths(prod_id) do
       [first_path | _] ->
         Logger.info("Using product's first project path as workspace: #{first_path}")
@@ -119,28 +152,30 @@ defmodule SymphonyElixir.Orchestrator.Worker do
     end
   end
 
-  def resolve_project_workspace(
-        %Config{tracker_kind: "local"},
-        %Issue{project_id: pid},
-        fallback
-      )
-      when is_binary(pid) and pid != "" do
-    case SymphonyElixir.LocalBoard.get_project(pid) do
-      {:ok, %{path: path}} when is_binary(path) and path != "" ->
-        if File.dir?(path) do
-          Logger.info("Using project path as workspace: #{path}")
-          path
-        else
-          Logger.warning("Project path #{path} does not exist, using default workspace")
-          fallback
-        end
+  defp resolve_product_workspace(_issue, fallback), do: fallback
 
-      _ ->
-        fallback
+  @doc """
+  For product-linked issues, return all project paths so the container
+  can mount them as additional volumes alongside the primary workspace.
+  """
+  def resolve_extra_mounts(
+        %Config{tracker_kind: "local"},
+        %Issue{product_id: prod_id},
+        primary_workspace
+      )
+      when is_binary(prod_id) and prod_id != "" do
+    paths = resolve_product_project_paths(prod_id)
+    # Exclude the primary workspace (already mounted at /workspace)
+    extra = Enum.reject(paths, &(&1 == primary_workspace))
+
+    if extra != [] do
+      Logger.info("Product task: #{length(extra)} extra project mounts: #{Enum.join(extra, ", ")}")
     end
+
+    extra
   end
 
-  def resolve_project_workspace(_config, _issue, fallback), do: fallback
+  def resolve_extra_mounts(_config, _issue, _primary), do: []
 
   # --- Private Helpers ---
 

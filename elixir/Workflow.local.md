@@ -18,6 +18,8 @@ agent:
 agent_process:
   command: claude
   approval_policy: never
+  sandbox: podman
+  sandbox_image: symphony-agent-sandbox
 hooks:
   after_run: |
     if [ -d "reports" ]; then

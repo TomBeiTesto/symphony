@@ -170,6 +170,12 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .form-row { display: flex; gap: 12px; }
       .form-row .form-group { flex: 1; }
       .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+      .form-checkbox { margin-bottom: 8px; }
+      .form-checkbox label {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 0.85rem; color: var(--text-muted); cursor: pointer; font-weight: 400;
+      }
+      .form-checkbox label input[type="checkbox"] { width: auto; }
       .help-text { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
       @media (max-width: 600px) { .form-row { flex-direction: column; gap: 0; } }
     """
@@ -196,7 +202,12 @@ defmodule SymphonyElixir.Server.UIHelpers do
         display: flex; align-items: center; justify-content: space-between;
         margin-bottom: 18px;
       }
-      .modal-header h2 { font-size: 1.05rem; font-weight: 600; }
+      .modal-header h2, .modal-header h3 { font-size: 1.05rem; font-weight: 600; }
+      .modal-body { margin-bottom: 16px; }
+      .modal-footer {
+        display: flex; justify-content: flex-end; gap: 8px;
+        padding-top: 12px; border-top: 1px solid var(--border); margin-top: 8px;
+      }
     """
   end
 
@@ -366,6 +377,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
   def nav_topbar(active \\ "") do
     nav_items = [
       {"hub", "/board", "Hub"},
+      {"pipeline", "/board/pipeline", "Pipeline"},
       {"lineage", "/board/task-lineage", "Issue Lineage"},
       {"skills", "/board/skills", "Skills"},
       {"dashboard", "/", "Dashboard"},
@@ -386,8 +398,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
       <header class="topbar">
         <div class="topbar-left">
           #{back_btn}
-          <svg class="logo" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
-          <h1>Symphony</h1>
+          <a href="/board" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+            <svg class="logo" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
+            <h1 style="margin:0;">Symphony</h1>
+          </a>
         </div>
         <div class="topbar-right">
           <div class="topbar-nav">
@@ -395,6 +409,324 @@ defmodule SymphonyElixir.Server.UIHelpers do
           </div>
         </div>
       </header>
+    """
+  end
+
+  @doc """
+  Shared create-issue modal HTML.
+
+  Options:
+  - prefix: ID prefix to avoid clashes (default "ci")
+  - on_submit: JS function name called on form submit (default "submitCreateIssue")
+  - on_cancel: JS function name called on cancel (default "closeCreateIssueModal")
+  - submit_label: submit button text (default "Create Issue")
+  - show_skills: include the pill-style skills picker (default false)
+  - show_skills_picker: include the checkbox-style skills picker used by Hub (default false)
+  - ai_draft: include the AI Draft bar above the form (default false)
+  """
+  @spec create_issue_modal_html(keyword()) :: String.t()
+  def create_issue_modal_html(opts \\ []) do
+    p = Keyword.get(opts, :prefix, "ci")
+    on_submit = Keyword.get(opts, :on_submit, "submitCreateIssue")
+    on_cancel = Keyword.get(opts, :on_cancel, "closeCreateIssueModal")
+    submit_label = Keyword.get(opts, :submit_label, "Create Issue")
+    show_skills = Keyword.get(opts, :show_skills, false)
+    show_skills_picker = Keyword.get(opts, :show_skills_picker, false)
+    ai_draft = Keyword.get(opts, :ai_draft, false)
+    z_index = Keyword.get(opts, :z_index, nil)
+
+    skills_html =
+      cond do
+        show_skills_picker ->
+          """
+                <div class="form-group">
+                  <label>Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('#{p}-skills')">select skills...</button></label>
+                  <div class="skill-picker" id="#{p}-skills" style="display:none"></div>
+                </div>
+          """
+
+        show_skills ->
+          """
+                <div class="form-group">
+                  <label>Skills <span class="form-hint">(select skills to inject into agent prompt)</span></label>
+                  <div class="form-skill-pills" id="#{p}-skill-pills"></div>
+                  <select id="#{p}-add-skill" onchange="formAddSkill(this.value); this.value='';">
+                    <option value="">+ Add skill or group...</option>
+                  </select>
+                </div>
+          """
+
+        true ->
+          ""
+      end
+
+    ai_draft_html =
+      if ai_draft do
+        """
+            <div class="ai-draft-bar">
+              <input type="text" id="#{p}-ai-draft-input" class="ai-draft-input" placeholder="Describe what you need in a few words..." onkeydown="if(event.key==='Enter'){event.preventDefault();#{p}AiDraft();}">
+              <button type="button" class="btn btn-accent-soft btn-sm" id="#{p}-ai-draft-btn" onclick="#{p}AiDraft()">AI Draft</button>
+            </div>
+        """
+      else
+        ""
+      end
+
+    """
+    <div class="modal-overlay" id="#{p}-modal" style="display:none#{if z_index, do: ";z-index:#{z_index}", else: ""}" onclick="if(event.target===this)#{on_cancel}()">
+      <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 id="#{p}-modal-title">New Issue</h3>
+          <button class="btn-icon" onclick="#{on_cancel}()">&times;</button>
+        </div>
+    #{ai_draft_html}
+        <form id="#{p}-form" onsubmit="#{on_submit}(event)">
+          <input type="hidden" id="#{p}-id" value="">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="#{p}-title" required placeholder="Issue title...">
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="#{p}-description" rows="5" placeholder="Describe the issue..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>State</label>
+              <select id="#{p}-state"></select>
+            </div>
+            <div class="form-group">
+              <label>Priority</label>
+              <select id="#{p}-priority">
+                <option value="0">No priority</option>
+                <option value="1">Urgent</option>
+                <option value="2">High</option>
+                <option value="3">Medium</option>
+                <option value="4">Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Labels (comma-separated)</label>
+            <input type="text" id="#{p}-labels" placeholder="bug, frontend, urgent">
+          </div>
+          <div class="form-group">
+            <label>Product</label>
+            <select id="#{p}-product" onchange="#{p}OnProductChange()">
+              <option value="">No product</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Project</label>
+            <select id="#{p}-project">
+              <option value="">No project</option>
+            </select>
+          </div>
+    #{skills_html}
+          <div class="form-group form-checkbox">
+            <label><input type="checkbox" id="#{p}-followups" checked> Propose follow-up issues</label>
+          </div>
+          <div class="form-group form-checkbox">
+            <label><input type="checkbox" id="#{p}-plan-first"> Plan first (agent plans before implementing)</label>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" onclick="#{on_cancel}()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="#{p}-submit">#{submit_label}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Shared JS for populating and opening a create-issue modal.
+
+  Returns JS functions: `{prefix}PopulateStates()`, `{prefix}PopulateProjects()`,
+  `{prefix}CollectData()`. Callers wire these into their own open/submit handlers.
+  """
+  @spec create_issue_modal_js(String.t()) :: String.t()
+  def create_issue_modal_js(prefix \\ "ci") do
+    ~s"""
+    async function #{prefix}PopulateStates(defaultState) {
+      try {
+        const res = await fetch('/board/api/states');
+        const data = await res.json();
+        const sel = document.getElementById('#{prefix}-state');
+        sel.innerHTML = '';
+        (data.states || []).forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s; opt.textContent = s;
+          if (s === (defaultState || 'Backlog')) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch(e) {}
+    }
+
+    var #{prefix}_allProducts = [];
+    var #{prefix}_allProjects = [];
+
+    async function #{prefix}PopulateProducts(defaultProductId) {
+      try {
+        const res = await fetch('/board/api/products');
+        const data = await res.json();
+        #{prefix}_allProducts = data.products || [];
+        const sel = document.getElementById('#{prefix}-product');
+        sel.innerHTML = '<option value="">No product</option>';
+        #{prefix}_allProducts.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id; opt.textContent = p.name;
+          if (p.id === defaultProductId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch(e) {}
+    }
+
+    async function #{prefix}PopulateProjects(defaultProjectId) {
+      try {
+        const res = await fetch('/board/api/projects');
+        const data = await res.json();
+        #{prefix}_allProjects = data.projects || [];
+        #{prefix}FilterProjects(defaultProjectId);
+      } catch(e) {}
+    }
+
+    function #{prefix}FilterProjects(defaultProjectId) {
+      const sel = document.getElementById('#{prefix}-project');
+      const prodId = document.getElementById('#{prefix}-product').value;
+      const prod = #{prefix}_allProducts.find(p => p.id === prodId);
+      const allowedIds = prod ? new Set(prod.project_ids || []) : null;
+      sel.innerHTML = '<option value="">No project</option>';
+      #{prefix}_allProjects.forEach(p => {
+        if (allowedIds && !allowedIds.has(p.id)) return;
+        const opt = document.createElement('option');
+        opt.value = p.id; opt.textContent = p.name;
+        if (p.id === defaultProjectId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function #{prefix}OnProductChange() {
+      #{prefix}FilterProjects(null);
+    }
+
+    function #{prefix}Reset() {
+      document.getElementById('#{prefix}-id').value = '';
+      document.getElementById('#{prefix}-title').value = '';
+      document.getElementById('#{prefix}-description').value = '';
+      document.getElementById('#{prefix}-priority').value = '0';
+      document.getElementById('#{prefix}-labels').value = '';
+      document.getElementById('#{prefix}-product').value = '';
+      document.getElementById('#{prefix}-followups').checked = true;
+      document.getElementById('#{prefix}-plan-first').checked = false;
+      var aiInput = document.getElementById('#{prefix}-ai-draft-input');
+      if (aiInput) aiInput.value = '';
+    }
+
+    function #{prefix}CollectData() {
+      return {
+        title: document.getElementById('#{prefix}-title').value.trim(),
+        description: document.getElementById('#{prefix}-description').value,
+        state: document.getElementById('#{prefix}-state').value,
+        priority: document.getElementById('#{prefix}-priority').value,
+        labels: document.getElementById('#{prefix}-labels').value,
+        product_id: document.getElementById('#{prefix}-product').value || null,
+        project_id: document.getElementById('#{prefix}-project').value || null,
+        propose_followups: document.getElementById('#{prefix}-followups').checked,
+        plan_status: document.getElementById('#{prefix}-plan-first').checked ? 'planning' : null
+      };
+    }
+
+    async function #{prefix}AiDraft() {
+      const input = document.getElementById('#{prefix}-ai-draft-input');
+      if (!input) return;
+      const hint = input.value.trim();
+      if (!hint) { input.focus(); return; }
+      const btn = document.getElementById('#{prefix}-ai-draft-btn');
+      btn.textContent = 'Drafting...'; btn.disabled = true; input.disabled = true;
+      try {
+        const body = { hint: hint };
+        const prodSel = document.getElementById('#{prefix}-product');
+        if (prodSel && prodSel.value) body.product_id = prodSel.value;
+        const projSel = document.getElementById('#{prefix}-project');
+        if (projSel && projSel.value) body.project_id = projSel.value;
+        // Allow callers to inject extra params (e.g. product_id)
+        if (typeof #{prefix}AiDraftExtras === 'function') Object.assign(body, #{prefix}AiDraftExtras());
+        const res = await fetch('/board/api/ai/draft-issue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const draft = await res.json();
+        if (draft.error) { if (typeof showToast === 'function') showToast('Draft failed: ' + draft.error, { type: 'error' }); return; }
+        document.getElementById('#{prefix}-title').value = draft.title || hint;
+        document.getElementById('#{prefix}-description').value = draft.description || '';
+        document.getElementById('#{prefix}-priority').value = (draft.priority || 0).toString();
+        document.getElementById('#{prefix}-labels').value = (draft.labels || []).join(', ');
+        // Allow callers to handle extra draft fields (e.g. skills)
+        if (typeof #{prefix}AiDraftApply === 'function') #{prefix}AiDraftApply(draft);
+        input.value = '';
+        if (typeof showToast === 'function') showToast('Issue drafted by AI', { type: 'success' });
+      } catch (e) { if (typeof showToast === 'function') showToast('Draft failed: ' + e.message, { type: 'error' }); }
+      finally { btn.textContent = 'AI Draft'; btn.disabled = false; input.disabled = false; }
+    }
+    """
+  end
+
+  @doc "CSS for the AI draft bar used in create modals."
+  def ai_draft_css do
+    ~S"""
+      .ai-draft-bar { display: flex; align-items: center; gap: 8px; padding: 8px 20px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 0; }
+      .ai-draft-input { flex: 1; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); color: var(--text-primary); font-size: 0.85rem; font-family: inherit; outline: none; }
+      .ai-draft-input:focus { border-color: var(--accent); }
+      .ai-draft-input::placeholder { color: var(--text-muted); }
+    """
+  end
+
+  @doc "CSS for the skill picker widget."
+  def skill_picker_css do
+    ~S"""
+      .skill-picker { max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-top: 4px; background: var(--bg-secondary); }
+      .skill-picker-section { margin-bottom: 8px; }
+      .skill-picker-section strong { display: block; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.5px; }
+      .skill-pick-item { display: flex !important; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.8rem; cursor: pointer; font-weight: normal; margin-bottom: 0; }
+      .skill-pick-item input[type="checkbox"] { margin: 0; cursor: pointer; width: auto; flex-shrink: 0; }
+      .skill-pick-name { color: var(--text-primary); }
+      .skill-pick-count { color: var(--text-muted); font-size: 0.7rem; }
+      .skill-pick-empty { font-size: 0.8rem; color: var(--text-muted); padding: 8px; text-align: center; }
+      .skill-picker-toggle { font-size: 0.75rem; color: var(--accent); cursor: pointer; border: none; background: none; padding: 0; }
+      .skill-picker-toggle:hover { text-decoration: underline; }
+    """
+  end
+
+  @doc "JS for the skill picker widget. Requires allSkills and allSkillGroups arrays and esc() to be defined."
+  def skill_picker_js do
+    ~S"""
+      function renderSkillPicker(containerId, selectedSkillIds, selectedGroupIds) {
+        var el = document.getElementById(containerId); if (!el) return; var html = '';
+        if (allSkillGroups.length > 0) { html += '<div class="skill-picker-section"><strong>Skill Groups</strong>'; allSkillGroups.forEach(function(g) { var checked = selectedGroupIds.indexOf(g.id) >= 0 ? ' checked' : ''; html += '<label class="skill-pick-item"><input type="checkbox" value="' + g.id + '" data-type="group"' + checked + '><span class="skill-pick-name">' + esc(g.name) + '</span><span class="skill-pick-count">(' + (g.skill_ids || []).length + ')</span></label>'; }); html += '</div>'; }
+        if (allSkills.length > 0) { var categories = {}; allSkills.forEach(function(s) { var cat = s.category || 'custom'; if (!categories[cat]) categories[cat] = []; categories[cat].push(s); }); Object.keys(categories).sort().forEach(function(cat) { html += '<div class="skill-picker-section"><strong>' + esc(cat.charAt(0).toUpperCase() + cat.slice(1)) + '</strong>'; categories[cat].forEach(function(s) { var checked = selectedSkillIds.indexOf(s.id) >= 0 ? ' checked' : ''; html += '<label class="skill-pick-item"><input type="checkbox" value="' + s.id + '" data-type="skill"' + checked + '><span class="skill-pick-name">' + esc(s.name) + '</span></label>'; }); html += '</div>'; }); }
+        if (!html) html = '<div class="skill-pick-empty">No skills available.</div>';
+        el.innerHTML = html;
+      }
+
+      function getSelectedSkills(containerId) {
+        var el = document.getElementById(containerId); if (!el) return { skill_ids: [], skill_group_ids: [] };
+        var skillIds = [], groupIds = [];
+        el.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) { if (cb.dataset.type === 'group') groupIds.push(cb.value); else skillIds.push(cb.value); });
+        return { skill_ids: skillIds, skill_group_ids: groupIds };
+      }
+
+      function toggleSkillPicker(containerId) {
+        var el = document.getElementById(containerId); if (!el) return;
+        if (el.style.display === 'none') {
+          var current = getSelectedSkills(containerId);
+          renderSkillPicker(containerId, current.skill_ids, current.skill_group_ids);
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      }
     """
   end
 

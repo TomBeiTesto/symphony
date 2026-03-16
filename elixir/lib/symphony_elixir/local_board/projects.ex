@@ -40,6 +40,7 @@ defmodule SymphonyElixir.LocalBoard.Projects do
       repo_url: Map.get(attrs, "repo_url"),
       description: Map.get(attrs, "description"),
       tags: parse_labels(Map.get(attrs, "tags", [])),
+      priority: parse_priority(Map.get(attrs, "priority", 0)),
       created_at: now,
       updated_at: now
     }
@@ -66,6 +67,7 @@ defmodule SymphonyElixir.LocalBoard.Projects do
           |> maybe_update(:repo_url, attrs)
           |> maybe_update(:description, attrs)
           |> maybe_update(:tags, attrs, &parse_labels/1)
+          |> maybe_update(:priority, attrs, &parse_priority/1)
           |> Map.put(:updated_at, now)
 
         board = %{board | projects: Map.put(board.projects, id, updated)}

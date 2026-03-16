@@ -10,14 +10,21 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
 
   alias SymphonyElixir.LocalBoard
 
-  @doc "Persist the full board state to its JSON file."
+  @max_backups 10
+
+  @doc "Persist the full board state to its JSON file. Creates a rotating backup first."
   def persist(%LocalBoard{} = board) do
+    # Rotate backup before overwriting
+    rotate_backup(board.store_path)
+
     data = %{
       "issues" => Map.values(board.issues) |> Enum.map(&issue_to_json/1),
       "projects" => Map.values(board.projects) |> Enum.map(&project_to_json/1),
       "products" => Map.values(board.products) |> Enum.map(&product_to_json/1),
       "skills" => Map.values(board.skills) |> Enum.map(&skill_to_json/1),
       "skill_groups" => Map.values(board.skill_groups) |> Enum.map(&skill_group_to_json/1),
+      "pipelines" => Map.values(board.pipelines) |> Enum.map(&pipeline_to_json/1),
+      "pipeline_runs" => Map.values(board.pipeline_runs) |> Enum.map(&pipeline_run_to_json/1),
       "states" => board.states,
       "next_number" => board.next_number,
       "project_prefix" => board.project_prefix
@@ -25,6 +32,80 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
 
     json = Jason.encode!(data, pretty: true)
     File.write!(board.store_path, json)
+  end
+
+  @doc "List available backup files (newest first)."
+  def list_backups(store_path) do
+    backup_dir = backup_dir(store_path)
+
+    case File.ls(backup_dir) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".json"))
+        |> Enum.sort(:desc)
+        |> Enum.map(fn f ->
+          path = Path.join(backup_dir, f)
+          stat = File.stat!(path)
+          %{filename: f, path: path, size: stat.size, modified: stat.mtime}
+        end)
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  @doc "Restore board state from a specific backup file."
+  def restore_backup(%LocalBoard{} = board, backup_filename) do
+    backup_path = Path.join(backup_dir(board.store_path), backup_filename)
+
+    case File.read(backup_path) do
+      {:ok, contents} ->
+        # Write backup contents as the current board file
+        File.write!(board.store_path, contents)
+        # Reload the board from disk
+        {:ok, load_from_disk(board)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp backup_dir(store_path) do
+    dir = Path.join(Path.dirname(store_path), "backups")
+    File.mkdir_p!(dir)
+    dir
+  end
+
+  defp rotate_backup(store_path) do
+    if File.exists?(store_path) do
+      dir = backup_dir(store_path)
+      timestamp = Calendar.strftime(DateTime.utc_now(), "%Y%m%d_%H%M%S")
+      base = Path.basename(store_path, ".json")
+      backup_name = "#{base}_#{timestamp}.json"
+      backup_path = Path.join(dir, backup_name)
+
+      case File.cp(store_path, backup_path) do
+        :ok ->
+          prune_old_backups(dir, base)
+
+        {:error, reason} ->
+          Logger.warning("Failed to create backup: #{inspect(reason)}")
+      end
+    end
+  end
+
+  defp prune_old_backups(dir, base) do
+    case File.ls(dir) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&String.starts_with?(&1, base))
+        |> Enum.sort(:desc)
+        |> Enum.drop(@max_backups)
+        |> Enum.each(fn f -> File.rm(Path.join(dir, f)) end)
+
+      {:error, _} ->
+        :ok
+    end
   end
 
   @doc "Load board state from its JSON file on disk."
@@ -86,6 +167,22 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
                 {group.id, group}
               end)
 
+            pipelines_list = Map.get(data, "pipelines", [])
+
+            pipelines =
+              Map.new(pipelines_list, fn raw ->
+                pipeline = json_to_pipeline(raw)
+                {pipeline.id, pipeline}
+              end)
+
+            pipeline_runs_list = Map.get(data, "pipeline_runs", [])
+
+            pipeline_runs =
+              Map.new(pipeline_runs_list, fn raw ->
+                run = json_to_pipeline_run(raw)
+                {run.id, run}
+              end)
+
             %{
               board
               | issues: issues,
@@ -93,6 +190,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
                 products: products,
                 skills: skills,
                 skill_groups: skill_groups,
+                pipelines: pipelines,
+                pipeline_runs: pipeline_runs,
                 states: merge_states(Map.get(data, "states", board.states), board.states),
                 next_number: max(Map.get(data, "next_number", max_number + 1), max_number + 1),
                 project_prefix: Map.get(data, "project_prefix", board.project_prefix)
@@ -311,6 +410,134 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       updated_at: raw["updated_at"]
     }
   end
+
+  # --- Pipeline serialization ---
+
+  def pipeline_to_json(pipeline) do
+    %{
+      "id" => pipeline.id,
+      "name" => pipeline.name,
+      "description" => pipeline.description,
+      "product_id" => pipeline[:product_id],
+      "nodes" =>
+        Enum.map(pipeline.nodes, fn n ->
+          %{
+            "id" => n.id,
+            "type" => n.type,
+            "issue_id" => n[:issue_id],
+            "label" => n.label,
+            "config" => n[:config] || %{},
+            "position" => %{"x" => n.position.x, "y" => n.position.y},
+            "loop_max_retries" => n[:loop_max_retries],
+            "loop_condition" => n[:loop_condition]
+          }
+        end),
+      "edges" =>
+        Enum.map(pipeline.edges, fn e ->
+          %{
+            "id" => e.id,
+            "source_node_id" => e.source_node_id,
+            "target_node_id" => e.target_node_id,
+            "source_port" => e[:source_port] || "output",
+            "label" => e[:label]
+          }
+        end),
+      "settings" => %{
+        "max_retries" => (pipeline.settings || %{})[:max_retries] || %{},
+        "notifications" => (pipeline.settings || %{})[:notifications] != false,
+        "integrations" => (pipeline.settings || %{})[:integrations] || %{}
+      },
+      "created_at" => pipeline.created_at,
+      "updated_at" => pipeline.updated_at
+    }
+  end
+
+  def json_to_pipeline(raw) do
+    %{
+      id: raw["id"],
+      name: raw["name"],
+      description: raw["description"],
+      product_id: raw["product_id"],
+      nodes:
+        Enum.map(raw["nodes"] || [], fn n ->
+          pos = n["position"] || %{}
+
+          %{
+            id: n["id"],
+            type: n["type"] || "issue",
+            issue_id: n["issue_id"],
+            label: n["label"] || "",
+            config: n["config"] || %{},
+            position: %{x: (pos["x"] || 0) * 1.0, y: (pos["y"] || 0) * 1.0},
+            loop_max_retries: n["loop_max_retries"],
+            loop_condition: n["loop_condition"]
+          }
+        end),
+      edges:
+        Enum.map(raw["edges"] || [], fn e ->
+          %{
+            id: e["id"],
+            source_node_id: e["source_node_id"],
+            target_node_id: e["target_node_id"],
+            source_port: e["source_port"] || "output",
+            label: e["label"]
+          }
+        end),
+      settings: %{
+        max_retries: (raw["settings"] || %{})["max_retries"] || %{},
+        notifications: (raw["settings"] || %{})["notifications"] != false,
+        integrations: (raw["settings"] || %{})["integrations"] || %{}
+      },
+      created_at: raw["created_at"],
+      updated_at: raw["updated_at"]
+    }
+  end
+
+  def pipeline_run_to_json(run) do
+    %{
+      "id" => run.id,
+      "pipeline_id" => run.pipeline_id,
+      "status" => run.status,
+      "node_states" => run.node_states,
+      "node_attempts" => run.node_attempts,
+      "gate_decisions" =>
+        Enum.map(run.gate_decisions, fn d ->
+          %{
+            "node_id" => d.node_id,
+            "action" => d.action,
+            "feedback" => d[:feedback],
+            "decided_at" => d.decided_at
+          }
+        end),
+      "started_at" => run.started_at,
+      "completed_at" => run.completed_at
+    }
+  end
+
+  def json_to_pipeline_run(raw) do
+    %{
+      id: raw["id"],
+      pipeline_id: raw["pipeline_id"],
+      status: raw["status"] || "running",
+      node_states: atomize_map_values(raw["node_states"] || %{}),
+      node_attempts: raw["node_attempts"] || %{},
+      gate_decisions:
+        Enum.map(raw["gate_decisions"] || [], fn d ->
+          %{
+            node_id: d["node_id"],
+            action: d["action"],
+            feedback: d["feedback"],
+            decided_at: d["decided_at"]
+          }
+        end),
+      started_at: raw["started_at"],
+      completed_at: raw["completed_at"]
+    }
+  end
+
+  # Keep string values as-is for node_states (they are string enum values)
+  defp atomize_map_values(map) when is_map(map), do: map
+  defp atomize_map_values(_), do: %{}
 
   # Ensure any new default states are inserted in the correct position.
   # Persisted states take priority; missing defaults are spliced in

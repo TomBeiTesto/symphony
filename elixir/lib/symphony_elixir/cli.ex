@@ -133,12 +133,20 @@ defmodule SymphonyElixir.CLI do
         []
       end
 
+    pipeline_children =
+      if Config.local_board?(config) do
+        [{SymphonyElixir.PipelineRunner, []}]
+      else
+        []
+      end
+
     base =
       board_children ++
         [
           {SymphonyElixir.Orchestrator, config: config, prompt_template: prompt},
           {SymphonyElixir.WorkflowWatcher, workflow_path: workflow_path}
-        ]
+        ] ++
+        pipeline_children
 
     if config.server_port do
       plug_module =

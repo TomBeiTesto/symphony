@@ -34,10 +34,15 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
   # --- Public API (mirrors AppServer.Client) ---
 
-  @doc "Start a Claude Code session — spawns the subprocess with the prompt."
-  @spec start_session(Config.t(), String.t(), String.t(), (map() -> :ok)) ::
+  @doc """
+  Start a Claude Code session — spawns the subprocess with the prompt.
+
+  Options:
+    - `extra_mounts`: list of additional host paths to mount into the container (for product multi-project tasks)
+  """
+  @spec start_session(Config.t(), String.t(), String.t(), (map() -> :ok), keyword()) ::
           {:ok, session()} | {:error, term()}
-  def start_session(%Config{} = config, workspace_path, prompt, callback) do
+  def start_session(%Config{} = config, workspace_path, prompt, callback, opts \\ []) do
     claude_cmd = resolve_command(config)
     prompt_file = Path.join(workspace_path, ".symphony_prompt_#{:rand.uniform(999_999)}.txt")
 
@@ -45,19 +50,19 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     case File.write(prompt_file, prompt) do
       :ok ->
-        do_start_session(config, workspace_path, prompt_file, claude_cmd, callback)
+        do_start_session(config, workspace_path, prompt_file, claude_cmd, callback, opts)
 
       {:error, reason} ->
         {:error, {:prompt_write_failed, reason}}
     end
   end
 
-  defp do_start_session(config, workspace_path, prompt_file, claude_cmd, callback) do
+  defp do_start_session(config, workspace_path, prompt_file, claude_cmd, callback, opts) do
     sandbox = resolve_sandbox_mode(config)
 
     if sandbox in ["podman", "docker"] do
       config = %{config | sandbox: sandbox, sandbox_image: resolve_sandbox_image(config)}
-      do_start_sandboxed_session(config, workspace_path, prompt_file, callback)
+      do_start_sandboxed_session(config, workspace_path, prompt_file, callback, opts)
     else
       do_start_local_session(config, workspace_path, prompt_file, claude_cmd, callback)
     end
@@ -96,25 +101,56 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
   # ---------- Container-sandboxed execution (podman/docker) ----------
 
-  defp do_start_sandboxed_session(config, workspace_path, prompt_file, callback) do
+  defp do_start_sandboxed_session(config, workspace_path, prompt_file, callback, opts) do
     runtime = config.sandbox
     image = config.sandbox_image || "symphony-agent-sandbox"
     allowed_tools_flag = build_allowed_tools_flag()
 
     # Convert Windows path to a WSL-compatible mount path for podman
     mount_path = to_container_mount_path(workspace_path)
-    # Build the container command
-    # --rm: auto-cleanup  --network host: allow API calls
-    # -v: mount ONLY the workspace directory as /workspace
-    # -e: pass through API key (Claude Code needs ANTHROPIC_API_KEY)
+
+    # Build extra mount args for product multi-project tasks
+    # Each extra path is mounted at /projects/<basename> inside the container
+    extra_mounts = Keyword.get(opts, :extra_mounts, [])
+
+    extra_mount_args =
+      extra_mounts
+      |> Enum.reject(&(&1 == workspace_path))
+      |> Enum.flat_map(fn path ->
+        container_path = to_container_mount_path(path)
+        basename = Path.basename(path)
+        ["-v", "#{container_path}:/projects/#{basename}:rw"]
+      end)
+
+    if extra_mounts != [] do
+      Logger.info("Sandbox: mounting #{length(extra_mounts)} extra project paths")
+    end
+
+    # -e: pass through auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN)
     api_key = System.get_env("ANTHROPIC_API_KEY") || ""
+    oauth_token = System.get_env("CLAUDE_CODE_OAUTH_TOKEN") || ""
+
+    if api_key == "" and oauth_token == "" do
+      Logger.warning("Neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set — sandboxed agents will fail to authenticate")
+    end
+
+    auth_env =
+      cond do
+        api_key != "" ->
+          ["-e", "ANTHROPIC_API_KEY=#{api_key}"]
+        oauth_token != "" ->
+          ["-e", "CLAUDE_CODE_OAUTH_TOKEN=#{oauth_token}"]
+        true ->
+          []
+      end
 
     container_args = [
       "run", "--rm", "-i",
       "--network", "host",
-      "-v", "#{mount_path}:/workspace:rw",
-      "-w", "/workspace",
-      "-e", "ANTHROPIC_API_KEY=#{api_key}",
+      "-v", "#{mount_path}:/workspace:rw"
+    ] ++ extra_mount_args ++ [
+      "-w", "/workspace"
+    ] ++ auth_env ++ [
       "-e", "CLAUDE_CODE_DISABLE_NONINTERACTIVE_CHECK=1",
       image,
       "-p", "--output-format", "stream-json", "--verbose"

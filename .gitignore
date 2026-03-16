@@ -50,3 +50,4 @@ elixir/test/e2e/screenshots/
 
 # Dialyzer
 elixir/priv/plts/
+elixir/backups/

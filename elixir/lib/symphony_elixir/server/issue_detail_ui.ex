@@ -32,6 +32,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         </div>
         <div class="page-actions-right">
           <button class="btn-edit" id="edit-btn" onclick="toggleEdit()">Edit</button>
+          <button class="btn-delete" id="delete-btn" onclick="deleteIssue()">Delete</button>
           <span class="meta" id="agent-status">Loading...</span>
         </div>
       </div>
@@ -117,6 +118,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                   </select>
                 </div>
               </div>
+            </div>
+            <!-- Pipeline Context Panel -->
+            <div class="panel pipeline-ctx-panel" id="pipeline-ctx-panel" style="display:none;">
+              <div class="pipeline-ctx-header">
+                <h3>Pipeline Context</h3>
+              </div>
+              <div id="pipeline-ctx-content"></div>
             </div>
             <div class="panel plan-review-panel" id="plan-review-panel" style="display:none;">
               <div class="plan-review-header">
@@ -324,6 +332,14 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         border: 1px solid var(--border); border-radius: var(--radius-sm);
         color: var(--text-primary); font-size: 0.8rem;
       }
+      .pipeline-ctx-panel { flex-shrink: 0; }
+      .pipeline-ctx-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .pipeline-ctx-header h3 { color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
+      .pipeline-ctx-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+      .pipeline-progress-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 2px; margin: 8px 0; }
+      .pipeline-progress-seg { flex: 1; border-radius: 2px; }
+      .pipeline-run-link { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 6px; cursor: pointer; text-decoration: none; color: var(--text-secondary); font-size: 0.85rem; transition: border-color var(--transition); }
+      .pipeline-run-link:hover { border-color: var(--accent); }
       .followups-panel { flex-shrink: 0; }
       .followups-title { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
       .followups-title::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
@@ -339,11 +355,17 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .btn-accept:hover { opacity: 0.9; }
       .btn-reject { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; }
       .btn-reject:hover { border-color: var(--red); color: var(--red); }
+      .btn-fu-edit { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 0.75rem; cursor: pointer; }
+      .btn-fu-edit:hover { border-color: var(--accent); color: var(--accent); }
       .fu-status { font-size: 0.75rem; font-weight: 600; }
       .fu-status.accepted { color: var(--green); }
       .fu-status.rejected { color: var(--text-muted); text-decoration: line-through; }
       .fu-link { color: var(--accent); text-decoration: none; font-size: 0.75rem; margin-left: 8px; }
       .fu-link:hover { text-decoration: underline; }
+      .fu-edit-form { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+      .fu-edit-form input, .fu-edit-form textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.8rem; font-family: inherit; }
+      .fu-edit-form textarea { min-height: 60px; resize: vertical; }
+      .fu-edit-form .fu-edit-btns { display: flex; gap: 6px; }
       .report-panel { flex-shrink: 0; }
       .report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
       .report-header h3 { color: var(--text-primary); font-size: 1rem; display: flex; align-items: center; gap: 8px; }
@@ -370,6 +392,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .btn-edit { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
       .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
       .btn-edit.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+      .btn-delete { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+      .btn-delete:hover { border-color: #e55; color: #e55; }
       .edit-field { margin-bottom: 12px; }
       .edit-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
       .edit-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
@@ -528,10 +552,16 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       renderFollowups(orch);
     }
 
+    var followupsData = [];
+    var editingFollowupId = null;
+
     function renderFollowups(orch) {
+      // Skip re-render while user is editing a follow-up
+      if (editingFollowupId) return;
       const panel = document.getElementById('followups-panel');
       const list = document.getElementById('followups-list');
       const followups = (orch && orch.follow_ups) || [];
+      followupsData = followups;
       if (followups.length === 0) {
         panel.style.display = 'none';
         return;
@@ -545,6 +575,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         var actionsHtml = '';
         if (fu.status === 'proposed') {
           actionsHtml = '<button class="btn-accept" onclick="acceptFollowup(\'' + fu.id + '\')">Accept</button>' +
+            '<button class="btn-fu-edit" onclick="toggleFollowupEdit(\'' + fu.id + '\')">Edit</button>' +
             '<button class="btn-reject" onclick="rejectFollowup(\'' + fu.id + '\')">Reject</button>';
         } else if (fu.status === 'accepted') {
           actionsHtml = '<span class="fu-status accepted">Accepted</span>';
@@ -554,13 +585,46 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         } else {
           actionsHtml = '<span class="fu-status rejected">Rejected</span>';
         }
+        var editForm = '<div class="fu-edit-form" id="fu-edit-' + fu.id + '" style="display:none;">' +
+          '<input type="text" id="fu-edit-title-' + fu.id + '" value="' + esc(fu.title || '') + '" placeholder="Title">' +
+          '<textarea id="fu-edit-desc-' + fu.id + '" placeholder="Description">' + esc(fu.description || '') + '</textarea>' +
+          '<input type="text" id="fu-edit-labels-' + fu.id + '" value="' + esc((fu.labels || []).join(', ')) + '" placeholder="Labels (comma-separated)">' +
+          '<div class="fu-edit-btns">' +
+            '<button class="btn-accept" onclick="saveFollowupEdit(\'' + fu.id + '\')">Save</button>' +
+            '<button class="btn-reject" onclick="toggleFollowupEdit(\'' + fu.id + '\')">Cancel</button>' +
+          '</div></div>';
         return '<div class="followup-card ' + statusCls + '">' +
-          '<div class="fu-title">' + esc(fu.title || '') + '</div>' +
+          '<div class="fu-title" id="fu-view-' + fu.id + '">' + esc(fu.title || '') + '</div>' +
           (fu.description ? '<div class="fu-desc">' + esc(fu.description.slice(0, 200)) + '</div>' : '') +
           (labelsHtml ? '<div class="fu-labels">' + labelsHtml + '</div>' : '') +
           '<div class="fu-actions">' + actionsHtml + '</div>' +
+          editForm +
           '</div>';
       }).join('');
+    }
+
+    function toggleFollowupEdit(fuId) {
+      var form = document.getElementById('fu-edit-' + fuId);
+      if (!form) return;
+      var opening = form.style.display === 'none';
+      form.style.display = opening ? 'flex' : 'none';
+      editingFollowupId = opening ? fuId : null;
+    }
+
+    async function saveFollowupEdit(fuId) {
+      var title = document.getElementById('fu-edit-title-' + fuId).value.trim();
+      var desc = document.getElementById('fu-edit-desc-' + fuId).value;
+      var labelsStr = document.getElementById('fu-edit-labels-' + fuId).value;
+      var labels = labelsStr.split(',').map(function(l) { return l.trim(); }).filter(function(l) { return l !== ''; });
+      editingFollowupId = null;
+      try {
+        var res = await fetch('/board/api/issues/' + ISSUE_ID + '/follow-ups/' + fuId, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: title, description: desc, labels: labels })
+        });
+        if (res.ok) pollActivity();
+      } catch (err) { console.error('Edit follow-up failed:', err); }
     }
 
     async function acceptFollowup(fuId) {
@@ -761,6 +825,20 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           }
         }
       } catch(e) {}
+    }
+
+    async function deleteIssue() {
+      if (!confirm('Delete ' + IDENTIFIER + '?')) return;
+      try {
+        var res = await fetch('/board/api/issues/' + ISSUE_ID, { method: 'DELETE' });
+        if (res.ok) {
+          window.location.href = '/board';
+        } else {
+          alert('Delete failed: ' + res.status);
+        }
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
     }
 
     function toggleEdit() {
@@ -1003,6 +1081,65 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     // Load issue data on init
     loadIssueData();
     loadSkillsData();
+    loadPipelineContext();
+
+    // --- Pipeline Context ---
+    async function loadPipelineContext() {
+      try {
+        const res = await fetch('/board/api/pipelines');
+        const data = await res.json();
+        const pipelines = data.pipelines || [];
+        const issueId = issue.id;
+        const matches = [];
+
+        pipelines.forEach(function(p) {
+          (p.nodes || []).forEach(function(n) {
+            if (n.type === 'issue' && n.issue_id === issueId) {
+              matches.push({ pipeline: p, node: n });
+            }
+          });
+        });
+
+        const panel = document.getElementById('pipeline-ctx-panel');
+        const content = document.getElementById('pipeline-ctx-content');
+        if (matches.length === 0) return;
+
+        panel.style.display = '';
+        var html = '';
+        for (var m = 0; m < matches.length; m++) {
+          var p = matches[m].pipeline;
+          var nodeCount = (p.nodes || []).length;
+
+          // Build mini progress bar
+          var segHtml = '';
+          (p.nodes || []).forEach(function(n) {
+            var color = n.id === matches[m].node.id ? 'var(--accent)' : 'var(--border)';
+            segHtml += '<div class="pipeline-progress-seg" style="background:' + color + '"></div>';
+          });
+
+          html += '<a class="pipeline-run-link" href="/board/pipeline/' + p.id + '">' +
+            '<strong>' + esc(p.name) + '</strong>' +
+            '<span style="color:var(--text-muted)">' + nodeCount + ' nodes</span>' +
+            '</a>' +
+            '<div class="pipeline-progress-bar">' + segHtml + '</div>';
+        }
+        content.innerHTML = html;
+
+        // Check for active runs
+        var activeRes = await fetch('/board/api/pipeline-runs/active');
+        var activeData = await activeRes.json();
+        var activeRuns = activeData.runs || [];
+
+        matches.forEach(function(m) {
+          var run = activeRuns.find(function(r) { return r.pipeline_id === m.pipeline.id; });
+          if (run) {
+            var nodeState = run.node_states[m.node.id] || 'pending';
+            var stateColors = { pending: 'var(--text-muted)', running: 'var(--accent)', completed: 'var(--green)', failed: 'var(--red)', waiting_gate: 'var(--yellow)' };
+            content.innerHTML += '<div style="margin-top:6px;font-size:0.8rem;color:' + (stateColors[nodeState] || 'var(--text-muted)') + '">Pipeline running \u2014 this step: ' + nodeState + '</div>';
+          }
+        });
+      } catch(e) {}
+    }
 
     // --- Plan Review Actions ---
     async function approvePlan() {

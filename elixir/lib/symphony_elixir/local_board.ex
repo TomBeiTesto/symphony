@@ -11,7 +11,7 @@ defmodule SymphonyElixir.LocalBoard do
 
   require Logger
 
-  alias SymphonyElixir.LocalBoard.{Issues, Projects, Products, Skills, Persistence}
+  alias SymphonyElixir.LocalBoard.{Issues, Projects, Products, Skills, Pipelines, Persistence}
 
   @type issue_record :: %{
           id: String.t(),
@@ -99,6 +99,8 @@ defmodule SymphonyElixir.LocalBoard do
             products: %{},
             skills: %{},
             skill_groups: %{},
+            pipelines: %{},
+            pipeline_runs: %{},
             states: @default_states,
             next_number: 1,
             project_prefix: "SYM",
@@ -327,6 +329,68 @@ defmodule SymphonyElixir.LocalBoard do
     GenServer.call(__MODULE__, {:resolve_issue_skills, issue})
   end
 
+  # --- Backup & Restore ---
+
+  def list_backups do
+    GenServer.call(__MODULE__, :list_backups)
+  end
+
+  def restore_backup(filename) do
+    GenServer.call(__MODULE__, {:restore_backup, filename})
+  end
+
+  # --- Pipeline API ---
+
+  def list_pipelines do
+    GenServer.call(__MODULE__, :list_pipelines)
+  end
+
+  def get_pipeline(id) do
+    GenServer.call(__MODULE__, {:get_pipeline, id})
+  end
+
+  def create_pipeline(attrs) do
+    GenServer.call(__MODULE__, {:create_pipeline, attrs})
+  end
+
+  def update_pipeline(id, attrs) do
+    GenServer.call(__MODULE__, {:update_pipeline, id, attrs})
+  end
+
+  def delete_pipeline(id) do
+    GenServer.call(__MODULE__, {:delete_pipeline, id})
+  end
+
+  # --- Pipeline Run API ---
+
+  def create_pipeline_run(pipeline_id) do
+    GenServer.call(__MODULE__, {:create_pipeline_run, pipeline_id})
+  end
+
+  def get_pipeline_run(pipeline_id, run_id) do
+    GenServer.call(__MODULE__, {:get_pipeline_run, pipeline_id, run_id})
+  end
+
+  def update_pipeline_run_status(run_id, status) do
+    GenServer.call(__MODULE__, {:update_pipeline_run_status, run_id, status})
+  end
+
+  def update_node_state(run_id, node_id, state) do
+    GenServer.call(__MODULE__, {:update_node_state, run_id, node_id, state})
+  end
+
+  def record_gate_decision(run_id, node_id, action, feedback \\ nil) do
+    GenServer.call(__MODULE__, {:record_gate_decision, run_id, node_id, action, feedback})
+  end
+
+  def list_pipeline_runs(pipeline_id) do
+    GenServer.call(__MODULE__, {:list_pipeline_runs, pipeline_id})
+  end
+
+  def list_all_active_runs do
+    GenServer.call(__MODULE__, :list_all_active_runs)
+  end
+
   # --- Conversion to Issue struct (delegated) ---
 
   @doc "Convert an internal issue record to an `Issue` struct."
@@ -467,5 +531,60 @@ defmodule SymphonyElixir.LocalBoard do
 
   def handle_call({:resolve_issue_skills, issue}, _from, board),
     do: Skills.resolve_issue_skills(board, issue)
+
+  # --- Backup & Restore Callbacks ---
+
+  def handle_call(:list_backups, _from, board) do
+    backups = Persistence.list_backups(board.store_path)
+    {:reply, backups, board}
+  end
+
+  def handle_call({:restore_backup, filename}, _from, board) do
+    case Persistence.restore_backup(board, filename) do
+      {:ok, restored_board} ->
+        Logger.info("Board restored from backup: #{filename}")
+        {:reply, {:ok, restored_board}, restored_board}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, board}
+    end
+  end
+
+  # --- Pipeline Callbacks ---
+
+  def handle_call(:list_pipelines, _from, board), do: Pipelines.list_pipelines(board)
+
+  def handle_call({:get_pipeline, id}, _from, board), do: Pipelines.get_pipeline(board, id)
+
+  def handle_call({:create_pipeline, attrs}, _from, board),
+    do: Pipelines.create_pipeline(board, attrs)
+
+  def handle_call({:update_pipeline, id, attrs}, _from, board),
+    do: Pipelines.update_pipeline(board, id, attrs)
+
+  def handle_call({:delete_pipeline, id}, _from, board), do: Pipelines.delete_pipeline(board, id)
+
+  # --- Pipeline Run Callbacks ---
+
+  def handle_call({:create_pipeline_run, pipeline_id}, _from, board),
+    do: Pipelines.create_pipeline_run(board, pipeline_id)
+
+  def handle_call({:get_pipeline_run, pipeline_id, run_id}, _from, board),
+    do: Pipelines.get_pipeline_run(board, pipeline_id, run_id)
+
+  def handle_call({:update_pipeline_run_status, run_id, status}, _from, board),
+    do: Pipelines.update_pipeline_run_status(board, run_id, status)
+
+  def handle_call({:update_node_state, run_id, node_id, state}, _from, board),
+    do: Pipelines.update_node_state(board, run_id, node_id, state)
+
+  def handle_call({:record_gate_decision, run_id, node_id, action, feedback}, _from, board),
+    do: Pipelines.record_gate_decision(board, run_id, node_id, action, feedback)
+
+  def handle_call({:list_pipeline_runs, pipeline_id}, _from, board),
+    do: Pipelines.list_pipeline_runs(board, pipeline_id)
+
+  def handle_call(:list_all_active_runs, _from, board),
+    do: Pipelines.list_all_active_runs(board)
 
 end

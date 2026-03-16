@@ -359,6 +359,26 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  patch "/api/issues/:id/follow-ups/:fu_id" do
+    with {:ok, issue} <- LocalBoard.get_issue(id),
+         {:ok, _follow_up, agent_run} <- find_follow_up(issue, fu_id) do
+      attrs = conn.body_params
+      editable_keys = ["title", "description", "labels", "priority", "category", "project_ids"]
+
+      updated_run = update_follow_up_fields(agent_run, fu_id, attrs, editable_keys)
+      LocalBoard.save_agent_run(id, updated_run)
+
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(200, Jason.encode!(%{ok: true}))
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
   post "/api/issues" do
     case LocalBoard.create_issue(conn.body_params) do
       {:ok, issue} ->
@@ -1675,6 +1695,105 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  post "/api/ai/draft-product" do
+    hint = Map.get(conn.body_params, "hint", "") |> String.trim()
+
+    if hint == "" do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "hint_required"}))
+    else
+      prompt = """
+      You are a product management assistant. Given a brief hint, generate a well-structured product definition.
+      Respond with ONLY valid JSON, no markdown fences, no explanation. Use this exact schema:
+      {"name":"...","description":"...","labels":["..."]}
+
+      Rules:
+      - name: concise product name (under 60 chars)
+      - description: 2-3 paragraphs describing the product scope and goals in markdown
+      - labels: 1-3 relevant labels (lowercase, hyphenated)
+
+      User hint: #{hint}
+      """
+
+      case agent_draft(prompt) do
+        {:ok, json_str} ->
+          clean =
+            json_str
+            |> String.replace(~r/```json\s*/, "")
+            |> String.replace(~r/```\s*/, "")
+            |> String.trim()
+
+          case Jason.decode(clean) do
+            {:ok, draft} ->
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(draft))
+
+            {:error, _} ->
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(%{name: hint, description: clean, labels: []}))
+          end
+
+        {:error, reason} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(500, Jason.encode!(%{error: "ai_failed", detail: inspect(reason)}))
+      end
+    end
+  end
+
+  post "/api/ai/draft-project" do
+    hint = Map.get(conn.body_params, "hint", "") |> String.trim()
+
+    if hint == "" do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "hint_required"}))
+    else
+      prompt = """
+      You are a project management assistant. Given a brief hint, generate a well-structured project definition.
+      Respond with ONLY valid JSON, no markdown fences, no explanation. Use this exact schema:
+      {"name":"...","description":"...","tags":["..."],"priority":3}
+
+      Rules:
+      - name: concise project name (under 60 chars)
+      - description: 2-3 paragraphs describing the project purpose and scope in markdown
+      - tags: 1-3 relevant tags (lowercase, hyphenated)
+      - priority: 0=No priority, 1=Urgent, 2=High, 3=Medium, 4=Low
+
+      User hint: #{hint}
+      """
+
+      case agent_draft(prompt) do
+        {:ok, json_str} ->
+          clean =
+            json_str
+            |> String.replace(~r/```json\s*/, "")
+            |> String.replace(~r/```\s*/, "")
+            |> String.trim()
+
+          case Jason.decode(clean) do
+            {:ok, draft} ->
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(draft))
+
+            {:error, _} ->
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(%{name: hint, description: clean, tags: [], priority: 3}))
+          end
+
+        {:error, reason} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(500, Jason.encode!(%{error: "ai_failed", detail: inspect(reason)}))
+      end
+    end
+  end
+
   # --- Settings API ---
 
   get "/api/settings" do
@@ -1775,6 +1894,21 @@ defmodule SymphonyElixir.Server.BoardRouter do
             true ->
               updated
           end
+        else
+          fu
+        end
+      end)
+
+    Map.put(agent_run, "follow_ups", follow_ups)
+  end
+
+  defp update_follow_up_fields(agent_run, fu_id, attrs, allowed_keys) do
+    follow_ups =
+      Enum.map(agent_run["follow_ups"] || [], fn fu ->
+        if fu["id"] == fu_id do
+          Enum.reduce(allowed_keys, fu, fn key, acc ->
+            if Map.has_key?(attrs, key), do: Map.put(acc, key, attrs[key]), else: acc
+          end)
         else
           fu
         end
@@ -2126,6 +2260,229 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   rescue
     e -> {:error, Exception.message(e)}
+  end
+
+  # --- Pipeline HTML Pages ---
+
+  get "/pipeline" do
+    html = SymphonyElixir.Server.PipelineUI.render_list()
+
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(200, html)
+  end
+
+  get "/pipeline/:id" do
+    case LocalBoard.get_pipeline(id) do
+      {:ok, pipeline} ->
+        html = SymphonyElixir.Server.PipelineUI.render_designer(pipeline)
+
+        conn
+        |> put_resp_content_type("text/html")
+        |> send_resp(200, html)
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("text/html")
+        |> send_resp(404, "<h1>Pipeline not found</h1>")
+    end
+  end
+
+  # --- Pipeline JSON API ---
+
+  get "/api/pipelines" do
+    pipelines = LocalBoard.list_pipelines()
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{pipelines: pipelines}))
+  end
+
+  post "/api/pipelines" do
+    {:ok, pipeline} = LocalBoard.create_pipeline(conn.body_params)
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(201, Jason.encode!(pipeline))
+  end
+
+  get "/api/pipelines/:id" do
+    case LocalBoard.get_pipeline(id) do
+      {:ok, pipeline} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(pipeline))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  patch "/api/pipelines/:id" do
+    case LocalBoard.update_pipeline(id, conn.body_params) do
+      {:ok, pipeline} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(pipeline))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  delete "/api/pipelines/:id" do
+    case LocalBoard.delete_pipeline(id) do
+      :ok ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  # --- Pipeline Run API ---
+
+  post "/api/pipelines/:id/run" do
+    case LocalBoard.create_pipeline_run(id) do
+      {:ok, run} ->
+        # Start the pipeline runner
+        SymphonyElixir.PipelineRunner.start_run(id, run.id)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(201, Jason.encode!(run))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  get "/api/pipelines/:id/runs" do
+    runs = LocalBoard.list_pipeline_runs(id)
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{runs: runs}))
+  end
+
+  get "/api/pipelines/:pipeline_id/runs/:run_id" do
+    case LocalBoard.get_pipeline_run(pipeline_id, run_id) do
+      {:ok, run} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(run))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/pipelines/:pipeline_id/runs/:run_id/pause" do
+    case LocalBoard.update_pipeline_run_status(run_id, "paused") do
+      {:ok, run} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(run))
+
+      {:error, _} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/pipelines/:pipeline_id/runs/:run_id/resume" do
+    case LocalBoard.update_pipeline_run_status(run_id, "running") do
+      {:ok, run} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(run))
+
+      {:error, _} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/pipelines/:pipeline_id/runs/:run_id/cancel" do
+    case LocalBoard.update_pipeline_run_status(run_id, "cancelled") do
+      {:ok, run} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(run))
+
+      {:error, _} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  post "/api/pipelines/:pipeline_id/runs/:run_id/gate/:node_id" do
+    action = Map.get(conn.body_params, "action", "approve")
+    feedback = Map.get(conn.body_params, "feedback")
+
+    case LocalBoard.record_gate_decision(run_id, node_id, action, feedback) do
+      {:ok, run} ->
+        # Notify the pipeline runner about the gate decision
+        SymphonyElixir.PipelineRunner.gate_decided(run_id, node_id, action)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(run))
+
+      {:error, _} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    end
+  end
+
+  get "/api/pipeline-runs/active" do
+    runs = LocalBoard.list_all_active_runs()
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{runs: runs}))
+  end
+
+  # --- Backup & Restore ---
+
+  get "/api/backups" do
+    backups = LocalBoard.list_backups()
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{backups: backups}))
+  end
+
+  post "/api/backups/restore" do
+    filename = conn.body_params["filename"]
+
+    case LocalBoard.restore_backup(filename) do
+      {:ok, _board} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true, message: "Restored from #{filename}"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "restore_failed", reason: inspect(reason)}))
+    end
   end
 
   match _ do

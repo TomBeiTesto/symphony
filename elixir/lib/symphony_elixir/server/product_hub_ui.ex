@@ -92,23 +92,29 @@ defmodule SymphonyElixir.Server.ProductHubUI do
   end
 
   defp modals do
-    ~S"""
+    """
       <!-- New Product Modal -->
       <div class="modal-overlay" id="prod-modal" style="display:none">
         <div class="modal">
           <div class="modal-header">
             <h2 id="prod-modal-title">New Product</h2>
-            <button class="modal-close" onclick="closeProdModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('prod-modal')">&times;</button>
+          </div>
+          <div class="ai-draft-bar" id="prod-ai-draft-bar">
+            <input type="text" id="prod-ai-draft-input" class="ai-draft-input" placeholder="Describe your product in a few words..." onkeydown="if(event.key==='Enter'){event.preventDefault();aiDraftProduct();}">
+            <button type="button" class="btn btn-accent-soft btn-sm" id="prod-ai-draft-btn" onclick="aiDraftProduct()">AI Draft</button>
           </div>
           <div class="modal-body">
-            <input type="hidden" id="prod-edit-id">
-            <label>Name<input type="text" id="prod-name" placeholder="e.g. B2C Async API"></label>
-            <label>Description<textarea id="prod-desc" placeholder="What does this product cover?"></textarea></label>
+            <input type="hidden" id="product-form-id">
+            <label>Name<input type="text" id="product-form-name" placeholder="e.g. B2C Async API"></label>
+            <label>Description<textarea id="product-form-desc" placeholder="What does this product cover?"></textarea></label>
+            <label>Labels (comma-separated)<input type="text" id="product-form-labels" placeholder="platform, api, internal"></label>
             <label>Projects</label>
             <div class="project-checklist" id="project-checklist"></div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeProdModal()">Cancel</button>
+            <button class="btn btn-danger" id="prod-delete-btn" style="display:none;margin-right:auto" onclick="deleteCurrentProduct()">Delete</button>
+            <button class="btn btn-ghost" onclick="closeModal('prod-modal')">Cancel</button>
             <button class="btn btn-primary" onclick="saveProduct()">Save</button>
           </div>
         </div>
@@ -119,7 +125,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal modal-sm">
           <div class="modal-header">
             <h2 id="feature-modal-title">Add Feature</h2>
-            <button class="modal-close" onclick="closeFeatureModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('feature-modal')">&times;</button>
           </div>
           <div class="modal-body">
             <input type="hidden" id="feature-edit-id">
@@ -134,7 +140,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             </label>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeFeatureModal()">Cancel</button>
+            <button class="btn btn-ghost" onclick="closeModal('feature-modal')">Cancel</button>
             <button class="btn btn-primary" onclick="saveFeature()">Save</button>
           </div>
         </div>
@@ -145,7 +151,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal">
           <div class="modal-header">
             <h2>Generate Features with Agent</h2>
-            <button class="modal-close" onclick="closeGenerateModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('generate-modal')">&times;</button>
           </div>
           <div class="modal-body">
             <label>Describe your product and what features you expect
@@ -156,7 +162,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <div class="ai-hint">An agent will analyze the projects and propose features as follow-up issues.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeGenerateModal()">Cancel</button>
+            <button class="btn btn-ghost" onclick="closeModal('generate-modal')">Cancel</button>
             <button class="btn btn-primary" id="generate-btn" onclick="generateFeatures()">Create Agent Task</button>
           </div>
         </div>
@@ -167,7 +173,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal">
           <div class="modal-header">
             <h2>Code Review</h2>
-            <button class="modal-close" onclick="closeCodeReviewModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('code-review-modal')">&times;</button>
           </div>
           <div class="modal-body">
             <label>Focus areas (optional)
@@ -178,7 +184,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <div class="ai-hint">An agent will review all project codebases and propose findings.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeCodeReviewModal()">Cancel</button>
+            <button class="btn btn-ghost" onclick="closeModal('code-review-modal')">Cancel</button>
             <button class="btn btn-primary" id="code-review-btn" onclick="startCodeReview()">Start Code Review</button>
           </div>
         </div>
@@ -189,7 +195,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal">
           <div class="modal-header">
             <h2>Generate Product Definition</h2>
-            <button class="modal-close" onclick="closeGenDefModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('gendef-modal')">&times;</button>
           </div>
           <div class="modal-body">
             <label>Additional context (optional)
@@ -200,7 +206,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <div class="ai-hint">An agent will analyze the projects and generate a product definition.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeGenDefModal()">Cancel</button>
+            <button class="btn btn-ghost" onclick="closeModal('gendef-modal')">Cancel</button>
             <button class="btn btn-primary" id="gendef-btn" onclick="generateDefinition()">Generate Definition</button>
           </div>
         </div>
@@ -211,7 +217,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal">
           <div class="modal-header">
             <h2>Create Product Task</h2>
-            <button class="modal-close" onclick="closeProductTaskModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('product-task-modal')">&times;</button>
           </div>
           <div class="modal-body">
             <label>Task title<input type="text" id="ptask-title" placeholder="e.g. Generate runbook, Write API docs..."></label>
@@ -224,7 +230,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <div class="ai-hint">Creates an agent task scoped to this product.</div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeProductTaskModal()">Cancel</button>
+            <button class="btn btn-ghost" onclick="closeModal('product-task-modal')">Cancel</button>
             <button class="btn btn-primary" id="ptask-btn" onclick="createProductTask()">Create Task</button>
           </div>
         </div>
@@ -235,58 +241,28 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal">
           <div class="modal-header">
             <h2 id="detail-modal-title">Feature Details</h2>
-            <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('detail-modal')">&times;</button>
           </div>
           <div class="modal-body" id="detail-modal-body"></div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeDetailModal()">Close</button>
+            <button class="btn btn-ghost" onclick="closeModal('detail-modal')">Close</button>
           </div>
         </div>
       </div>
 
-      <!-- Issue Create/Edit Modal -->
-      <div class="modal-overlay" id="issue-modal" style="display:none">
-        <div class="modal">
-          <div class="modal-header">
-            <h2 id="issue-modal-title">New Issue</h2>
-            <button class="modal-close" onclick="closeIssueModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group"><label for="issue-form-project">Project</label><select id="issue-form-project"><option value="">No project</option></select></div>
-          </div>
-          <div class="ai-draft-bar" id="ai-draft-bar">
-            <input type="text" id="ai-draft-input" class="ai-draft-input" placeholder="Describe what you need in a few words..." onkeydown="if(event.key==='Enter'){event.preventDefault();aiDraftIssue();}">
-            <button type="button" class="btn btn-accent-soft btn-sm" id="ai-draft-btn" onclick="aiDraftIssue()">AI Draft</button>
-          </div>
-          <form id="issue-form" onsubmit="handleIssueSubmit(event)">
-            <input type="hidden" id="issue-form-id" value="">
-            <div class="form-group"><label for="issue-form-title">Title</label><input type="text" id="issue-form-title" required placeholder="Issue title..." autofocus></div>
-            <div class="form-group"><label for="issue-form-desc">Description</label><textarea id="issue-form-desc" rows="5" placeholder="Describe the issue..."></textarea></div>
-            <div class="form-row">
-              <div class="form-group"><label for="issue-form-state">State</label><select id="issue-form-state"></select></div>
-              <div class="form-group"><label for="issue-form-priority">Priority</label>
-                <select id="issue-form-priority"><option value="0">No priority</option><option value="1">Urgent</option><option value="2">High</option><option value="3">Medium</option><option value="4">Low</option></select>
-              </div>
-            </div>
-            <div class="form-group"><label for="issue-form-labels">Labels (comma-separated)</label><input type="text" id="issue-form-labels" placeholder="bug, frontend, urgent"></div>
-            <div class="form-group">
-              <label>Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('issue-skills')">select skills...</button></label>
-              <div class="skill-picker" id="issue-skills" style="display:none"></div>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-ghost" onclick="closeIssueModal()">Cancel</button>
-              <button type="submit" class="btn btn-primary" id="issue-form-submit">Create Issue</button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <!-- Issue Create Modal (shared widget) -->
+    #{SymphonyElixir.Server.UIHelpers.create_issue_modal_html(prefix: "hi", on_submit: "handleIssueSubmit", on_cancel: "closeIssueModal", ai_draft: true, show_skills_picker: true)}
 
       <!-- Project Create/Edit Modal -->
       <div class="modal-overlay" id="project-modal" style="display:none">
         <div class="modal">
           <div class="modal-header">
             <h2 id="project-modal-title">New Project</h2>
-            <button class="modal-close" onclick="closeProjectModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('project-modal')">&times;</button>
+          </div>
+          <div class="ai-draft-bar" id="project-ai-draft-bar">
+            <input type="text" id="project-ai-draft-input" class="ai-draft-input" placeholder="Describe your project in a few words..." onkeydown="if(event.key==='Enter'){event.preventDefault();aiDraftProject();}">
+            <button type="button" class="btn btn-accent-soft btn-sm" id="project-ai-draft-btn" onclick="aiDraftProject()">AI Draft</button>
           </div>
           <form id="project-form" onsubmit="handleProjectSubmit(event)">
             <input type="hidden" id="project-form-id" value="">
@@ -296,9 +272,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
               <div style="display:flex;gap:8px"><input type="text" id="project-form-path" placeholder="/home/user/projects/my-app" style="flex:1"><button type="button" class="btn btn-ghost btn-sm" onclick="browseFolder('project-form-path')">Browse</button></div>
             </div>
             <div class="form-group"><label for="project-form-repo">Repository URL (optional)</label><input type="text" id="project-form-repo" placeholder="https://github.com/user/repo.git"></div>
-            <div class="form-group"><label for="project-form-tags">Tags (comma-separated)</label><input type="text" id="project-form-tags" placeholder="python, api, data-pipeline"></div>
+            <div class="form-row">
+              <div class="form-group"><label for="project-form-labels">Labels (comma-separated)</label><input type="text" id="project-form-labels" placeholder="python, api, data-pipeline"></div>
+              <div class="form-group"><label for="project-form-priority">Priority</label>
+                <select id="project-form-priority"><option value="0">No priority</option><option value="1">Urgent</option><option value="2">High</option><option value="3">Medium</option><option value="4">Low</option></select>
+              </div>
+            </div>
             <div class="form-actions">
-              <button type="button" class="btn btn-ghost" onclick="closeProjectModal()">Cancel</button>
+              <button type="button" class="btn btn-ghost" onclick="closeModal('project-modal')">Cancel</button>
               <button type="submit" class="btn btn-primary" id="project-form-submit">Create Project</button>
             </div>
           </form>
@@ -310,7 +291,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         <div class="modal modal-wide">
           <div class="modal-header">
             <h2>Import from Directory</h2>
-            <button class="modal-close" onclick="closeScanModal()">&times;</button>
+            <button class="modal-close" onclick="closeModal('scan-modal')">&times;</button>
           </div>
           <div class="modal-body">
             <div class="form-group"><label for="scan-root-path">Root Directory</label>
@@ -328,7 +309,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <div id="scan-results" style="margin-top:12px"></div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeScanModal()">Cancel</button>
+            <button class="btn btn-ghost" onclick="closeModal('scan-modal')">Cancel</button>
             <button class="btn btn-primary" id="import-btn" style="display:none" onclick="importScanned()">Import Selected</button>
           </div>
         </div>
@@ -349,14 +330,12 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       UIHelpers.skeleton_css() <>
       UIHelpers.hub_layout_css() <>
       UIHelpers.nav_active_css() <>
+      UIHelpers.ai_draft_css() <>
+      UIHelpers.skill_picker_css() <>
       ~S"""
 
       body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
       .hub-actions-bar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 6px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); flex-shrink: 0; }
-      .ai-draft-bar { display: flex; align-items: center; gap: 8px; padding: 8px 20px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 0; }
-      .ai-draft-input { flex: 1; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.85rem; font-family: inherit; outline: none; }
-      .ai-draft-input:focus { border-color: var(--accent); }
-      .ai-draft-input::placeholder { color: var(--text-muted); }
       .sidebar-sub-items { padding-left: 12px; overflow: hidden; }
       .sidebar-sub-items.collapsed { display: none; }
       .sidebar-project { display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.73rem; color: var(--text-muted); cursor: default; border-radius: var(--radius-sm); }
@@ -499,17 +478,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .gap-row-action { padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.7rem; cursor: pointer; }
       .gap-row-action:hover { border-color: var(--accent); color: var(--accent); }
 
-      /* Skill picker */
-      .skill-picker { max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-top: 4px; background: var(--bg-secondary); }
-      .skill-picker-section { margin-bottom: 8px; }
-      .skill-picker-section strong { display: block; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.5px; }
-      .skill-pick-item { display: flex !important; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.8rem; cursor: pointer; font-weight: normal; margin-bottom: 0; }
-      .skill-pick-item input[type="checkbox"] { margin: 0; cursor: pointer; width: auto; flex-shrink: 0; }
-      .skill-pick-name { color: var(--text-primary); }
-      .skill-pick-count { color: var(--text-muted); font-size: 0.7rem; }
-      .skill-pick-empty { font-size: 0.8rem; color: var(--text-muted); padding: 8px; text-align: center; }
-      .skill-picker-toggle { font-size: 0.75rem; color: var(--accent); cursor: pointer; border: none; background: none; padding: 0; }
-      .skill-picker-toggle:hover { text-decoration: underline; }
+      /* Skill picker — see UIHelpers.skill_picker_css() */
       .ai-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
       .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--text-muted); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
       @keyframes spin { to { transform: rotate(360deg); } }
@@ -541,6 +510,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       /* Issue cards */
       .issue-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; margin-bottom: 3px; cursor: grab; transition: all var(--transition); position: relative; border-left: 3px solid transparent; }
+      .card-delete { position: absolute; top: 3px; right: 3px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; opacity: 0; transition: all var(--transition); }
+      .issue-card:hover .card-delete { opacity: 0.6; }
+      .card-delete:hover { opacity: 1 !important; color: var(--red); background: rgba(248,81,73,0.15); }
       .issue-card:hover { border-color: var(--border); border-left-color: var(--accent); background: var(--bg-tertiary); }
       .issue-card.dragging { opacity: 0.4; }
       .issue-card-id { font-size: 0.62rem; color: var(--text-muted); font-weight: 500; font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; margin-bottom: 1px; }
@@ -583,6 +555,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
     SymphonyElixir.Server.UIHelpers.esc_js() <>
       SymphonyElixir.Server.UIHelpers.toast_js() <>
       SymphonyElixir.Server.UIHelpers.color_maps_js() <>
+      SymphonyElixir.Server.UIHelpers.create_issue_modal_js("hi") <>
       ~S"""
 
       const API = '/board/api';
@@ -590,6 +563,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       let allProjects = [];
       let allSkills = [];
       let allSkillGroups = [];
+      """ <> SymphonyElixir.Server.UIHelpers.skill_picker_js() <> ~S"""
       let currentProd = null;
       let selectedProductId = null;
       let activeTab = 'spec';
@@ -601,6 +575,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       let gapSectionCollapsed = false;
       let draggedCard = null;
       let _apiLock = false;
+
+      // ========== SHARED MODAL HELPERS ==========
+      function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+      function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
       // Kanban state
       const TERMINAL_STATES = ['Done','Archived','Cancelled'];
@@ -849,6 +827,12 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } else {
           selectProduct(prodId);
         }
+      }
+
+      async function refreshAfterMutation() {
+        await loadBoardSnapshot();
+        renderSidebar();
+        if (activeTab === 'issues') renderKanban();
       }
 
       function updateAllIssuesBadge() {
@@ -1238,6 +1222,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('issues-tab-badge').textContent = count;
       }
 
+      var DELETABLE_STATES = ['Backlog', 'Cancelled', 'Archived', 'Done'];
+
       function renderIssueCard(issue) {
         var labels = (issue.labels || []).slice(0, 2).map(function(l) { return '<span class="label-tag">' + esc(l) + '</span>'; }).join('');
         var proj = issue.project_id ? allProjects.find(function(p) { return p.id === issue.project_id; }) : null;
@@ -1247,7 +1233,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var skillBadge = skillCount > 0 ? '<span class="card-skills">\u26A1 ' + skillCount + '</span>' : '';
         var ageHtml = '';
         if (issue.created_at) { var days = Math.floor((Date.now() - new Date(issue.created_at).getTime()) / 86400000); if (days > 14) ageHtml = '<span class="card-age stale">' + days + 'd</span>'; else if (days > 3) ageHtml = '<span class="card-age">' + days + 'd</span>'; }
+        var delBtn = DELETABLE_STATES.includes(issue.state)
+          ? '<button class="card-delete" onclick="event.stopPropagation(); deleteIssueFromHub(\'' + issue.id + '\', \'' + esc(issue.identifier) + '\')" title="Delete">&times;</button>'
+          : '';
         return '<div class="issue-card" draggable="true" data-id="' + issue.id + '" style="border-left-color:' + borderColor + '" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)" onclick="window.location.href=\'/board/issues/' + issue.id + '\'">' +
+          delBtn +
           '<div class="issue-card-id">' + esc(issue.identifier) + '</div>' +
           '<div class="issue-card-title">' + esc(issue.title) + '</div>' +
           '<div class="issue-card-meta"><span class="priority-dot priority-' + (issue.priority || 0) + '"></span>' + projBadge + labels + skillBadge + ageHtml + '</div></div>';
@@ -1270,9 +1260,19 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (!issueId || !newState || _apiLock) return;
         if (['Cancelled','Archived'].includes(newState)) { if (!confirm('Move issue to ' + newState + '?')) return; }
         _apiLock = true;
-        try { await fetch(API + '/issues/' + issueId + '/move', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: newState }) }); await loadBoardSnapshot(); renderKanban(); updateAllIssuesBadge(); }
+        try { await fetch(API + '/issues/' + issueId + '/move', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: newState }) }); await refreshAfterMutation(); }
         catch (err) { showToast('Move failed: ' + err.message, { type: 'error' }); }
         finally { _apiLock = false; }
+      }
+
+      // Delete issue from hub
+      async function deleteIssueFromHub(id, identifier) {
+        if (!confirm('Delete ' + identifier + '?')) return;
+        try {
+          await fetch(API + '/issues/' + id, { method: 'DELETE' });
+          await refreshAfterMutation();
+          showToast('Deleted ' + identifier, { type: 'success' });
+        } catch (err) { showToast('Delete failed: ' + err.message, { type: 'error' }); }
       }
 
       // Quick Add
@@ -1284,7 +1284,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (currentProd && currentProd.project_ids && currentProd.project_ids.length > 0) body.project_id = currentProd.project_ids[0];
         if (currentProd && selectedProductId !== '__all__') body.product_id = selectedProductId;
         _apiLock = true;
-        try { await fetch(API + '/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); await loadBoardSnapshot(); renderKanban(); updateAllIssuesBadge(); }
+        try { await fetch(API + '/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); await refreshAfterMutation(); }
         catch (err) { showToast('Quick add failed', { type: 'error' }); }
         finally { _apiLock = false; }
       }
@@ -1341,26 +1341,32 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       function openNewProductModal() {
         document.getElementById('prod-modal-title').textContent = 'New Product';
-        document.getElementById('prod-edit-id').value = '';
-        document.getElementById('prod-name').value = '';
-        document.getElementById('prod-desc').value = '';
+        document.getElementById('product-form-id').value = '';
+        document.getElementById('product-form-name').value = '';
+        document.getElementById('product-form-desc').value = '';
+        document.getElementById('product-form-labels').value = '';
+        document.getElementById('prod-ai-draft-input').value = '';
+        document.getElementById('prod-delete-btn').style.display = 'none';
         renderProjectChecklist([]);
-        document.getElementById('prod-modal').style.display = 'flex';
-        document.getElementById('prod-name').focus();
+        openModal('prod-modal');
+        document.getElementById('prod-ai-draft-input').focus();
       }
 
       function openEditProductModal() {
         if (!currentProd) return;
         document.getElementById('prod-modal-title').textContent = 'Edit Product';
-        document.getElementById('prod-edit-id').value = currentProd.id;
-        document.getElementById('prod-name').value = currentProd.name || '';
-        document.getElementById('prod-desc').value = currentProd.description || '';
+        document.getElementById('product-form-id').value = currentProd.id;
+        document.getElementById('product-form-name').value = currentProd.name || '';
+        document.getElementById('product-form-desc').value = currentProd.description || '';
+        document.getElementById('product-form-labels').value = (currentProd.labels || []).join(', ');
+        document.getElementById('prod-ai-draft-input').value = '';
+        document.getElementById('prod-delete-btn').style.display = '';
         renderProjectChecklist(currentProd.project_ids || []);
-        document.getElementById('prod-modal').style.display = 'flex';
-        document.getElementById('prod-name').focus();
+        openModal('prod-modal');
+        document.getElementById('product-form-name').focus();
       }
 
-      function closeProdModal() { document.getElementById('prod-modal').style.display = 'none'; }
+      function closeProdModal() { closeModal('prod-modal'); }
 
       function renderProjectChecklist(selectedIds) {
         var container = document.getElementById('project-checklist');
@@ -1369,18 +1375,20 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
 
       async function saveProduct() {
-        var editId = document.getElementById('prod-edit-id').value;
-        var name = document.getElementById('prod-name').value.trim();
-        if (!name) { document.getElementById('prod-name').focus(); return; }
-        var desc = document.getElementById('prod-desc').value.trim();
+        var editId = document.getElementById('product-form-id').value;
+        var name = document.getElementById('product-form-name').value.trim();
+        if (!name) { document.getElementById('product-form-name').focus(); return; }
+        var desc = document.getElementById('product-form-desc').value.trim();
+        var labelsStr = document.getElementById('product-form-labels').value;
+        var labels = labelsStr ? labelsStr.split(',').map(function(l) { return l.trim(); }).filter(Boolean) : [];
         var checks = document.querySelectorAll('#project-checklist input[type=checkbox]:checked');
         var projectIds = Array.from(checks).map(function(c) { return c.value; });
-        var payload = { name: name, description: desc || null, project_ids: projectIds };
+        var payload = { name: name, description: desc || null, project_ids: projectIds, labels: labels };
         var res;
         if (editId) res = await fetch(API + '/products/' + editId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         else res = await fetch(API + '/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (res.status === 409) { showToast('A product with that name already exists', { type: 'error' }); return; }
-        closeProdModal();
+        closeModal('prod-modal');
         showToast(editId ? 'Product updated' : 'Product created', { type: 'success' });
         await loadProducts();
         renderSidebar();
@@ -1413,7 +1421,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('feature-desc').value = '';
         document.getElementById('feature-category').value = defaultCategory && defaultCategory !== 'Uncategorized' ? defaultCategory : '';
         renderDepsChecklist([], null);
-        document.getElementById('feature-modal').style.display = 'flex';
+        openModal('feature-modal');
         document.getElementById('feature-name').focus();
       }
 
@@ -1425,11 +1433,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('feature-desc').value = f.description || '';
         document.getElementById('feature-category').value = f.category || '';
         renderDepsChecklist(f.depends_on || [], fid);
-        document.getElementById('feature-modal').style.display = 'flex';
+        openModal('feature-modal');
         document.getElementById('feature-name').focus();
       }
 
-      function closeFeatureModal() { document.getElementById('feature-modal').style.display = 'none'; }
+      function closeFeatureModal() { closeModal('feature-modal'); }
 
       async function saveFeature() {
         var editId = document.getElementById('feature-edit-id').value;
@@ -1473,10 +1481,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           html += '</div>';
         }
         document.getElementById('detail-modal-body').innerHTML = html;
-        document.getElementById('detail-modal').style.display = 'flex';
+        openModal('detail-modal');
       }
 
-      function closeDetailModal() { document.getElementById('detail-modal').style.display = 'none'; }
+      function closeDetailModal() { closeModal('detail-modal'); }
       function toggleDetailHistory(fid) { detailHistoryExpanded[fid] = !detailHistoryExpanded[fid]; openFeatureDetail(fid); }
 
       async function cycleDetailStatus(featureId, projectId, current) {
@@ -1487,32 +1495,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       // ========== MODALS: AGENT ACTIONS ==========
 
-      function renderSkillPicker(containerId, selectedSkillIds, selectedGroupIds) {
-        var el = document.getElementById(containerId); if (!el) return; var html = '';
-        if (allSkillGroups.length > 0) { html += '<div class="skill-picker-section"><strong>Skill Groups</strong>'; allSkillGroups.forEach(function(g) { var checked = selectedGroupIds.indexOf(g.id) >= 0 ? ' checked' : ''; html += '<label class="skill-pick-item"><input type="checkbox" value="' + g.id + '" data-type="group"' + checked + '><span class="skill-pick-name">' + esc(g.name) + '</span><span class="skill-pick-count">(' + (g.skill_ids || []).length + ')</span></label>'; }); html += '</div>'; }
-        if (allSkills.length > 0) { var categories = {}; allSkills.forEach(function(s) { var cat = s.category || 'custom'; if (!categories[cat]) categories[cat] = []; categories[cat].push(s); }); Object.keys(categories).sort().forEach(function(cat) { html += '<div class="skill-picker-section"><strong>' + esc(cat.charAt(0).toUpperCase() + cat.slice(1)) + '</strong>'; categories[cat].forEach(function(s) { var checked = selectedSkillIds.indexOf(s.id) >= 0 ? ' checked' : ''; html += '<label class="skill-pick-item"><input type="checkbox" value="' + s.id + '" data-type="skill"' + checked + '><span class="skill-pick-name">' + esc(s.name) + '</span></label>'; }); html += '</div>'; }); }
-        if (!html) html = '<div class="skill-pick-empty">No skills available.</div>';
-        el.innerHTML = html;
-      }
-
-      function getSelectedSkills(containerId) {
-        var el = document.getElementById(containerId); if (!el) return { skill_ids: [], skill_group_ids: [] };
-        var skillIds = [], groupIds = [];
-        el.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) { if (cb.dataset.type === 'group') groupIds.push(cb.value); else skillIds.push(cb.value); });
-        return { skill_ids: skillIds, skill_group_ids: groupIds };
-      }
-
-      function toggleSkillPicker(containerId) {
-        var el = document.getElementById(containerId); if (!el) return;
-        if (el.style.display === 'none') {
-          // Re-render preserving current selections
-          var current = getSelectedSkills(containerId);
-          renderSkillPicker(containerId, current.skill_ids, current.skill_group_ids);
-          el.style.display = '';
-        } else {
-          el.style.display = 'none';
-        }
-      }
+      // Skill picker — shared from UIHelpers.skill_picker_js()
 
       // Analyze Gaps
       async function analyzeGaps() {
@@ -1525,8 +1508,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
 
       // Generate Features
-      function openGenerateModal() { if (!currentProd) return; document.getElementById('generate-prompt').value = ''; document.getElementById('generate-skills').style.display = 'none'; document.getElementById('generate-modal').style.display = 'flex'; document.getElementById('generate-prompt').focus(); }
-      function closeGenerateModal() { document.getElementById('generate-modal').style.display = 'none'; }
+      function openGenerateModal() { if (!currentProd) return; document.getElementById('generate-prompt').value = ''; document.getElementById('generate-skills').style.display = 'none'; openModal('generate-modal'); document.getElementById('generate-prompt').focus(); }
+      function closeGenerateModal() { closeModal('generate-modal'); }
       async function generateFeatures() {
         var prompt = document.getElementById('generate-prompt').value.trim(); if (!prompt) { document.getElementById('generate-prompt').focus(); return; }
         var skills = getSelectedSkills('generate-skills'); var btn = document.getElementById('generate-btn'); btn.innerHTML = '<span class="spinner"></span> Creating...'; btn.disabled = true;
@@ -1557,8 +1540,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
 
       // Code Review
-      function openCodeReviewModal() { if (!currentProd) return; document.getElementById('review-focus').value = ''; document.getElementById('review-skills').style.display = 'none'; document.getElementById('code-review-modal').style.display = 'flex'; document.getElementById('review-focus').focus(); }
-      function closeCodeReviewModal() { document.getElementById('code-review-modal').style.display = 'none'; }
+      function openCodeReviewModal() { if (!currentProd) return; document.getElementById('review-focus').value = ''; document.getElementById('review-skills').style.display = 'none'; openModal('code-review-modal'); document.getElementById('review-focus').focus(); }
+      function closeCodeReviewModal() { closeModal('code-review-modal'); }
       async function startCodeReview() {
         var focus = document.getElementById('review-focus').value.trim(); var skills = getSelectedSkills('review-skills'); var btn = document.getElementById('code-review-btn'); btn.innerHTML = '<span class="spinner"></span> Creating...'; btn.disabled = true;
         try { var res = await fetch(API + '/products/' + currentProd.id + '/code-review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ focus: focus, skill_ids: skills.skill_ids, skill_group_ids: skills.skill_group_ids }) }); var data = await res.json(); if (data.error) { showToast(data.message || data.error, { type: 'error' }); return; } closeCodeReviewModal(); showToast(data.issue.identifier + ' created', { type: 'success' }); }
@@ -1567,8 +1550,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
 
       // Generate Definition
-      function openGenDefModal() { if (!currentProd) return; document.getElementById('gendef-context').value = ''; document.getElementById('gendef-skills').style.display = 'none'; document.getElementById('gendef-modal').style.display = 'flex'; document.getElementById('gendef-context').focus(); }
-      function closeGenDefModal() { document.getElementById('gendef-modal').style.display = 'none'; }
+      function openGenDefModal() { if (!currentProd) return; document.getElementById('gendef-context').value = ''; document.getElementById('gendef-skills').style.display = 'none'; openModal('gendef-modal'); document.getElementById('gendef-context').focus(); }
+      function closeGenDefModal() { closeModal('gendef-modal'); }
       async function generateDefinition() {
         var context = document.getElementById('gendef-context').value.trim(); var skills = getSelectedSkills('gendef-skills'); var btn = document.getElementById('gendef-btn'); btn.innerHTML = '<span class="spinner"></span> Creating...'; btn.disabled = true;
         try { var res = await fetch(API + '/products/' + currentProd.id + '/generate-definition', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context: context, skill_ids: skills.skill_ids, skill_group_ids: skills.skill_group_ids }) }); var data = await res.json(); if (data.error) { showToast(data.message || data.error, { type: 'error' }); return; } closeGenDefModal(); showToast(data.issue.identifier + ' created', { type: 'success' }); }
@@ -1577,8 +1560,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
 
       // Product Task
-      function openProductTaskModal() { if (!currentProd) return; document.getElementById('ptask-title').value = ''; document.getElementById('ptask-prompt').value = ''; document.getElementById('ptask-priority').value = '2'; document.getElementById('ptask-skills').style.display = 'none'; document.getElementById('product-task-modal').style.display = 'flex'; document.getElementById('ptask-title').focus(); }
-      function closeProductTaskModal() { document.getElementById('product-task-modal').style.display = 'none'; }
+      function openProductTaskModal() { if (!currentProd) return; document.getElementById('ptask-title').value = ''; document.getElementById('ptask-prompt').value = ''; document.getElementById('ptask-priority').value = '2'; document.getElementById('ptask-skills').style.display = 'none'; openModal('product-task-modal'); document.getElementById('ptask-title').focus(); }
+      function closeProductTaskModal() { closeModal('product-task-modal'); }
       async function createProductTask() {
         var title = document.getElementById('ptask-title').value.trim(); var prompt = document.getElementById('ptask-prompt').value.trim();
         if (!title) { document.getElementById('ptask-title').focus(); return; } if (!prompt) { document.getElementById('ptask-prompt').focus(); return; }
@@ -1590,91 +1573,95 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       // ========== ISSUE CREATE MODAL ==========
 
-      async function aiDraftIssue() {
-        var input = document.getElementById('ai-draft-input');
+      // Hooks for the shared AI draft (prefix "hi")
+      function hiAiDraftExtras() {
+        return {};
+      }
+      function hiAiDraftApply(draft) {
+        var skillIds = draft.skill_ids || [];
+        if (skillIds.length > 0) {
+          renderSkillPicker('hi-skills', skillIds, []);
+          document.getElementById('hi-skills').style.display = '';
+        }
+      }
+
+      async function aiDraftProduct() {
+        var input = document.getElementById('prod-ai-draft-input');
         var hint = input.value.trim();
         if (!hint) { input.focus(); return; }
-        var btn = document.getElementById('ai-draft-btn');
+        var btn = document.getElementById('prod-ai-draft-btn');
         btn.textContent = 'Drafting...'; btn.disabled = true; input.disabled = true;
         try {
-          var body = { hint: hint };
-          var projSel = document.getElementById('issue-form-project');
-          if (projSel && projSel.value) body.project_id = projSel.value;
-          if (currentProd && selectedProductId !== '__all__') body.product_id = selectedProductId;
-          var res = await fetch(API + '/ai/draft-issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          var res = await fetch(API + '/ai/draft-product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hint: hint }) });
           var draft = await res.json();
           if (draft.error) { showToast('Draft failed: ' + draft.error, { type: 'error' }); return; }
-          document.getElementById('issue-form-title').value = draft.title || hint;
-          document.getElementById('issue-form-desc').value = draft.description || '';
-          document.getElementById('issue-form-priority').value = (draft.priority || 0).toString();
-          document.getElementById('issue-form-labels').value = (draft.labels || []).join(', ');
-          // Apply skills if returned
-          var skillIds = draft.skill_ids || [];
-          if (skillIds.length > 0) {
-            renderSkillPicker('issue-skills', skillIds, []);
-            document.getElementById('issue-skills').style.display = '';
-          }
+          document.getElementById('product-form-name').value = draft.name || hint;
+          document.getElementById('product-form-desc').value = draft.description || '';
+          document.getElementById('product-form-labels').value = (draft.labels || []).join(', ');
           input.value = '';
-          showToast('Issue drafted by AI', { type: 'success' });
+          showToast('Product drafted by AI', { type: 'success' });
         } catch (e) { showToast('Draft failed: ' + e.message, { type: 'error' }); }
         finally { btn.textContent = 'AI Draft'; btn.disabled = false; input.disabled = false; }
       }
 
-      function openIssueCreateModal() {
-        document.getElementById('issue-form-id').value = '';
-        document.getElementById('issue-form-title').value = '';
-        document.getElementById('issue-form-desc').value = '';
-        document.getElementById('issue-form-priority').value = '0';
-        document.getElementById('issue-form-labels').value = '';
-        document.getElementById('issue-modal-title').textContent = 'New Issue';
-        document.getElementById('issue-form-submit').textContent = 'Create Issue';
-        document.getElementById('ai-draft-input').value = '';
-        renderSkillPicker('issue-skills', [], []);
-        document.getElementById('issue-skills').style.display = 'none';
-        populateIssueStateSelect();
-        populateIssueProjectSelect();
-        document.getElementById('issue-modal').style.display = 'flex';
-        setTimeout(function() { document.getElementById('ai-draft-input').focus(); }, 100);
+      async function aiDraftProject() {
+        var input = document.getElementById('project-ai-draft-input');
+        var hint = input.value.trim();
+        if (!hint) { input.focus(); return; }
+        var btn = document.getElementById('project-ai-draft-btn');
+        btn.textContent = 'Drafting...'; btn.disabled = true; input.disabled = true;
+        try {
+          var res = await fetch(API + '/ai/draft-project', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hint: hint }) });
+          var draft = await res.json();
+          if (draft.error) { showToast('Draft failed: ' + draft.error, { type: 'error' }); return; }
+          document.getElementById('project-form-name').value = draft.name || hint;
+          document.getElementById('project-form-desc').value = draft.description || '';
+          document.getElementById('project-form-labels').value = (draft.tags || []).join(', ');
+          document.getElementById('project-form-priority').value = (draft.priority || 0).toString();
+          input.value = '';
+          showToast('Project drafted by AI', { type: 'success' });
+        } catch (e) { showToast('Draft failed: ' + e.message, { type: 'error' }); }
+        finally { btn.textContent = 'AI Draft'; btn.disabled = false; input.disabled = false; }
       }
 
-      function closeIssueModal() { document.getElementById('issue-modal').style.display = 'none'; }
-
-      function populateIssueStateSelect() {
-        var sel = document.getElementById('issue-form-state');
-        sel.innerHTML = '';
-        var states = (boardData && boardData.states) ? boardData.states : ['Backlog','Todo','In Progress','Review','Done'];
-        states.forEach(function(s) { var opt = document.createElement('option'); opt.value = s; opt.textContent = s; sel.appendChild(opt); });
+      async function openIssueCreateModal() {
+        hiReset();
+        renderSkillPicker('hi-skills', [], []);
+        document.getElementById('hi-skills').style.display = 'none';
+        var defaultProdId = (currentProd && selectedProductId !== '__all__') ? selectedProductId : null;
+        await Promise.all([hiPopulateStates(), hiPopulateProducts(defaultProdId), hiPopulateProjects()]);
+        // Filter projects to selected product and default to first project
+        if (defaultProdId) hiFilterProjects(null);
+        if (currentProd && currentProd.project_ids && currentProd.project_ids.length > 0) {
+          document.getElementById('hi-project').value = currentProd.project_ids[0];
+        }
+        document.getElementById('hi-modal').style.display = 'flex';
+        setTimeout(function() { document.getElementById('hi-ai-draft-input').focus(); }, 100);
       }
 
-      function populateIssueProjectSelect() {
-        var sel = document.getElementById('issue-form-project');
-        sel.innerHTML = '<option value="">No project</option>';
-        allProjects.forEach(function(p) { var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; sel.appendChild(opt); });
-        // Default to first project of current product
-        if (currentProd && currentProd.project_ids && currentProd.project_ids.length > 0) sel.value = currentProd.project_ids[0];
-      }
+      function closeIssueModal() { document.getElementById('hi-modal').style.display = 'none'; }
 
       async function handleIssueSubmit(e) {
         e.preventDefault();
-        var id = document.getElementById('issue-form-id').value;
-        var skills = getSelectedSkills('issue-skills');
+        var d = hiCollectData();
+        var skills = getSelectedSkills('hi-skills');
         var data = {
-          title: document.getElementById('issue-form-title').value,
-          description: document.getElementById('issue-form-desc').value,
-          state: document.getElementById('issue-form-state').value,
-          priority: parseInt(document.getElementById('issue-form-priority').value) || 0,
-          labels: document.getElementById('issue-form-labels').value.split(',').map(function(l) { return l.trim(); }).filter(Boolean),
-          project_id: document.getElementById('issue-form-project').value || null,
+          title: d.title,
+          description: d.description,
+          state: d.state,
+          priority: parseInt(d.priority) || 0,
+          labels: (d.labels || '').split(',').map(function(l) { return l.trim(); }).filter(Boolean),
+          product_id: d.product_id,
+          project_id: d.project_id,
+          propose_followups: d.propose_followups,
+          plan_status: d.plan_status,
           skill_ids: skills.skill_ids, skill_group_ids: skills.skill_group_ids
         };
-        if (currentProd && selectedProductId !== '__all__') data.product_id = selectedProductId;
         try {
-          var res;
-          if (id) res = await fetch(API + '/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-          else res = await fetch(API + '/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+          var res = await fetch(API + '/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
           if (!res.ok) { var err = await res.json().catch(function() { return {}; }); showToast('Save failed: ' + (err.error || 'unknown'), { type: 'error' }); return; }
           closeIssueModal();
-          await loadBoardSnapshot(); if (activeTab === 'issues') renderKanban(); updateAllIssuesBadge();
+          await refreshAfterMutation();
         } catch (err) { showToast('Save failed', { type: 'error' }); }
       }
 
@@ -1687,10 +1674,12 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('project-form-desc').value = '';
         document.getElementById('project-form-path').value = '';
         document.getElementById('project-form-repo').value = '';
-        document.getElementById('project-form-tags').value = '';
+        document.getElementById('project-form-labels').value = '';
+        document.getElementById('project-form-priority').value = '0';
+        document.getElementById('project-ai-draft-input').value = '';
         document.getElementById('project-form-submit').textContent = 'Create Project';
-        document.getElementById('project-modal').style.display = 'flex';
-        document.getElementById('project-form-name').focus();
+        openModal('project-modal');
+        document.getElementById('project-ai-draft-input').focus();
       }
 
       function editProjectInline(id) {
@@ -1701,32 +1690,35 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('project-form-desc').value = p.description || '';
         document.getElementById('project-form-path').value = p.path || '';
         document.getElementById('project-form-repo').value = p.repo_url || '';
-        document.getElementById('project-form-tags').value = (p.tags || []).join(', ');
+        document.getElementById('project-form-labels').value = (p.tags || []).join(', ');
+        document.getElementById('project-form-priority').value = (p.priority || 0).toString();
+        document.getElementById('project-ai-draft-input').value = '';
         document.getElementById('project-form-submit').textContent = 'Save Changes';
-        document.getElementById('project-modal').style.display = 'flex';
+        openModal('project-modal');
         document.getElementById('project-form-name').focus();
       }
 
-      function closeProjectModal() { document.getElementById('project-modal').style.display = 'none'; }
+      function closeProjectModal() { closeModal('project-modal'); }
 
       async function handleProjectSubmit(e) {
         e.preventDefault();
         var id = document.getElementById('project-form-id').value;
-        var tagsStr = document.getElementById('project-form-tags').value;
-        var tags = tagsStr ? tagsStr.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
+        var labelsStr = document.getElementById('project-form-labels').value;
+        var tags = labelsStr ? labelsStr.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
         var payload = {
           name: document.getElementById('project-form-name').value,
           description: document.getElementById('project-form-desc').value,
           path: document.getElementById('project-form-path').value || null,
           repo_url: document.getElementById('project-form-repo').value || null,
-          tags: tags
+          tags: tags,
+          priority: parseInt(document.getElementById('project-form-priority').value) || 0
         };
         try {
           var res;
           if (id) res = await fetch(API + '/projects/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           else res = await fetch(API + '/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           if (!res.ok) { var err = await res.json().catch(function() { return {}; }); showToast('Save failed: ' + (err.error || 'unknown'), { type: 'error' }); return; }
-          closeProjectModal();
+          closeModal('project-modal');
           showToast(id ? 'Project updated' : 'Project created', { type: 'success' });
           await loadProjects(); renderSidebar();
         } catch (err) { showToast('Save failed: ' + err.message, { type: 'error' }); }
@@ -1769,10 +1761,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('scan-results').innerHTML = '';
         document.getElementById('import-btn').style.display = 'none';
         scannedCandidates = [];
-        document.getElementById('scan-modal').style.display = 'flex';
+        openModal('scan-modal');
       }
 
-      function closeScanModal() { document.getElementById('scan-modal').style.display = 'none'; }
+      function closeScanModal() { closeModal('scan-modal'); }
 
       async function scanDirectory() {
         var rootPath = document.getElementById('scan-root-path').value.trim(); if (!rootPath) return;
@@ -1849,11 +1841,24 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       // ========== AUTO-REFRESH ==========
 
-      setInterval(async function() {
-        if (draggedCard) return; // Don't refresh while dragging
-        if (activeTab === 'issues') { await loadBoardSnapshot(); renderKanban(); updateAllIssuesBadge(); }
+      async function refreshCurrentView() {
+        if (draggedCard) return;
+        await loadBoardSnapshot();
+        renderSidebar();
+        if (activeTab === 'issues') { renderKanban(); }
         if (activeTab === 'activity' && selectedProductId && selectedProductId !== '__all__') { await loadActivity(); renderActivity(); }
-      }, 30000);
+        if (activeTab === 'spec' && currentProd) {
+          var res = await fetch(API + '/products/' + currentProd.id);
+          if (res.ok) { currentProd = await res.json(); renderSpecSheet(); }
+        }
+      }
+
+      setInterval(refreshCurrentView, 10000);
+
+      // Refresh immediately when tab regains focus
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) refreshCurrentView();
+      });
 
       // ========== START ==========
       init();
