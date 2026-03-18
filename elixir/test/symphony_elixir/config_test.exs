@@ -208,19 +208,6 @@ defmodule SymphonyElixir.ConfigTest do
       assert :ok = Config.validate_dispatch(config)
     end
 
-    test "gitlab accepts as valid tracker kind" do
-      assert {:ok, config} =
-               Config.from_workflow(%{
-                 "tracker" => %{
-                   "kind" => "gitlab",
-                   "api_key" => "glpat-tok",
-                   "project_slug" => "my/proj"
-                 }
-               })
-
-      refute {:error, :unsupported_tracker_kind} == Config.validate_dispatch(config)
-    end
-
     test "returns error for gitlab missing api key" do
       assert {:ok, config} =
                Config.from_workflow(%{

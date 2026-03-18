@@ -119,6 +119,33 @@ defmodule SymphonyElixir.SettingsTest do
     end
   end
 
+  describe "knowledge base defaults" do
+    test "kb_type defaults to local" do
+      assert Settings.get("kb_type") == "local"
+    end
+
+    test "kb_vault_path defaults to empty string" do
+      assert Settings.get("kb_vault_path") == ""
+    end
+
+    test "kb_subfolder defaults to symphony" do
+      assert Settings.get("kb_subfolder") == "symphony"
+    end
+
+    test "updates knowledge base settings" do
+      :ok =
+        Settings.update(%{
+          "kb_type" => "obsidian",
+          "kb_vault_path" => "C:/Users/me/vault",
+          "kb_subfolder" => "custom/path"
+        })
+
+      assert Settings.get("kb_type") == "obsidian"
+      assert Settings.get("kb_vault_path") == "C:/Users/me/vault"
+      assert Settings.get("kb_subfolder") == "custom/path"
+    end
+  end
+
   describe "persistence across restarts" do
     test "loads persisted settings on restart" do
       :ok = Settings.update(%{"ai_provider" => "gemini", "git_host" => "https://git.example.com"})

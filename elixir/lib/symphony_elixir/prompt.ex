@@ -25,6 +25,8 @@ defmodule SymphonyElixir.Prompt do
       |> maybe_add_blocked_by(issue)
       |> maybe_add_skills(issue)
       |> maybe_add_plan(issue)
+      |> maybe_add_vault_context(issue)
+      |> maybe_add_rerun_context(issue)
 
     case Solid.parse(template) do
       {:ok, parsed} ->
@@ -220,4 +222,45 @@ defmodule SymphonyElixir.Prompt do
   end
 
   defp maybe_add_plan(context, _issue), do: context
+
+  defp maybe_add_vault_context(context, _issue) do
+    try do
+      kb_type = SymphonyElixir.Settings.get("kb_type") || "local"
+      vault_path = SymphonyElixir.Settings.get("kb_vault_path") || ""
+      subfolder = SymphonyElixir.Settings.get("kb_subfolder") || "symphony"
+
+      base_path =
+        case kb_type do
+          "local" when vault_path != "" -> vault_path
+          "local" -> SymphonyElixir.Integrations.KnowledgeBase.default_local_path()
+          "obsidian" when vault_path != "" -> vault_path
+          _ -> nil
+        end
+
+      if base_path do
+        product_name = get_in(context, ["product", "name"])
+        vault_subfolder = if product_name, do: "#{subfolder}/#{product_name}", else: subfolder
+
+        # In sandbox mode, vault is mounted at /vault; otherwise use actual path
+        vault_mount = "/vault"
+
+        Map.put(context, "vault", %{
+          "path" => vault_mount,
+          "actual_path" => base_path,
+          "subfolder" => vault_subfolder
+        })
+      else
+        context
+      end
+    catch
+      :exit, _ -> context
+    end
+  end
+
+  defp maybe_add_rerun_context(context, %{rerun_hint: hint})
+       when is_binary(hint) and hint != "" do
+    Map.put(context, "rerun_hint", hint)
+  end
+
+  defp maybe_add_rerun_context(context, _issue), do: context
 end

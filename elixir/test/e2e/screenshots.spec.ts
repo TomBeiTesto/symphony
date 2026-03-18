@@ -141,17 +141,6 @@ test.describe("Board Screenshots", () => {
   });
 });
 
-test.describe("Issue Detail Page Screenshots", () => {
-  test.beforeEach(async ({ request }) => { await cleanupAll(request); });
-
-  test("09 - Issue detail page (standalone)", async ({ page, request }) => {
-    const issues = await seedIssues(request);
-    await page.goto(`/board/issues/${issues[0].id}`);
-    await page.waitForTimeout(1500);
-    await page.screenshot({ path: join(SCREENSHOTS_DIR, "09-issue-detail-page.png"), fullPage: true });
-  });
-});
-
 test.describe("Settings Screenshots", () => {
   test.beforeEach(async ({ request }) => { await cleanupAll(request); });
 

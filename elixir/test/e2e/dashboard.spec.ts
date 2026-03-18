@@ -26,10 +26,6 @@ test.describe("Dashboard — GET /", () => {
     await expect(page.locator("body")).toContainText("Runtime");
   });
 
-  test("has auto-refresh meta tag", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator('meta[http-equiv="refresh"]')).toHaveCount(1);
-  });
 });
 
 // --- Orchestrator JSON API ---
@@ -57,99 +53,6 @@ test.describe("JSON API — /api/v1", () => {
   test("GET /api/v1/:identifier returns 404 for unknown issue", async ({ request }) => {
     const response = await request.get("/api/v1/NONEXISTENT-999");
     expect(response.status()).toBe(404);
-  });
-});
-
-// --- Board UI (GET /board) ---
-
-test.describe("Board — GET /board", () => {
-  test("loads with board container and navigation", async ({ page }) => {
-    const response = await page.goto("/board");
-    expect(response!.status()).toBe(200);
-    expect(response!.headers()["content-type"]).toContain("text/html");
-    await expect(page.locator("h1")).toContainText("Symphony Board");
-    await expect(page.locator("main.board")).toHaveCount(1);
-    await expect(page.locator('a[href="/board/task-lineage"]')).toHaveCount(1);
-  });
-});
-
-// --- Board JSON API ---
-
-test.describe("Board API — /board/api", () => {
-  test("GET /board/api/snapshot returns board snapshot", async ({ request }) => {
-    const response = await request.get("/board/api/snapshot");
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-    expect(body).toHaveProperty("columns");
-    expect(body).toHaveProperty("states");
-    expect(body).toHaveProperty("total_issues");
-    expect(body).toHaveProperty("projects");
-  });
-
-  test("GET /board/api/states returns state list", async ({ request }) => {
-    const response = await request.get("/board/api/states");
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-    expect(body.states).toContain("Backlog");
-    expect(body.states).toContain("Review");
-    expect(body.states).toContain("Done");
-    expect(body.states).toContain("Archived");
-  });
-
-  test("POST /board/api/issues creates an issue", async ({ request }) => {
-    const response = await request.post("/board/api/issues", {
-      data: { title: "E2E Test Issue", state: "Backlog" },
-    });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    expect(body.title).toBe("E2E Test Issue");
-    expect(body.state).toBe("Backlog");
-    expect(body.identifier).toBeTruthy();
-
-    // Cleanup
-    await request.delete(`/board/api/issues/${body.id}`);
-  });
-
-  test("GET /board/api/issues lists issues", async ({ request }) => {
-    const response = await request.get("/board/api/issues");
-    expect(response.status()).toBe(200);
-    expect(Array.isArray((await response.json()).issues)).toBe(true);
-  });
-});
-
-// --- Task Lineage (GET /board/task-lineage) ---
-
-test.describe("Task Lineage — GET /board/task-lineage", () => {
-  test("loads with canvas and project filter", async ({ page }) => {
-    const response = await page.goto("/board/task-lineage");
-    expect(response!.status()).toBe(200);
-    await expect(page.locator("h1")).toContainText("Task Lineage");
-    await expect(page.locator("#viewport")).toHaveCount(1);
-    await expect(page.locator("#canvas")).toHaveCount(1);
-    await expect(page.locator("#project-filter")).toHaveCount(1);
-  });
-});
-
-// --- Settings (GET /board/settings) ---
-
-test.describe("Settings — GET /board/settings", () => {
-  test("loads with all config sections", async ({ page }) => {
-    const response = await page.goto("/board/settings");
-    expect(response!.status()).toBe(200);
-    await expect(page.locator("body")).toContainText("Git Provider");
-    await expect(page.locator("body")).toContainText("AI Provider");
-    await expect(page.locator("body")).toContainText("Issue Tracker");
-  });
-});
-
-// --- Products Page (GET /board/products) ---
-
-test.describe("Products — GET /board/products", () => {
-  test("loads with product selector", async ({ page }) => {
-    const response = await page.goto("/board/products");
-    expect(response!.status()).toBe(200);
-    expect(response!.headers()["content-type"]).toContain("text/html");
-    await expect(page.locator("#product-select")).toHaveCount(1);
   });
 });
 

@@ -212,7 +212,10 @@ defmodule SymphonyElixir.PipelineRunner do
               LocalBoard.move_issue(node.issue_id, "Todo")
 
             {:error, _} ->
-              Logger.warning("PipelineRunner: issue #{node.issue_id} not found for node #{node.id}")
+              Logger.warning(
+                "PipelineRunner: issue #{node.issue_id} not found for node #{node.id}"
+              )
+
               LocalBoard.update_node_state(run_id, node.id, "failed")
           end
         else
@@ -223,8 +226,9 @@ defmodule SymphonyElixir.PipelineRunner do
 
       type when type in ["human_gate", "quality_gate"] ->
         LocalBoard.update_node_state(run_id, node.id, "waiting_gate")
-        # For quality gates, we could auto-trigger checks here
-        # For now, both gate types wait for manual decision via API
+
+      # For quality gates, we could auto-trigger checks here
+      # For now, both gate types wait for manual decision via API
 
       "loop" ->
         # Loop nodes pass through — they act as markers
@@ -233,10 +237,8 @@ defmodule SymphonyElixir.PipelineRunner do
         advance_from_node(pipeline_id, run_id, node.id, pipeline)
 
       "kb_sync" ->
-        # KB sync — mark completed (actual KB write would be an integration)
-        LocalBoard.update_node_state(run_id, node.id, "running")
-        LocalBoard.update_node_state(run_id, node.id, "completed")
-        advance_from_node(pipeline_id, run_id, node.id, pipeline)
+        # KB sync — pause as gate, user decides to "Send to KB" or "Skip"
+        LocalBoard.update_node_state(run_id, node.id, "waiting_gate")
 
       "integration" ->
         # Integration nodes — mark running, then completed

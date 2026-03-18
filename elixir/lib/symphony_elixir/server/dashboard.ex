@@ -24,6 +24,7 @@ defmodule SymphonyElixir.Server.Dashboard do
         #{SymphonyElixir.Server.UIHelpers.topbar_css()}
         #{SymphonyElixir.Server.UIHelpers.nav_active_css()}
         #{SymphonyElixir.Server.UIHelpers.button_css()}
+        #{SymphonyElixir.Server.UIHelpers.badge_css()}
         .dash-subtitle { padding: 8px 24px; font-size: 0.8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
         .dash-content { padding: 20px 24px; max-width: 1200px; }
         h1 { color: var(--accent); margin-bottom: 8px; font-size: 1.5rem; }
@@ -39,7 +40,6 @@ defmodule SymphonyElixir.Server.Dashboard do
         th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border-light); }
         th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
         td { font-size: 0.85rem; }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
         .badge-running { background: rgba(63,185,80,0.15); color: var(--green); }
         .badge-retry { background: rgba(210,153,34,0.15); color: var(--yellow); }
         .totals { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }

@@ -126,35 +126,57 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
       Logger.info("Sandbox: mounting #{length(extra_mounts)} extra project paths")
     end
 
+    # Mount knowledge base vault read-only at /vault if configured
+    vault_mount_args = build_vault_mount_args()
+
     # -e: pass through auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN)
     api_key = System.get_env("ANTHROPIC_API_KEY") || ""
     oauth_token = System.get_env("CLAUDE_CODE_OAUTH_TOKEN") || ""
 
     if api_key == "" and oauth_token == "" do
-      Logger.warning("Neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set — sandboxed agents will fail to authenticate")
+      Logger.warning(
+        "Neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set — sandboxed agents will fail to authenticate"
+      )
     end
 
     auth_env =
       cond do
         api_key != "" ->
           ["-e", "ANTHROPIC_API_KEY=#{api_key}"]
+
         oauth_token != "" ->
           ["-e", "CLAUDE_CODE_OAUTH_TOKEN=#{oauth_token}"]
+
         true ->
           []
       end
 
-    container_args = [
-      "run", "--rm", "-i",
-      "--network", "host",
-      "-v", "#{mount_path}:/workspace:rw"
-    ] ++ extra_mount_args ++ [
-      "-w", "/workspace"
-    ] ++ auth_env ++ [
-      "-e", "CLAUDE_CODE_DISABLE_NONINTERACTIVE_CHECK=1",
-      image,
-      "-p", "--output-format", "stream-json", "--verbose"
-    ] ++ split_allowed_tools_args(allowed_tools_flag)
+    container_args =
+      [
+        "run",
+        "--rm",
+        "-i",
+        "--network",
+        "host",
+        "-v",
+        "#{mount_path}:/workspace:rw"
+      ] ++
+        extra_mount_args ++
+        vault_mount_args ++
+        [
+          "-w",
+          "/workspace"
+        ] ++
+        auth_env ++
+        [
+          "-e",
+          "CLAUDE_CODE_DISABLE_NONINTERACTIVE_CHECK=1",
+          image,
+          "-p",
+          "--output-format",
+          "stream-json",
+          "--verbose"
+        ] ++ split_allowed_tools_args(allowed_tools_flag)
 
     Logger.info("Sandbox: #{runtime} run #{image} (workspace: #{mount_path})")
     Logger.info("Sandbox: prompt file #{prompt_file}")
@@ -597,6 +619,23 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
   end
 
   # --- Command Building ---
+
+  defp build_vault_mount_args do
+    try do
+      vault_path = SymphonyElixir.Settings.get("kb_vault_path") || ""
+      kb_type = SymphonyElixir.Settings.get("kb_type") || "local"
+
+      if vault_path != "" and kb_type in ["local", "obsidian"] and File.dir?(vault_path) do
+        container_path = to_container_mount_path(vault_path)
+        Logger.info("Sandbox: mounting knowledge base vault at /vault (read-only)")
+        ["-v", "#{container_path}:/vault:ro"]
+      else
+        []
+      end
+    catch
+      :exit, _ -> []
+    end
+  end
 
   defp build_allowed_tools_flag do
     tools =

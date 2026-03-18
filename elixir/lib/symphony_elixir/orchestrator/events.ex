@@ -102,5 +102,4 @@ defmodule SymphonyElixir.Orchestrator.Events do
         state
     end
   end
-
 end

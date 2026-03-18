@@ -150,11 +150,12 @@ defmodule SymphonyElixir.Integrations.Confluence do
 
       case http_get(url, auth_token) do
         {:ok, %{status: 200, body: resp}} ->
-          {:ok, %{
-            page_id: resp["id"],
-            title: resp["title"],
-            content: get_in(resp, ["body", "storage", "value"])
-          }}
+          {:ok,
+           %{
+             page_id: resp["id"],
+             title: resp["title"],
+             content: get_in(resp, ["body", "storage", "value"])
+           }}
 
         {:ok, %{status: status}} ->
           {:error, "Confluence fetch failed (#{status})"}

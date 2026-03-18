@@ -44,6 +44,19 @@ export async function createProject(
   return await res.json();
 }
 
+/** Delete non-built-in skills. */
+export async function cleanupSkills(request: APIRequestContext) {
+  try {
+    const skillsRes = await request.get("/board/api/skills");
+    const skillsData = await skillsRes.json();
+    for (const s of skillsData.skills || []) {
+      if (!s.built_in) {
+        await request.delete(`/board/api/skills/${s.id}`);
+      }
+    }
+  } catch {}
+}
+
 /** Delete specific pipelines by ID — does NOT touch user-created pipelines. */
 export async function cleanupPipelines(
   request: APIRequestContext,

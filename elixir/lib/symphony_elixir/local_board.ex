@@ -493,8 +493,12 @@ defmodule SymphonyElixir.LocalBoard do
   def handle_call({:delete_product_feature, prod_id, feature_id}, _from, board),
     do: Products.delete_product_feature(board, prod_id, feature_id)
 
-  def handle_call({:set_feature_status, prod_id, feature_id, project_id, status, source}, _from, board),
-    do: Products.set_feature_status(board, prod_id, feature_id, project_id, status, source)
+  def handle_call(
+        {:set_feature_status, prod_id, feature_id, project_id, status, source},
+        _from,
+        board
+      ),
+      do: Products.set_feature_status(board, prod_id, feature_id, project_id, status, source)
 
   # --- Skills Callbacks ---
 
@@ -586,5 +590,4 @@ defmodule SymphonyElixir.LocalBoard do
 
   def handle_call(:list_all_active_runs, _from, board),
     do: Pipelines.list_all_active_runs(board)
-
 end

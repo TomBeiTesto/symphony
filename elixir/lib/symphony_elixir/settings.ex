@@ -39,7 +39,11 @@ defmodule SymphonyElixir.Settings do
     "tracker_project_slug" => "",
     # --- Default Skills ---
     "default_skill_ids" => "",
-    "default_skill_group_ids" => ""
+    "default_skill_group_ids" => "",
+    # --- Knowledge Base ---
+    "kb_type" => "local",
+    "kb_vault_path" => "",
+    "kb_subfolder" => "symphony"
   }
 
   @type settings_map :: %{String.t() => String.t() | nil}

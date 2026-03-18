@@ -600,7 +600,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
   end
 
   defp designer_js do
-    designer_js_part1() <> UIHelpers.create_issue_modal_js("ci") <> UIHelpers.skill_picker_js() <> designer_js_part2()
+    designer_js_part1() <>
+      UIHelpers.create_issue_modal_js("ci") <>
+      UIHelpers.skill_picker_js() <> UIHelpers.load_skills_js() <> designer_js_part2()
   end
 
   defp designer_js_part1 do
@@ -622,8 +624,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
     let execMode = false;
     let activeRun = null;
     let pollTimer = null;
-    let allSkills = [];
-    let allSkillGroups = [];
+    // allSkills, allSkillGroups loaded via UIHelpers.load_skills_js()
 
     // Undo/redo stack
     let undoStack = [];
@@ -1241,6 +1242,30 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>`;
       }
 
+      if (node.type === 'kb_sync') {
+        const kbType = (node.config || {}).kb_type || '';
+        const kbVaultPath = (node.config || {}).vault_path || '';
+        const kbSubfolder = (node.config || {}).subfolder || '';
+        html += `
+          <div class="form-group">
+            <label>KB Type</label>
+            <select id="cfg-kb-type">
+              <option value="" ${kbType === '' ? 'selected' : ''}>(Use Settings default)</option>
+              <option value="local" ${kbType === 'local' ? 'selected' : ''}>Local Storage</option>
+              <option value="obsidian" ${kbType === 'obsidian' ? 'selected' : ''}>Obsidian Vault</option>
+              <option value="confluence" ${kbType === 'confluence' ? 'selected' : ''}>Confluence</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Vault Path (blank = Settings default)</label>
+            <input id="cfg-kb-vault-path" value="${esc(kbVaultPath)}" placeholder="Leave blank for default">
+          </div>
+          <div class="form-group">
+            <label>Subfolder (blank = Settings default)</label>
+            <input id="cfg-kb-subfolder" value="${esc(kbSubfolder)}" placeholder="Leave blank for default">
+          </div>`;
+      }
+
       if (node.type === 'integration') {
         const intType = (node.config || {}).integration_type || 'jira';
         html += `
@@ -1289,6 +1314,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
         node.config = node.config || {};
         node.config.checks = document.getElementById('cfg-checks').value.split(',').map(s => s.trim()).filter(Boolean);
       }
+      if (node.type === 'kb_sync') {
+        node.config = node.config || {};
+        node.config.kb_type = document.getElementById('cfg-kb-type').value;
+        node.config.vault_path = document.getElementById('cfg-kb-vault-path').value;
+        node.config.subfolder = document.getElementById('cfg-kb-subfolder').value;
+      }
+
       if (node.type === 'integration') {
         node.config = node.config || {};
         node.config.integration_type = document.getElementById('cfg-int-type').value;
@@ -1321,15 +1353,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp designer_js_part2 do
     ~S"""
-    async function loadSkills() {
-      try {
-        var [sRes, gRes] = await Promise.all([fetch('/board/api/skills'), fetch('/board/api/skill-groups')]);
-        var sData = await sRes.json(); var gData = await gRes.json();
-        allSkills = (sData.skills || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
-        allSkillGroups = (gData.skill_groups || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
-      } catch (e) { allSkills = []; allSkillGroups = []; }
-    }
-    loadSkills();
+    loadAllSkills();
 
     function ciAiDraftApply(draft) {
       var skillIds = draft.skill_ids || [];
@@ -1543,6 +1567,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
           <textarea class="gate-feedback" id="gate-feedback" placeholder="Feedback (optional)" rows="3"></textarea>`;
       }
 
+      if (state === 'waiting_gate' && node.type === 'kb_sync') {
+        html += `
+          <div class="gate-action">
+            <button class="btn btn-sm btn-primary" onclick="kbSyncSendAndApprove('${nodeId}')">Send to KB</button>
+            <button class="btn btn-sm btn-ghost" onclick="gateDecision('${nodeId}', 'approve')">Skip</button>
+          </div>
+          <div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">Send predecessor issue reports to Knowledge Base, or skip to continue.</div>`;
+      }
+
       if (node.type === 'issue' && node.issue_id && state === 'running') {
         html += '<div style="margin-top:12px;font-size:0.8rem;color:var(--text-muted)">Issue dispatched to orchestrator. Waiting for completion...</div>';
       }
@@ -1564,6 +1597,71 @@ defmodule SymphonyElixir.Server.PipelineUI do
         showToast('Gate decision failed', { type: 'error' });
       }
       pollRunStatus();
+    }
+
+    function collectPredecessorIssueIds(nodeId) {
+      // Walk backwards through the graph collecting all issue nodes (transitive)
+      var visited = {};
+      var issueIds = [];
+      function walk(nid) {
+        if (visited[nid]) return;
+        visited[nid] = true;
+        var node = nodes.find(function(n) { return n.id === nid; });
+        if (node && node.type === 'issue' && node.issue_id) {
+          issueIds.push(node.issue_id);
+        }
+        edges.forEach(function(e) {
+          if (e.target_node_id === nid) walk(e.source_node_id);
+        });
+      }
+      // Start from direct predecessors (don't include the kb_sync node itself)
+      edges.forEach(function(e) {
+        if (e.target_node_id === nodeId) walk(e.source_node_id);
+      });
+      return issueIds;
+    }
+
+    async function kbSyncSendAndApprove(nodeId) {
+      if (!activeRun) return;
+      if (!confirm('Send all predecessor issue reports to the Knowledge Base?')) return;
+
+      var predecessorIssueIds = collectPredecessorIssueIds(nodeId);
+
+      if (predecessorIssueIds.length === 0) {
+        showToast('No predecessor issues found to send', { type: 'error' });
+        return;
+      }
+
+      var allPaths = [];
+      var fromReports = 0;
+      var fromDesc = 0;
+      for (var i = 0; i < predecessorIssueIds.length; i++) {
+        try {
+          var res = await fetch('/board/api/vault/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ issue_id: predecessorIssueIds[i] })
+          });
+          var data = await res.json();
+          if (data.ok && data.notes_written) {
+            allPaths = allPaths.concat(data.notes_written);
+            if (data.source === 'reports') fromReports++; else fromDesc++;
+          }
+        } catch(err) {
+          showToast('KB send failed: ' + err.message, { type: 'error' });
+        }
+      }
+
+      if (allPaths.length > 0) {
+        var msg = 'Sent ' + allPaths.length + ' note(s) to KB';
+        if (fromDesc > 0) msg += ' (' + fromDesc + ' from description only)';
+        showToast(msg, { type: 'success' });
+      } else {
+        showToast('No notes were written', { type: 'error' });
+      }
+
+      // Now approve the gate to advance the pipeline
+      gateDecision(nodeId, 'approve');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1665,5 +1763,4 @@ defmodule SymphonyElixir.Server.PipelineUI do
     renderMinimap();
     """
   end
-
 end

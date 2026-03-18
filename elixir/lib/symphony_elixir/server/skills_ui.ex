@@ -172,10 +172,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
       UIHelpers.badge_css() <>
       UIHelpers.toast_css() <>
       ~S"""
-      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
-      .page-actions-left { display: flex; align-items: center; gap: 10px; }
-      .page-actions-right { display: flex; align-items: center; gap: 6px; }
-      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+      #{UIHelpers.page_actions_css()}
       .skills-page {
         display: flex; height: calc(100vh - 90px); overflow: hidden;
       }

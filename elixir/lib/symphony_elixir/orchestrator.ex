@@ -73,6 +73,12 @@ defmodule SymphonyElixir.Orchestrator do
     GenServer.call(__MODULE__, {:reject_plan, issue_id, feedback})
   end
 
+  @doc "Rerun an issue with an optional hint. Clears previous run and re-dispatches."
+  @spec rerun_issue(String.t(), String.t() | nil) :: :ok | {:error, term()}
+  def rerun_issue(issue_id, hint \\ nil) do
+    GenServer.call(__MODULE__, {:rerun_issue, issue_id, hint})
+  end
+
   # --- Server Callbacks ---
 
   @impl true
@@ -172,6 +178,35 @@ defmodule SymphonyElixir.Orchestrator do
 
       {:ok, _} ->
         {:reply, {:error, :not_in_plan_review}, state}
+
+      {:error, _} = err ->
+        {:reply, err, state}
+    end
+  end
+
+  def handle_call({:rerun_issue, issue_id, hint}, _from, state) do
+    case SymphonyElixir.LocalBoard.get_issue(issue_id) do
+      {:ok, _issue} ->
+        # Store the hint and move back to In Progress
+        SymphonyElixir.LocalBoard.update_issue(issue_id, %{
+          "rerun_hint" => hint,
+          "state" => "In Progress",
+          "plan_status" => nil,
+          "plan_text" => nil
+        })
+
+        # Clear completed/claimed so the orchestrator picks it up
+        state = %{
+          state
+          | completed: MapSet.delete(state.completed, issue_id),
+            claimed: MapSet.delete(state.claimed, issue_id)
+        }
+
+        # Clear old agent_run
+        SymphonyElixir.LocalBoard.save_agent_run(issue_id, nil)
+
+        send(self(), :tick)
+        {:reply, :ok, state}
 
       {:error, _} = err ->
         {:reply, err, state}

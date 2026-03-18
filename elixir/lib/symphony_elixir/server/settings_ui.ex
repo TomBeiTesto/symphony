@@ -147,6 +147,40 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </div>
           </section>
 
+          <!-- Knowledge Base -->
+          <section class="settings-section">
+            <h2>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+              Knowledge Base
+            </h2>
+            <p class="section-desc">Configure where research reports and business logic extractions are stored. Agents can read from the KB during implementation tasks.</p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="kb_type">KB Type</label>
+                <select id="kb_type" onchange="toggleKBFields()">
+                  <option value="local">Local Storage</option>
+                  <option value="obsidian">Obsidian Vault</option>
+                  <option value="confluence">Confluence</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="kb_subfolder">Subfolder</label>
+                <input type="text" id="kb_subfolder" placeholder="symphony">
+                <small class="help-text">Relative path within the vault for Symphony notes.</small>
+              </div>
+            </div>
+            <div class="form-group" id="kb-vault-path-group">
+              <label for="kb_vault_path">Vault Path</label>
+              <input type="text" id="kb_vault_path" placeholder="C:/Users/me/ObsidianVault">
+              <small class="help-text">Absolute path to the vault directory. For Local type, leave blank to use default (~/.symphony/knowledge_base).</small>
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn btn-ghost btn-sm" id="kb-test-btn" onclick="testKBConnection()">Test Connection</button>
+              <span id="kb-test-result" style="margin-left:8px;font-size:0.82rem"></span>
+            </div>
+          </section>
+
           <!-- Tracker -->
           <section class="settings-section">
             <h2>
@@ -289,7 +323,8 @@ defmodule SymphonyElixir.Server.SettingsUI do
     const FIELDS = [
       'git_provider', 'git_token', 'git_host',
       'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell', 'agent_allowed_tools', 'agent_sandbox', 'agent_sandbox_image',
-      'tracker_kind', 'tracker_endpoint', 'tracker_api_key', 'tracker_project_slug'
+      'tracker_kind', 'tracker_endpoint', 'tracker_api_key', 'tracker_project_slug',
+      'kb_type', 'kb_vault_path', 'kb_subfolder'
     ];
 
     // Provider → default host mapping
@@ -410,6 +445,46 @@ defmodule SymphonyElixir.Server.SettingsUI do
         saveSettings();
       }
     });
+
+    // --- Knowledge Base ---
+    function toggleKBFields() {
+      var kbType = document.getElementById('kb_type').value;
+      var vaultGroup = document.getElementById('kb-vault-path-group');
+      // Show vault path for obsidian and local (optional for local)
+      vaultGroup.style.display = (kbType === 'confluence') ? 'none' : '';
+    }
+    toggleKBFields();
+
+    async function testKBConnection() {
+      var btn = document.getElementById('kb-test-btn');
+      var result = document.getElementById('kb-test-result');
+      btn.disabled = true;
+      result.textContent = 'Testing...';
+      result.style.color = 'var(--text-muted)';
+
+      var kbType = document.getElementById('kb_type').value;
+      var vaultPath = document.getElementById('kb_vault_path').value;
+      // For local type, pass empty path — backend auto-resolves default
+      try {
+        var res = await fetch(API + '/vault/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kb_type: kbType, vault_path: vaultPath })
+        });
+        var data = await res.json();
+        if (data.ok) {
+          result.textContent = data.message;
+          result.style.color = 'var(--success, #22c55e)';
+        } else {
+          result.textContent = data.message;
+          result.style.color = 'var(--error, #ef4444)';
+        }
+      } catch(e) {
+        result.textContent = 'Connection test failed: ' + e.message;
+        result.style.color = 'var(--error, #ef4444)';
+      }
+      btn.disabled = false;
+    }
 
     // --- Default Skills ---
     var allSkills = [];

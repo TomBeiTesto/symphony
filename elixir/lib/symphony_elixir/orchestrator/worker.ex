@@ -59,7 +59,9 @@ defmodule SymphonyElixir.Orchestrator.Worker do
 
       start_result =
         if client == ClaudeAdapter and extra_mounts != [] do
-          ClaudeAdapter.start_session(config, workspace_path, prompt, callback, extra_mounts: extra_mounts)
+          ClaudeAdapter.start_session(config, workspace_path, prompt, callback,
+            extra_mounts: extra_mounts
+          )
         else
           client.start_session(config, workspace_path, prompt, callback)
         end
@@ -169,7 +171,9 @@ defmodule SymphonyElixir.Orchestrator.Worker do
     extra = Enum.reject(paths, &(&1 == primary_workspace))
 
     if extra != [] do
-      Logger.info("Product task: #{length(extra)} extra project mounts: #{Enum.join(extra, ", ")}")
+      Logger.info(
+        "Product task: #{length(extra)} extra project mounts: #{Enum.join(extra, ", ")}"
+      )
     end
 
     extra

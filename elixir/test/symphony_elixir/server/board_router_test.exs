@@ -10,6 +10,9 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
   @settings_path "test_board_router_settings_#{System.unique_integer([:positive])}.json"
 
   setup do
+    test_vault = Path.join(System.tmp_dir!(), "kb_router_test_#{:rand.uniform(1_000_000)}")
+    File.mkdir_p!(test_vault)
+
     start_supervised!(
       {LocalBoard,
        store_path: @store_path, states: ["Todo", "In Progress", "Done"], project_prefix: "BRD"}
@@ -20,9 +23,10 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     on_exit(fn ->
       File.rm(@store_path)
       File.rm(@settings_path)
+      File.rm_rf!(test_vault)
     end)
 
-    :ok
+    {:ok, vault: test_vault}
   end
 
   defp call(method, path, body \\ nil) do
@@ -405,20 +409,6 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
       assert body["max_todo_parallel"] == "3"
     end
 
-    test "updates max_todo_parallel" do
-      conn = call(:patch, "/api/settings/auto-add", %{"max_todo_parallel" => "2"})
-      assert conn.status == 200
-      body = Jason.decode!(conn.resp_body)
-      assert body["max_todo_parallel"] == "2"
-    end
-
-    test "updates segregate_by_project" do
-      conn = call(:patch, "/api/settings/auto-add", %{"segregate_by_project" => "true"})
-      assert conn.status == 200
-      body = Jason.decode!(conn.resp_body)
-      assert body["segregate_by_project"] == "true"
-    end
-
     test "updates all board settings at once" do
       conn =
         call(:patch, "/api/settings/auto-add", %{
@@ -769,7 +759,11 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
 
   describe "POST /api/products/:id/analyze-existing-features" do
     test "creates an issue to analyze existing features" do
-      {:ok, proj} = LocalBoard.create_project(%{"name" => "API", "repo_url" => "https://github.com/test/api.git"})
+      {:ok, proj} =
+        LocalBoard.create_project(%{
+          "name" => "API",
+          "repo_url" => "https://github.com/test/api.git"
+        })
 
       {:ok, product} =
         LocalBoard.create_product(%{
@@ -796,7 +790,10 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
         LocalBoard.create_product(%{"name" => "Feat Test", "project_ids" => [proj.id]})
 
       {:ok, _product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Auth", "description" => "Authentication system"})
+        LocalBoard.add_product_feature(product.id, %{
+          "name" => "Auth",
+          "description" => "Authentication system"
+        })
 
       conn = call(:post, "/api/products/#{product.id}/analyze-existing-features")
       assert conn.status == 201
@@ -815,7 +812,11 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
 
   describe "POST /api/products/:id/code-review" do
     test "creates a code review issue" do
-      {:ok, proj} = LocalBoard.create_project(%{"name" => "Backend", "repo_url" => "https://github.com/test/backend.git"})
+      {:ok, proj} =
+        LocalBoard.create_project(%{
+          "name" => "Backend",
+          "repo_url" => "https://github.com/test/backend.git"
+        })
 
       {:ok, product} =
         LocalBoard.create_product(%{
@@ -855,6 +856,213 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     test "returns 404 for missing product" do
       conn = call(:post, "/api/products/nonexistent/code-review")
       assert conn.status == 404
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Rerun API
+
+  describe "POST /api/issues/:id/rerun" do
+    test "returns 503 when orchestrator is not running" do
+      {:ok, issue} =
+        LocalBoard.create_issue(%{
+          "title" => "Rerun me",
+          "state" => "Done"
+        })
+
+      conn =
+        call(:post, "/api/issues/#{issue.id}/rerun", %{
+          "hint" => "Be more thorough"
+        })
+
+      assert conn.status == 503
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] =~ "orchestrator"
+    end
+  end
+
+  # Knowledge Base / Vault API
+  # ---------------------------------------------------------------------------
+
+  describe "POST /api/vault/test" do
+    test "returns ok for valid directory", %{vault: vault} do
+      conn = call(:post, "/api/vault/test", %{"vault_path" => vault, "kb_type" => "local"})
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == true
+    end
+
+    test "returns error for missing directory" do
+      conn =
+        call(:post, "/api/vault/test", %{
+          "vault_path" => "/nonexistent/path/xyz",
+          "kb_type" => "local"
+        })
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == false
+      assert body["message"] =~ "does not exist"
+    end
+  end
+
+  describe "POST /api/vault/send" do
+    test "writes issue description as note when no reports exist", %{vault: vault} do
+      # Configure KB settings
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      # Create an issue
+      conn =
+        call(:post, "/api/issues", %{
+          "title" => "Test Issue",
+          "state" => "Done",
+          "description" => "Issue body content."
+        })
+
+      assert conn.status == 201
+      issue = Jason.decode!(conn.resp_body)
+
+      # Send to KB
+      conn = call(:post, "/api/vault/send", %{"issue_id" => issue["id"]})
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == true
+      assert is_list(body["notes_written"])
+      assert length(body["notes_written"]) > 0
+
+      # Verify the note exists on disk
+      [note_path | _] = body["notes_written"]
+      assert File.exists?(note_path)
+      content = File.read!(note_path)
+      assert content =~ "Issue body content."
+    end
+
+    test "returns error when vault not configured for obsidian type" do
+      Settings.update(%{"kb_type" => "obsidian", "kb_vault_path" => ""})
+
+      conn = call(:post, "/api/vault/send", %{"issue_id" => "fake-id"})
+      assert conn.status == 400
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] =~ "not configured" or body["error"] =~ "vault"
+    end
+
+    test "includes source field in response", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn =
+        call(:post, "/api/issues", %{
+          "title" => "Source Test Issue",
+          "state" => "Done",
+          "description" => "Test body."
+        })
+
+      issue = Jason.decode!(conn.resp_body)
+      conn = call(:post, "/api/vault/send", %{"issue_id" => issue["id"]})
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["source"] == "description"
+    end
+
+    test "returns error for nonexistent issue", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn = call(:post, "/api/vault/send", %{"issue_id" => "nonexistent-id"})
+      assert conn.status == 404
+    end
+  end
+
+  describe "GET /api/vault/search" do
+    test "returns matching notes", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      # Write a test note directly
+      dir = Path.join([vault, "sym", "test-prod"])
+      File.mkdir_p!(dir)
+
+      File.write!(
+        Path.join(dir, "test-note.md"),
+        "---\ntags:\n  - test\n---\n# Test\nKeyword findme here.\n"
+      )
+
+      conn = call(:get, "/api/vault/search?q=findme")
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["results"]) > 0
+      assert Enum.any?(body["results"], fn r -> r["title"] =~ "test-note" end)
+    end
+
+    test "returns empty results for no match", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn = call(:get, "/api/vault/search?q=xyzzy_nope")
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["results"] == []
+    end
+  end
+
+  describe "GET /api/vault/note" do
+    test "returns note content with frontmatter", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      dir = Path.join([vault, "sym"])
+      File.mkdir_p!(dir)
+
+      File.write!(
+        Path.join(dir, "read-test.md"),
+        "---\nsource: SYM-1\n---\n# Read Test\nBody here.\n"
+      )
+
+      conn = call(:get, "/api/vault/note?path=sym/read-test.md")
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["frontmatter"]["source"] == "SYM-1"
+      assert body["content"] =~ "# Read Test"
+    end
+
+    test "returns 404 for missing note", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn = call(:get, "/api/vault/note?path=nonexistent.md")
+      assert conn.status == 404
+    end
+
+    test "blocks path traversal", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn = call(:get, "/api/vault/note?path=../../../etc/passwd")
+      assert conn.status in [400, 403]
+    end
+  end
+
+  describe "DELETE /api/vault/note" do
+    test "deletes an existing note", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      dir = Path.join([vault, "sym"])
+      File.mkdir_p!(dir)
+      note_path = Path.join(dir, "to-delete.md")
+      File.write!(note_path, "# Delete me")
+
+      conn = call(:delete, "/api/vault/note", %{"path" => "sym/to-delete.md"})
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == true
+      refute File.exists?(note_path)
+    end
+
+    test "returns 404 for missing note", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn = call(:delete, "/api/vault/note", %{"path" => "nonexistent.md"})
+      assert conn.status == 404
+    end
+
+    test "blocks path traversal", %{vault: vault} do
+      Settings.update(%{"kb_type" => "local", "kb_vault_path" => vault, "kb_subfolder" => "sym"})
+
+      conn = call(:delete, "/api/vault/note", %{"path" => "../../../etc/passwd"})
+      assert conn.status in [400, 403]
     end
   end
 end

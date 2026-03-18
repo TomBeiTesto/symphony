@@ -198,6 +198,20 @@ When an issue has `plan_status: planning`, you are in a planning-only pass:
 - If `plan_status` is `plan_review`, do nothing — the plan is awaiting human review.
 - Keep changes concise, specific, and focused on the issue requirements.
 
+{% if vault %}
+### Knowledge Base
+
+Business logic documentation is available at `{{ vault.path }}/{{ vault.subfolder }}`.
+
+**Before planning or implementing anything**, you MUST:
+1. List the files in `{{ vault.path }}/{{ vault.subfolder }}/` to see what documentation exists
+2. Read all relevant KB documents — especially `domain-rules.md` and `constraints.md` if they exist
+3. Reference specific rule IDs (e.g., BR-001, CV-003) in your plan or code comments when your changes relate to documented business rules
+4. If your task conflicts with a documented rule, flag it explicitly — do not silently override
+
+Do NOT modify vault files unless this is an extract-logic task.
+{% endif %}
+
 {% if issue.labels contains "research" %}
 ### Research Mode
 
@@ -211,4 +225,38 @@ You are a **research agent**. Investigate the topic and produce a written report
    - **Sources** — references and links consulted
    - **Recommendations** — actionable next steps (if applicable)
 4. Be factual and cite sources where possible.
+{% endif %}
+
+{% if issue.labels contains "extract-logic" %}
+### Business Logic Extraction Mode
+
+You are extracting business rules from the codebase{% if product %} for product **{{ product.name }}**{% endif %}.
+
+1. Analyze the codebase thoroughly — read all relevant source files.
+2. Write structured business logic documents to `reports/`:
+   - `reports/domain-rules.md` — core business rules and invariants
+   - `reports/workflows.md` — user-facing workflows and state machines
+   - `reports/constraints.md` — validation rules, limits, edge cases
+   - `reports/glossary.md` — domain terminology and definitions
+3. Each file should use this format:
+   - YAML frontmatter: `tags`, `product`, `date`, `source_files`
+   - Clear sections with rule IDs (e.g., `BR-001: ...`)
+   - Code references where each rule is enforced
+4. Be exhaustive — these documents will guide future implementation work.
+{% endif %}
+
+{% if rerun_hint %}
+### CRITICAL — THIS IS A RERUN
+
+The reviewer rejected your previous output and is requesting specific changes. **You MUST make changes.**
+
+**Reviewer says:**
+> {{ rerun_hint }}
+
+**Rules for this rerun — you will fail the task if you violate these:**
+1. You MUST call the `Write` tool to rewrite every report file in `reports/`. If you do not call `Write` at least once, you have failed.
+2. Do NOT say "the reports are already complete" or "already accurate" — they are not, which is why the reviewer triggered a rerun.
+3. Read the existing `reports/*.md` files, then rewrite them with the improvements the reviewer asked for.
+4. If the reviewer says something is missing, add substantial new content. If they say "more detail," at least double the detail in those sections.
+5. After writing, confirm exactly what you changed in each file.
 {% endif %}

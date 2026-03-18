@@ -55,6 +55,11 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
           maybe_update_feature_status(issue, running_entry)
           # Check if this is a generate-definition issue and update product
           maybe_update_product_definition(issue, running_entry)
+          # Clear rerun_hint after successful completion
+          if issue.rerun_hint do
+            SymphonyElixir.LocalBoard.update_issue(issue_id, %{"rerun_hint" => nil})
+          end
+
           SymphonyElixir.LocalBoard.move_issue(issue_id, resolve_done_state(issue_id))
 
         _ ->
@@ -229,7 +234,11 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
           {:ok, %{"name" => name, "description" => desc}}
           when is_binary(name) and is_binary(desc) ->
             attrs = %{}
-            attrs = if String.trim(name) != "", do: Map.put(attrs, "name", String.trim(name)), else: attrs
+
+            attrs =
+              if String.trim(name) != "",
+                do: Map.put(attrs, "name", String.trim(name)),
+                else: attrs
 
             attrs =
               if String.trim(desc) != "",

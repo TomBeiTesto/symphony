@@ -139,6 +139,66 @@ defmodule SymphonyElixir.OrchestratorTest do
     end
   end
 
+  # --- rerun_issue ---
+
+  describe "rerun_issue/2" do
+    test "resets issue to In Progress with hint" do
+      {:ok, issue} =
+        LocalBoard.create_issue(%{
+          "title" => "Completed task",
+          "state" => "Done"
+        })
+
+      start_orchestrator()
+
+      assert :ok = Orchestrator.rerun_issue(issue.id, "Be more thorough")
+
+      {:ok, updated} = LocalBoard.get_issue(issue.id)
+      assert updated.state == "In Progress"
+      assert updated.rerun_hint == "Be more thorough"
+      assert updated.plan_status == nil
+      assert updated.plan_text == nil
+    end
+
+    test "resets issue without hint" do
+      {:ok, issue} =
+        LocalBoard.create_issue(%{
+          "title" => "Rerun no hint",
+          "state" => "Done"
+        })
+
+      start_orchestrator()
+
+      assert :ok = Orchestrator.rerun_issue(issue.id, nil)
+
+      {:ok, updated} = LocalBoard.get_issue(issue.id)
+      assert updated.state == "In Progress"
+      assert updated.rerun_hint == nil
+    end
+
+    test "clears previous agent_run" do
+      {:ok, issue} =
+        LocalBoard.create_issue(%{
+          "title" => "Has agent run",
+          "state" => "Done"
+        })
+
+      LocalBoard.save_agent_run(issue.id, %{"completed_at" => "2026-03-18T00:00:00Z"})
+
+      start_orchestrator()
+
+      assert :ok = Orchestrator.rerun_issue(issue.id)
+
+      {:ok, updated} = LocalBoard.get_issue(issue.id)
+      assert Map.get(updated, :agent_run) == nil
+    end
+
+    test "returns error for nonexistent issue" do
+      start_orchestrator()
+      assert {:error, :not_found} = Orchestrator.rerun_issue("nonexistent_id")
+    end
+  end
+
   # --- auto_archive_done_issues ---
 
   describe "auto_archive_done_issues/0" do
@@ -296,5 +356,4 @@ defmodule SymphonyElixir.OrchestratorTest do
       assert {:error, :not_found} = Orchestrator.get_issue_detail("ORCH-1")
     end
   end
-
 end

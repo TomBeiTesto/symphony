@@ -23,14 +23,14 @@ defmodule SymphonyElixir.Server.BoardUI do
     </head>
     <body>
     #{SymphonyElixir.Server.UIHelpers.nav_topbar("kanban")}
-      <div class="board-actions-bar">
-        <div class="board-actions-left">
+      <div class="page-actions-bar">
+        <div class="page-actions-left">
           <h2 class="page-title">Kanban Board</h2>
           <select id="project-filter" class="project-select" onchange="handleProjectFilter()">
             <option value="">All Projects</option>
           </select>
         </div>
-        <div class="board-actions-right">
+        <div class="page-actions-right">
           <div class="dropdown" id="auto-add-dropdown">
             <button class="btn btn-ghost" onclick="toggleAutoAddDropdown()">
               <span id="auto-add-label">Auto</span>
@@ -203,10 +203,8 @@ defmodule SymphonyElixir.Server.BoardUI do
         flex-direction: column;
         overflow: hidden;
       }
-      .board-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); flex-shrink: 0; }
-      .board-actions-left { display: flex; align-items: center; gap: 10px; }
-      .board-actions-right { display: flex; align-items: center; gap: 6px; }
-      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+      #{UIHelpers.page_actions_css()}
+      .page-actions-bar { padding: 8px 20px; }
 
       /* --- Metrics Bar (#6) --- */
       .metrics-bar {
@@ -413,22 +411,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       .project-select:focus { border-color: var(--accent); }
 
       /* --- Dropdown --- */
-      .dropdown { position: relative; }
-      .dropdown-menu {
-        display: none; position: absolute; top: 100%; right: 0;
-        margin-top: 4px; background: var(--bg-secondary); border: 1px solid var(--border);
-        border-radius: var(--radius-sm); min-width: 220px;
-        box-shadow: var(--shadow); z-index: 100; padding: 4px 0;
-      }
-      .dropdown-menu.open { display: block; }
-      .dropdown-item {
-        display: block; width: 100%; padding: 7px 14px;
-        background: none; border: none; color: var(--text-primary);
-        font-size: 0.82rem; text-align: left; cursor: pointer;
-        transition: background var(--transition);
-      }
-      .dropdown-item:hover { background: var(--bg-hover); }
-      .dropdown-item small { display: block; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; }
+      #{UIHelpers.dropdown_css()}
       /* --- Project List --- */
       .project-filter { width: 100%; padding: 6px 10px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
       .project-filter:focus { outline: none; border-color: var(--accent); }

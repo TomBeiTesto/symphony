@@ -99,11 +99,14 @@ defmodule SymphonyElixir.LocalBoard.Issues do
           |> maybe_update(:state, attrs)
           |> maybe_update(:branch_name, attrs)
           |> maybe_update(:labels, attrs, &parse_labels/1)
+          |> maybe_update(:project_id, attrs)
+          |> maybe_update(:product_id, attrs)
           |> maybe_update(:propose_followups, attrs, &parse_boolean/1)
           |> maybe_update(:skill_ids, attrs, &parse_labels/1)
           |> maybe_update(:skill_group_ids, attrs, &parse_labels/1)
           |> maybe_update(:plan_status, attrs)
           |> maybe_update(:plan_text, attrs)
+          |> maybe_update(:rerun_hint, attrs)
           |> Map.put(:updated_at, now)
 
         board = %{board | issues: Map.put(board.issues, id, updated)}
@@ -201,6 +204,9 @@ defmodule SymphonyElixir.LocalBoard.Issues do
       propose_followups: Map.get(record, :propose_followups, true) != false,
       skill_ids: Map.get(record, :skill_ids, []),
       skill_group_ids: Map.get(record, :skill_group_ids, []),
+      plan_status: record[:plan_status],
+      plan_text: record[:plan_text],
+      rerun_hint: record[:rerun_hint],
       created_at: SymphonyElixir.DateTimeUtils.parse_datetime(record.created_at),
       updated_at: SymphonyElixir.DateTimeUtils.parse_datetime(record.updated_at)
     }

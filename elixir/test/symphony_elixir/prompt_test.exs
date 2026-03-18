@@ -94,6 +94,7 @@ defmodule SymphonyElixir.PromptContextTest do
   {% if skills %}Skills: {{ skills }}{% endif %}
   {% if planning_phase %}PLANNING PHASE: Create a plan.{% endif %}
   {% if execution_phase %}EXECUTION PHASE with plan: {{ plan }}{% endif %}
+  {% if rerun_hint %}RERUN HINT: {{ rerun_hint }}{% endif %}
   """
 
   describe "render/3 with project context" do
@@ -242,6 +243,54 @@ defmodule SymphonyElixir.PromptContextTest do
       # Template still renders the issue fields
       assert String.contains?(rendered, "PT-7")
       assert String.contains?(rendered, "Orphan task")
+    end
+  end
+
+  describe "render/3 with rerun_hint" do
+    test "injects rerun_hint into template context" do
+      issue = %Issue{
+        id: "rr1",
+        identifier: "PT-20",
+        title: "Rerun task",
+        state: "In Progress",
+        rerun_hint: "Add more detail to the domain-rules report",
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      assert String.contains?(rendered, "RERUN HINT:")
+      assert String.contains?(rendered, "Add more detail to the domain-rules report")
+    end
+
+    test "skips rerun_hint when nil" do
+      issue = %Issue{
+        id: "rr2",
+        identifier: "PT-21",
+        title: "Normal task",
+        state: "In Progress",
+        rerun_hint: nil,
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      refute String.contains?(rendered, "RERUN HINT")
+    end
+
+    test "skips rerun_hint when empty string" do
+      issue = %Issue{
+        id: "rr3",
+        identifier: "PT-22",
+        title: "Empty hint task",
+        state: "In Progress",
+        rerun_hint: "",
+        blocked_by: [],
+        propose_followups: false
+      }
+
+      assert {:ok, rendered} = Prompt.render(@template, issue)
+      refute String.contains?(rendered, "RERUN HINT")
     end
   end
 

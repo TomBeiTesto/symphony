@@ -30,6 +30,7 @@ defmodule SymphonyElixir.Issue do
           skill_group_ids: [String.t()],
           plan_status: String.t() | nil,
           plan_text: String.t() | nil,
+          rerun_hint: String.t() | nil,
           created_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
@@ -49,6 +50,7 @@ defmodule SymphonyElixir.Issue do
     :parent_issue_id,
     :plan_status,
     :plan_text,
+    :rerun_hint,
     :created_at,
     :updated_at,
     labels: [],

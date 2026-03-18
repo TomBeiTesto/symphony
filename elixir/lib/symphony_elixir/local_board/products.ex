@@ -46,8 +46,12 @@ defmodule SymphonyElixir.LocalBoard.Products do
 
   defp creates_cycle?(current, target, dep_map, visited) do
     cond do
-      current == target -> true
-      MapSet.member?(visited, current) -> false
+      current == target ->
+        true
+
+      MapSet.member?(visited, current) ->
+        false
+
       true ->
         visited = MapSet.put(visited, current)
         transitive_deps = Map.get(dep_map, current, [])

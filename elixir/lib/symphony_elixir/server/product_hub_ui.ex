@@ -66,6 +66,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <div class="tab-item active" data-tab="spec" onclick="switchTab('spec')">Spec Sheet</div>
             <div class="tab-item" data-tab="issues" onclick="switchTab('issues')">Issues <span class="tab-badge" id="issues-tab-badge">0</span></div>
             <div class="tab-item" data-tab="activity" onclick="switchTab('activity')">Activity <span class="tab-badge" id="activity-tab-badge">0</span></div>
+            <div class="tab-item" data-tab="kb" onclick="switchTab('kb')">Knowledge Base <span class="tab-badge" id="kb-tab-badge" style="display:none">0</span></div>
             <div class="tab-actions" id="tab-actions"></div>
           </nav>
           <div class="tab-content" id="tab-content">
@@ -327,6 +328,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       UIHelpers.modal_css() <>
       UIHelpers.badge_css() <>
       UIHelpers.toast_css() <>
+      UIHelpers.markdown_css() <>
       UIHelpers.skeleton_css() <>
       UIHelpers.hub_layout_css() <>
       UIHelpers.nav_active_css() <>
@@ -387,14 +389,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .product-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
       .action-group { display: flex; gap: 4px; align-items: center; }
       .action-group + .action-group { padding-left: 6px; border-left: 1px solid var(--border); }
-      .dropdown { position: relative; }
-      .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 200px; z-index: 100; box-shadow: var(--shadow); padding: 4px 0; }
-      .dropdown.open .dropdown-menu { display: block; }
-      .dropdown-item { display: block; width: 100%; padding: 7px 12px; background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; text-align: left; cursor: pointer; font-family: inherit; }
-      .dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+      #{UIHelpers.dropdown_css()}
       .tab-loading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 40px; color: var(--text-muted); font-size: 0.85rem; }
-      .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
-      @keyframes spin { to { transform: rotate(360deg); } }
+      #{UIHelpers.spinner_css()}
       .scope-indicator { padding: 8px 16px; font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; }
       .kanban-wrapper { display: flex; flex-direction: column; height: 100%; }
       .product-desc { font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
@@ -434,7 +431,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .feature-card:hover { border-color: var(--accent); }
       .feature-card-top { display: flex; align-items: flex-start; gap: 10px; }
       .feature-status-badge { flex-shrink: 0; padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
-      .badge-done { background: rgba(63,185,80,0.15); color: var(--green); }
       .badge-partial { background: rgba(210,153,34,0.15); color: var(--yellow); }
       .badge-in_progress { background: rgba(88,166,255,0.15); color: var(--accent); }
       .badge-planned { background: rgba(209,134,22,0.15); color: var(--orange); }
@@ -480,8 +476,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       /* Skill picker — see UIHelpers.skill_picker_css() */
       .ai-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
-      .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--text-muted); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
-      @keyframes spin { to { transform: rotate(360deg); } }
 
       /* --- Issues Tab (kanban) --- */
       .kanban { display: flex; gap: 0; flex: 1; overflow-x: auto; overflow-y: hidden; height: 100%; }
@@ -541,7 +535,26 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .activity-title a:hover { color: var(--accent); }
       .activity-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
       .activity-empty { text-align: center; color: var(--text-muted); padding: 40px; font-size: 0.85rem; }
-      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      #{UIHelpers.pulse_css()}
+
+      /* --- Knowledge Base Tab --- */
+      .kb-browser { padding: 24px; max-width: 900px; }
+      .kb-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+      .kb-search-bar { display: flex; gap: 6px; flex: 1; min-width: 200px; }
+      .kb-search-bar input { flex: 1; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.82rem; }
+      .kb-search-bar input:focus { outline: none; border-color: var(--accent); }
+      .kb-notes-list { display: grid; gap: 8px; }
+      .kb-note-card { padding: 12px 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); }
+      .kb-note-card:hover { border-color: var(--accent); background: var(--bg-tertiary, var(--bg-secondary)); }
+      .kb-note-title { font-size: 0.88rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
+      .kb-note-folder { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; }
+      .kb-note-snippet { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .kb-note-viewer { background: var(--bg-primary); }
+      .kb-note-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+      .kb-note-path { flex: 1; font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+      .kb-frontmatter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+      .kb-fm-tag { display: inline-block; padding: 2px 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; font-size: 0.72rem; color: var(--text-secondary); }
+      .kb-note-content { padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: auto; max-height: 60vh; font-size: 0.85rem; line-height: 1.55; color: var(--text-secondary); }
 
       /* Auto-dispatch controls (in Issues tab actions) */
       .auto-dispatch-bar { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted); }
@@ -553,17 +566,21 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
   defp javascript do
     SymphonyElixir.Server.UIHelpers.esc_js() <>
+      SymphonyElixir.Server.UIHelpers.markdown_js() <>
       SymphonyElixir.Server.UIHelpers.toast_js() <>
       SymphonyElixir.Server.UIHelpers.color_maps_js() <>
+      SymphonyElixir.Server.UIHelpers.time_utils_js() <>
+      SymphonyElixir.Server.UIHelpers.dropdown_js() <>
       SymphonyElixir.Server.UIHelpers.create_issue_modal_js("hi") <>
       ~S"""
 
       const API = '/board/api';
       let allProducts = [];
       let allProjects = [];
-      let allSkills = [];
-      let allSkillGroups = [];
-      """ <> SymphonyElixir.Server.UIHelpers.skill_picker_js() <> ~S"""
+      """ <>
+      SymphonyElixir.Server.UIHelpers.load_skills_js() <>
+      SymphonyElixir.Server.UIHelpers.skill_picker_js() <>
+      ~S"""
       let currentProd = null;
       let selectedProductId = null;
       let activeTab = 'spec';
@@ -595,7 +612,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       async function init() {
         restoreState();
-        await Promise.all([loadProducts(), loadProjects(), loadSkills(), loadBoardSnapshot()]);
+        await Promise.all([loadProducts(), loadProjects(), loadAllSkills(), loadBoardSnapshot()]);
         renderSidebar();
         renderTabBar();
         if (selectedProductId && selectedProductId !== '__all__') {
@@ -636,14 +653,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         allProjects = data.projects || [];
       }
 
-      async function loadSkills() {
-        try {
-          var [sRes, gRes] = await Promise.all([fetch(API + '/skills'), fetch(API + '/skill-groups')]);
-          var sData = await sRes.json(); var gData = await gRes.json();
-          allSkills = (sData.skills || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
-          allSkillGroups = (gData.skill_groups || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
-        } catch (e) { allSkills = []; allSkillGroups = []; }
-      }
+      // loadAllSkills() provided by UIHelpers.load_skills_js()
 
       async function loadBoardSnapshot() {
         try {
@@ -896,7 +906,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var noProduct = !currentProd || selectedProductId === '__all__';
         document.querySelectorAll('.tab-item').forEach(function(el) {
           el.classList.toggle('active', el.dataset.tab === activeTab);
-          // Disable spec & activity when no product selected
+          // Disable spec & activity when no product selected (kb works for all)
           if (el.dataset.tab === 'spec' || el.dataset.tab === 'activity') {
             el.classList.toggle('tab-disabled', noProduct);
           }
@@ -931,6 +941,22 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             content.innerHTML = '<div class="activity-feed" id="activity-feed"><div class="tab-loading"><span class="spinner"></span> Loading activity...</div></div>';
             await loadActivity();
             renderActivity();
+            break;
+          case 'kb':
+            content.innerHTML = '<div class="kb-browser" id="kb-browser">' +
+              '<div class="kb-toolbar">' +
+                '<div class="kb-search-bar">' +
+                  '<input type="text" id="kb-search-input" placeholder="Search knowledge base..." onkeydown="if(event.key===\'Enter\')searchKB()">' +
+                  '<button class="btn btn-ghost btn-sm" onclick="searchKB()">Search</button>' +
+                '</div>' +
+                '<div class="kb-scope">' +
+                  (currentProd && selectedProductId !== '__all__' ? '<span class="scope-indicator" style="font-size:0.82rem">Scoped to <strong>' + esc(currentProd.name) + '</strong></span>' : '<span style="font-size:0.82rem;color:var(--text-muted)">All products</span>') +
+                '</div>' +
+              '</div>' +
+              '<div id="kb-results" class="kb-results"></div>' +
+              '<div id="kb-note-viewer" class="kb-note-viewer" style="display:none"></div>' +
+            '</div>';
+            loadKBNotes();
             break;
         }
         renderTabActions();
@@ -989,17 +1015,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           app.forEach(function(pid) { total++; if (f.statuses[pid] === 'done') done++; });
         });
         return { total: total, done: done, pct: total > 0 ? Math.round(done / total * 100) : 100 };
-      }
-
-      function timeAgo(isoStr) {
-        if (!isoStr) return '';
-        var d = new Date(isoStr); var now = new Date();
-        var secs = Math.floor((now - d) / 1000);
-        if (secs < 60) return 'just now';
-        var mins = Math.floor(secs / 60); if (mins < 60) return mins + 'm ago';
-        var hrs = Math.floor(mins / 60); if (hrs < 24) return hrs + 'h ago';
-        var days = Math.floor(hrs / 24); if (days < 30) return days + 'd ago';
-        return d.toLocaleDateString();
       }
 
       function getCategories(features) {
@@ -1335,6 +1350,138 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         el.innerHTML = html;
         document.getElementById('activity-tab-badge').textContent = activityData.length;
+      }
+
+      // ========== KNOWLEDGE BASE TAB ==========
+
+      var kbNotes = [];
+
+      async function loadKBNotes() {
+        var resultsEl = document.getElementById('kb-results');
+        if (!resultsEl) return;
+        resultsEl.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Loading notes...</div>';
+
+        // Search with product scope if a product is selected
+        var query = '';
+        if (currentProd && selectedProductId !== '__all__') {
+          query = currentProd.name;
+        }
+
+        try {
+          var res = await fetch('/board/api/vault/search?q=' + encodeURIComponent(query));
+          var data = await res.json();
+          kbNotes = data.results || [];
+          renderKBNotes();
+        } catch (err) {
+          resultsEl.innerHTML = '<div class="empty-state" style="height:30vh"><h2>KB unavailable</h2><p>' + esc(err.message) + '</p></div>';
+        }
+      }
+
+      async function searchKB() {
+        var input = document.getElementById('kb-search-input');
+        if (!input) return;
+        var query = input.value.trim();
+        var resultsEl = document.getElementById('kb-results');
+        if (!resultsEl) return;
+        resultsEl.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Searching...</div>';
+        // Hide note viewer
+        var viewer = document.getElementById('kb-note-viewer');
+        if (viewer) viewer.style.display = 'none';
+
+        try {
+          var res = await fetch('/board/api/vault/search?q=' + encodeURIComponent(query));
+          var data = await res.json();
+          kbNotes = data.results || [];
+          renderKBNotes();
+        } catch (err) {
+          resultsEl.innerHTML = '<div class="empty-state"><p>Search failed: ' + esc(err.message) + '</p></div>';
+        }
+      }
+
+      function renderKBNotes() {
+        var resultsEl = document.getElementById('kb-results');
+        if (!resultsEl) return;
+        var badge = document.getElementById('kb-tab-badge');
+        if (badge) { badge.textContent = kbNotes.length; badge.style.display = kbNotes.length > 0 ? '' : 'none'; }
+
+        if (kbNotes.length === 0) {
+          resultsEl.innerHTML = '<div class="empty-state" style="height:30vh">' +
+            '<h2>No notes found</h2>' +
+            '<p>Send issue reports to the Knowledge Base using the "Send to KB" button on completed issues, or run extract-logic tasks.</p></div>';
+          return;
+        }
+
+        var html = '<div class="kb-notes-list">';
+        kbNotes.forEach(function(note) {
+          var pathParts = note.path.replace(/\\\\/g, '/').split('/');
+          var folder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+          html += '<div class="kb-note-card" onclick="viewKBNote(\'' + esc(note.path) + '\')">' +
+            '<div class="kb-note-title">' + esc(note.title) + '</div>' +
+            (folder ? '<div class="kb-note-folder">' + esc(folder) + '</div>' : '') +
+            (note.snippet ? '<div class="kb-note-snippet">' + esc(note.snippet) + '</div>' : '') +
+          '</div>';
+        });
+        html += '</div>';
+        resultsEl.innerHTML = html;
+      }
+
+      async function viewKBNote(notePath) {
+        var viewer = document.getElementById('kb-note-viewer');
+        var resultsEl = document.getElementById('kb-results');
+        if (!viewer || !resultsEl) return;
+
+        viewer.style.display = '';
+        viewer.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Loading note...</div>';
+
+        try {
+          var res = await fetch('/board/api/vault/note?path=' + encodeURIComponent(notePath));
+          if (!res.ok) throw new Error('Note not found');
+          var data = await res.json();
+
+          var fm = data.frontmatter || {};
+          var fmHtml = '';
+          Object.keys(fm).forEach(function(k) {
+            var v = Array.isArray(fm[k]) ? fm[k].join(', ') : fm[k];
+            fmHtml += '<span class="kb-fm-tag"><strong>' + esc(k) + ':</strong> ' + esc(v) + '</span>';
+          });
+
+          viewer.innerHTML = '<div class="kb-note-header">' +
+            '<button class="btn btn-ghost btn-sm" onclick="closeKBNote()">Back</button>' +
+            '<span class="kb-note-path">' + esc(notePath) + '</span>' +
+            '<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteKBNote(\'' + esc(notePath) + '\')">Delete</button>' +
+          '</div>' +
+          (fmHtml ? '<div class="kb-frontmatter">' + fmHtml + '</div>' : '') +
+          '<div class="kb-note-content markdown-body">' + renderMarkdown(data.content || '') + '</div>';
+        } catch (err) {
+          viewer.innerHTML = '<div class="kb-note-header"><button class="btn btn-ghost btn-sm" onclick="closeKBNote()">Back</button></div>' +
+            '<div class="empty-state"><p>Failed to load note: ' + esc(err.message) + '</p></div>';
+        }
+      }
+
+      function closeKBNote() {
+        var viewer = document.getElementById('kb-note-viewer');
+        if (viewer) viewer.style.display = 'none';
+      }
+
+      async function deleteKBNote(notePath) {
+        if (!confirm('Delete this note from the Knowledge Base?')) return;
+        try {
+          var res = await fetch('/board/api/vault/note', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: notePath })
+          });
+          if (res.ok) {
+            showToast('Note deleted', { type: 'success' });
+            closeKBNote();
+            loadKBNotes();
+          } else {
+            var data = await res.json();
+            showToast('Delete failed: ' + (data.error || 'unknown'), { type: 'error' });
+          }
+        } catch (err) {
+          showToast('Delete failed: ' + err.message, { type: 'error' });
+        }
       }
 
       // ========== MODALS: PRODUCT CRUD ==========
@@ -1818,9 +1965,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
 
       // ========== DROPDOWNS ==========
-      function toggleDropdown(id) { var el = document.getElementById(id); document.querySelectorAll('.dropdown.open').forEach(function(d) { if (d.id !== id) d.classList.remove('open'); }); el.classList.toggle('open'); }
-      function closeDropdowns() { document.querySelectorAll('.dropdown.open').forEach(function(d) { d.classList.remove('open'); }); }
-      document.addEventListener('click', function(e) { if (!e.target.closest('.dropdown')) closeDropdowns(); });
+      #{UIHelpers.dropdown_js()}
 
       // ========== KEYBOARD SHORTCUTS ==========
 

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { cleanupAll, createIssue } from "./helpers";
+import { cleanupAll, cleanupSkills, createIssue } from "./helpers";
 
 /**
  * End-to-end tests for Plan Review, Follow-ups, Skills CRUD,
@@ -7,18 +7,6 @@ import { cleanupAll, createIssue } from "./helpers";
  *
  * Run: cd test/e2e && npx playwright test plan-review.spec.ts
  */
-
-async function cleanupSkills(request: APIRequestContext) {
-  try {
-    const skillsRes = await request.get("/board/api/skills");
-    const skillsData = await skillsRes.json();
-    for (const s of skillsData.skills || []) {
-      if (!s.built_in) {
-        await request.delete(`/board/api/skills/${s.id}`);
-      }
-    }
-  } catch {}
-}
 
 // ============================================================
 // Plan Review Flow
@@ -220,71 +208,6 @@ test.describe("Plan Review Flow", () => {
 test.describe("Follow-ups Flow", () => {
   test.beforeEach(async ({ request }) => {
     await cleanupAll(request);
-  });
-
-  test("follow-up items are displayed on issue detail page", async ({
-    page,
-    request,
-  }) => {
-    // Create an issue then attach agent_run with follow_ups via PATCH
-    const issue = await createIssue(request, {
-      title: "Issue with follow-ups",
-      state: "Review",
-    });
-
-    // Seed agent_run data with follow-ups by calling the internal save endpoint
-    // We use the PATCH approach to store agent_run indirectly through the activity endpoint
-    // The follow-ups are served via /api/issues/:id/activity from the agent_run field
-    // We need to call the internal save_agent_run — let's do it via follow-up accept/reject test setup
-    // Instead, we can check the activity endpoint returns the right structure
-
-    // First, verify the activity endpoint works for an issue without agent_run
-    const activityRes = await request.get(
-      `/board/api/issues/${issue.id}/activity`
-    );
-    expect(activityRes.status()).toBe(200);
-    const activityData = await activityRes.json();
-    expect(activityData.issue).toBeDefined();
-  });
-
-  test("accept follow-up via API creates a new issue", async ({
-    request,
-  }) => {
-    // Create a parent issue
-    const parent = await createIssue(request, {
-      title: "Parent with follow-ups",
-      state: "Review",
-    });
-
-    // Manually set up agent_run with follow-ups via PATCH (plan_status/plan_text supported)
-    // agent_run is not directly settable via API, so we test the follow-up endpoints
-    // by verifying 404 handling when no follow-ups exist
-    const acceptRes = await request.post(
-      `/board/api/issues/${parent.id}/follow-ups/nonexistent-fu/accept`,
-      {}
-    );
-    // Should return 404 because no agent_run/follow-ups exist on this issue
-    expect(acceptRes.status()).toBe(404);
-    const acceptBody = await acceptRes.json();
-    expect(acceptBody.error).toBeDefined();
-  });
-
-  test("reject follow-up via API returns error for nonexistent follow-up", async ({
-    request,
-  }) => {
-    const parent = await createIssue(request, {
-      title: "Parent for reject test",
-      state: "Review",
-    });
-
-    const rejectRes = await request.post(
-      `/board/api/issues/${parent.id}/follow-ups/fake-fu-id/reject`,
-      {}
-    );
-    // Should return 404 because no agent_run/follow-ups exist on this issue
-    expect(rejectRes.status()).toBe(404);
-    const rejectBody = await rejectRes.json();
-    expect(rejectBody.error).toBeDefined();
   });
 
   test("follow-up accept returns 404 for nonexistent issue", async ({

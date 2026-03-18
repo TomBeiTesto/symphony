@@ -25,15 +25,33 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     </head>
     <body>
     #{UIHelpers.nav_topbar("")}
-      <div class="issue-actions-bar">
+      <div class="page-actions-bar">
         <div class="page-actions-left">
           <h2 class="issue-identifier">#{esc(issue.identifier)}</h2>
           <span class="state-badge" id="state-badge">#{esc(issue.state)}</span>
         </div>
         <div class="page-actions-right">
           <button class="btn-edit" id="edit-btn" onclick="toggleEdit()">Edit</button>
+          <button class="btn btn-ghost" id="send-to-kb-btn" onclick="sendToKB()" style="display:none" title="Send issue and reports to Knowledge Base">Send to KB</button>
+          <button class="btn btn-ghost" id="rerun-btn" onclick="toggleRerunPanel()" style="display:none" title="Rerun agent with additional guidance">Rerun</button>
           <button class="btn-delete" id="delete-btn" onclick="deleteIssue()">Delete</button>
           <span class="meta" id="agent-status">Loading...</span>
+        </div>
+      </div>
+
+      <div class="rerun-bar" id="rerun-panel" style="display:none;">
+        <div class="rerun-bar-inner">
+          <div class="rerun-bar-left">
+            <strong>Rerun with Feedback</strong>
+            <span class="meta">The agent will read its previous output, then improve based on your guidance.</span>
+          </div>
+          <div class="rerun-bar-right">
+            <textarea id="rerun-hint" placeholder="e.g. The extraction missed the scheduling logic in scheduler.py. Also expand BR-003 with retry behavior details." rows="2"></textarea>
+            <div class="rerun-bar-actions">
+              <button class="btn btn-primary btn-sm" onclick="rerunIssue()">Rerun Agent</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleRerunPanel()">Cancel</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -48,6 +66,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                 <div class="issue-meta">
                   <span class="priority priority-#{issue.priority || 0}" id="issue-priority">P#{issue.priority || 0}</span>
                   <span id="issue-labels">#{render_labels(issue.labels || [])}</span>
+                  <span id="issue-product" class="product-badge"></span>
                   <span id="issue-project" class="project-badge"></span>
                   <span class="meta">Created #{format_time(issue.created_at)}</span>
                 </div>
@@ -79,11 +98,19 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                   <label for="edit-labels">Labels (comma-separated)</label>
                   <input type="text" id="edit-labels" class="edit-input" value="#{esc(Enum.join(issue.labels || [], ", "))}">
                 </div>
-                <div class="edit-field">
-                  <label for="edit-project">Project</label>
-                  <select id="edit-project" class="edit-input">
-                    <option value="">No project</option>
-                  </select>
+                <div class="edit-row">
+                  <div class="edit-field">
+                    <label for="edit-product">Product</label>
+                    <select id="edit-product" class="edit-input">
+                      <option value="">No product</option>
+                    </select>
+                  </div>
+                  <div class="edit-field">
+                    <label for="edit-project">Project</label>
+                    <select id="edit-project" class="edit-input">
+                      <option value="">No project</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="edit-field">
                   <label for="edit-description">Description</label>
@@ -175,6 +202,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
 
       <script>
     #{SymphonyElixir.Server.UIHelpers.esc_js()}
+    #{SymphonyElixir.Server.UIHelpers.markdown_js()}
     #{SymphonyElixir.Server.UIHelpers.toast_js()}
     #{js(issue.id, issue.identifier)}
       </script>
@@ -217,15 +245,15 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       UIHelpers.nav_active_css() <>
       UIHelpers.button_css() <>
       UIHelpers.toast_css() <>
+      UIHelpers.markdown_css() <>
       ~S"""
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { height: 100%; overflow: hidden; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
       h1 { color: var(--text-primary); font-size: 1.15rem; }
-      .issue-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
-      .page-actions-left { display: flex; align-items: center; gap: 10px; }
-      .page-actions-right { display: flex; align-items: center; gap: 8px; }
+      #{UIHelpers.page_actions_css()}
+      .page-actions-bar { padding: 8px 20px; }
       .issue-identifier { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
       .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
       .state-badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
@@ -233,7 +261,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .state-badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
       .state-badge.in-progress { background: rgba(88,166,255,0.15); color: var(--accent); }
       .state-badge.review { background: rgba(188,140,255,0.15); color: var(--purple); }
-      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+      #{UIHelpers.pulse_css()}
       .meta { color: var(--text-muted); font-size: 0.8rem; }
       .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
@@ -247,7 +275,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
       .priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
       .priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
-      .label { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      #{UIHelpers.label_css()}
       .description { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
       .description p { margin-bottom: 8px; }
       .activity-panel { display: flex; flex-direction: column; }
@@ -394,6 +422,16 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .btn-edit.active { border-color: var(--accent); background: var(--accent); color: #fff; }
       .btn-delete { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
       .btn-delete:hover { border-color: #e55; color: #e55; }
+      .kb-sent { border-color: var(--green, #3fb950); color: var(--green, #3fb950); }
+      .rerun-bar { border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+      .rerun-bar-inner { display: flex; align-items: flex-start; gap: 16px; padding: 10px 20px; }
+      .rerun-bar-left { flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 4px; min-width: 180px; }
+      .rerun-bar-left strong { font-size: 0.85rem; color: var(--text-primary); }
+      .rerun-bar-left .meta { font-size: 0.75rem; }
+      .rerun-bar-right { flex: 1; display: flex; gap: 8px; align-items: flex-start; }
+      .rerun-bar-right textarea { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; resize: vertical; font-family: inherit; min-height: 36px; }
+      .rerun-bar-right textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,0.15); }
+      .rerun-bar-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
       .edit-field { margin-bottom: 12px; }
       .edit-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
       .edit-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
@@ -405,6 +443,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .btn-save:hover { background: var(--accent-hover); }
       .btn-cancel { padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }
       .btn-cancel:hover { border-color: var(--text-muted); }
+      .product-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(63,185,80,0.1); color: var(--green); }
+      .product-badge:empty { display: none; }
       .project-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
       .project-badge:empty { display: none; }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -440,7 +480,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           const content = document.getElementById('report-content');
           panel.style.display = 'block';
           title.textContent = data.path || 'Report';
-          content.innerHTML = renderReport(data.content);
+          content.innerHTML = renderMarkdown(data.content);
         }
       } catch(e) {
         console.error('Report fetch error:', e);
@@ -485,6 +525,16 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         status.textContent = 'Completed';
       } else {
         status.textContent = 'Idle';
+      }
+
+      // Show rerun button when agent has completed (not currently running)
+      var rerunBtn = document.getElementById('rerun-btn');
+      var isCompleted = (orch && orch.status === 'completed') || issue.state === 'Done' || issue.state === 'Review';
+      var isRunning = orch && orch.status === 'running';
+      rerunBtn.style.display = (isCompleted && !isRunning) ? '' : 'none';
+      // Hide the rerun panel if agent started running
+      if (isRunning) {
+        document.getElementById('rerun-panel').style.display = 'none';
       }
 
       // Update tokens — check running state first, then fall back to persisted tokens
@@ -709,98 +759,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       feed.scrollTop = feed.scrollHeight;
     }
 
-    function formatTime(ts) {
-      try {
-        const d = new Date(ts);
-        return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-      } catch(e) { return ''; }
-    }
-
-    function timeAgo(ts) {
-      try {
-        const secs = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-        if (secs < 5) return 'just now';
-        if (secs < 60) return secs + 's ago';
-        if (secs < 3600) return Math.floor(secs/60) + 'm ago';
-        return Math.floor(secs/3600) + 'h ago';
-      } catch(e) { return ''; }
-    }
+    #{UIHelpers.time_utils_js()}
 
     function toggleDetail(el) {
       el.classList.toggle('expanded');
-    }
-
-    function renderMarkdown(text) {
-      return esc(text)
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/^- (.+)$/gm, '<li>$1</li>')
-        .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
-        .replace(/\n\n/g, '</p><p>')
-        .replace(/\n/g, '<br>')
-        .replace(/^/, '<p>')
-        .replace(/$/, '</p>');
-    }
-
-    function renderReport(md) {
-      var html = esc(md);
-      // Code blocks (``` ... ```)
-      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code) {
-        return '<pre><code>' + code + '</code></pre>';
-      });
-      // Tables
-      html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm, function(m, header, sep, body) {
-        var ths = header.split('|').filter(function(c){return c.trim();}).map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
-        var rows = body.trim().split('\n').map(function(row) {
-          var tds = row.split('|').filter(function(c){return c.trim();}).map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
-          return '<tr>' + tds + '</tr>';
-        }).join('');
-        return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + rows + '</tbody></table>';
-      });
-      // Headers
-      html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
-      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-      html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-      // Horizontal rule
-      html = html.replace(/^---+$/gm, '<hr>');
-      // Bold and italic
-      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-      // Inline code
-      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-      // Links (sanitize href to prevent javascript: XSS)
-      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, text, url) {
-        if (/^(https?:\/\/|mailto:|\/|#)/.test(url)) {
-          return '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>';
-        }
-        return text;
-      });
-      // Blockquotes
-      html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-      // Unordered lists
-      html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-      html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-      // Ordered lists (numbered)
-      html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-      // Paragraphs: double newlines
-      html = html.replace(/\n\n/g, '</p><p>');
-      html = html.replace(/\n/g, '<br>');
-      // Clean up: remove <br> inside block elements
-      html = html.replace(/<br>(<\/?(?:h[1-4]|ul|ol|li|pre|blockquote|table|thead|tbody|tr|th|td|hr))/g, '$1');
-      html = html.replace(/(<\/?(?:h[1-4]|ul|ol|li|pre|blockquote|table|thead|tbody|tr|th|td|hr)>)<br>/g, '$1');
-      html = '<p>' + html + '</p>';
-      // Clean up empty paragraphs
-      html = html.replace(/<p>\s*<\/p>/g, '');
-      return html;
-    }
-
-    function truncate(s, n) {
-      return s.length > n ? s.slice(0, n) + '...' : s;
     }
 
     // --- Edit mode ---
@@ -812,6 +774,17 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         var res = await fetch('/board/api/issues/' + ISSUE_ID);
         if (res.ok) {
           issueData = await res.json();
+          // Populate product badge in view mode
+          if (issueData.product_id) {
+            var prodRes = await fetch('/board/api/products');
+            if (prodRes.ok) {
+              var prodData = await prodRes.json();
+              var prod = (prodData.products || []).find(function(p) { return p.id === issueData.product_id; });
+              if (prod) {
+                document.getElementById('issue-product').textContent = prod.name;
+              }
+            }
+          }
           // Populate project badge in view mode
           if (issueData.project_id) {
             var projRes = await fetch('/board/api/projects');
@@ -825,6 +798,90 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           }
         }
       } catch(e) {}
+    }
+
+    // Send to KB
+    async function checkKBAvailable() {
+      try {
+        var res = await fetch('/board/api/settings');
+        if (res.ok) {
+          var settings = await res.json();
+          var kbType = settings.kb_type || 'local';
+          var vaultPath = settings.kb_vault_path || '';
+          // Local type works without vault_path (uses default dir)
+          if (kbType === 'local' || vaultPath !== '') {
+            document.getElementById('send-to-kb-btn').style.display = '';
+          }
+        }
+      } catch(e) {}
+    }
+    checkKBAvailable();
+
+    async function sendToKB() {
+      if (!confirm('Send this issue and its reports to the Knowledge Base?')) return;
+      var btn = document.getElementById('send-to-kb-btn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        var res = await fetch('/board/api/vault/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ issue_id: ISSUE_ID })
+        });
+        var data = await res.json();
+        if (data.ok) {
+          var paths = (data.notes_written || []).map(function(p) { return p.split('/').pop(); }).join(', ');
+          var sourceMsg = data.source === 'reports' ? 'from agent reports' : 'from issue description';
+          showToast('Sent to KB (' + sourceMsg + '): ' + paths, { type: 'success' });
+          btn.textContent = 'Sent to KB';
+          btn.title = 'Last sent: ' + new Date().toLocaleString();
+          btn.classList.add('kb-sent');
+          setTimeout(function() { btn.disabled = false; }, 2000);
+        } else {
+          showToast('Send failed: ' + (data.error || 'unknown'), { type: 'error' });
+          btn.textContent = 'Send to KB';
+          btn.disabled = false;
+        }
+      } catch(err) {
+        showToast('Send failed: ' + err.message, { type: 'error' });
+        btn.textContent = 'Send to KB';
+        btn.disabled = false;
+      }
+    }
+
+    function toggleRerunPanel() {
+      var panel = document.getElementById('rerun-panel');
+      panel.style.display = panel.style.display === 'none' ? '' : 'none';
+      if (panel.style.display !== 'none') {
+        document.getElementById('rerun-hint').focus();
+      }
+    }
+
+    async function rerunIssue() {
+      var hint = document.getElementById('rerun-hint').value.trim();
+      if (!hint) {
+        showToast('Please provide feedback for the rerun.', { type: 'error' });
+        return;
+      }
+      if (!confirm('Rerun the agent with this feedback? The issue will move back to In Progress.')) return;
+      try {
+        var res = await fetch('/board/api/issues/' + ISSUE_ID + '/rerun', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hint: hint })
+        });
+        var data = await res.json();
+        if (data.ok) {
+          showToast('Agent rerun started', { type: 'success' });
+          document.getElementById('rerun-panel').style.display = 'none';
+          document.getElementById('rerun-hint').value = '';
+          pollActivity();
+        } else {
+          showToast('Rerun failed: ' + (data.error || 'unknown'), { type: 'error' });
+        }
+      } catch(err) {
+        showToast('Rerun failed: ' + err.message, { type: 'error' });
+      }
     }
 
     async function deleteIssue() {
@@ -886,6 +943,22 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         }
       } catch(e) {}
 
+      // Populate product select
+      var prodSelect = document.getElementById('edit-product');
+      prodSelect.innerHTML = '<option value="">No product</option>';
+      try {
+        var prodRes = await fetch('/board/api/products');
+        if (prodRes.ok) {
+          var prodData = await prodRes.json();
+          (prodData.products || []).forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id; opt.textContent = p.name;
+            if (p.id === issueData.product_id) opt.selected = true;
+            prodSelect.appendChild(opt);
+          });
+        }
+      } catch(e) {}
+
       // Populate project select
       var projSelect = document.getElementById('edit-project');
       projSelect.innerHTML = '<option value="">No project</option>';
@@ -912,6 +985,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         state: document.getElementById('edit-state').value,
         priority: parseInt(document.getElementById('edit-priority').value) || 0,
         labels: document.getElementById('edit-labels').value.split(',').map(function(l) { return l.trim(); }).filter(Boolean),
+        product_id: document.getElementById('edit-product').value || null,
         project_id: document.getElementById('edit-project').value || null
       };
 
@@ -935,6 +1009,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           document.getElementById('issue-labels').innerHTML = (issueData.labels || []).map(function(l) {
             return '<span class="label">' + esc(l) + '</span>';
           }).join(' ');
+          // Update product badge
+          var prodSelect = document.getElementById('edit-product');
+          var selProdOpt = prodSelect.options[prodSelect.selectedIndex];
+          document.getElementById('issue-product').textContent = selProdOpt && selProdOpt.value ? selProdOpt.textContent : '';
           // Update project badge
           var projSelect = document.getElementById('edit-project');
           var selOpt = projSelect.options[projSelect.selectedIndex];

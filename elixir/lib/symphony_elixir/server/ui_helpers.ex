@@ -73,6 +73,91 @@ defmodule SymphonyElixir.Server.UIHelpers do
     """
   end
 
+  @doc "Shared JS markdown renderer supporting headings, bold, italic, code blocks, tables, lists, blockquotes, links, and horizontal rules."
+  @spec markdown_js() :: String.t()
+  def markdown_js do
+    ~S"""
+    function renderMarkdown(text) {
+      var html = esc(text);
+      // Code blocks (``` ... ```)
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code) {
+        return '<pre><code>' + code + '</code></pre>';
+      });
+      // Tables
+      html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm, function(m, header, sep, body) {
+        var ths = header.split('|').filter(function(c){return c.trim();}).map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
+        var rows = body.trim().split('\n').map(function(row) {
+          var tds = row.split('|').filter(function(c){return c.trim();}).map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
+          return '<tr>' + tds + '</tr>';
+        }).join('');
+        return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + rows + '</tbody></table>';
+      });
+      // Headers
+      html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+      // Horizontal rule
+      html = html.replace(/^---+$/gm, '<hr>');
+      // Bold and italic
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // Links
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, text, url) {
+        if (/^(https?:\/\/|mailto:|\/|#)/.test(url)) {
+          return '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>';
+        }
+        return text;
+      });
+      // Blockquotes
+      html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+      // Unordered lists
+      html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+      // Ordered lists
+      html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+      // Paragraphs
+      html = html.replace(/\n\n/g, '</p><p>');
+      html = html.replace(/\n/g, '<br>');
+      // Clean up <br> inside block elements
+      html = html.replace(/<br>(<\/?(?:h[1-4]|ul|ol|li|pre|blockquote|table|thead|tbody|tr|th|td|hr))/g, '$1');
+      html = html.replace(/(<\/?(?:h[1-4]|ul|ol|li|pre|blockquote|table|thead|tbody|tr|th|td|hr)>)<br>/g, '$1');
+      html = '<p>' + html + '</p>';
+      html = html.replace(/<p>\s*<\/p>/g, '');
+      return html;
+    }
+    """
+  end
+
+  @doc "Shared CSS for rendered markdown content."
+  @spec markdown_css() :: String.t()
+  def markdown_css do
+    ~S"""
+      .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 { color: var(--text-primary); margin: 16px 0 8px; }
+      .markdown-body h1 { font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+      .markdown-body h2 { font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+      .markdown-body h3 { font-size: 0.95rem; }
+      .markdown-body h4 { font-size: 0.88rem; color: var(--text-secondary); }
+      .markdown-body p { margin: 6px 0; line-height: 1.55; }
+      .markdown-body strong { color: var(--text-primary); }
+      .markdown-body code { background: var(--bg-hover); padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; font-family: 'SF Mono', 'Fira Code', monospace; }
+      .markdown-body pre { background: var(--bg-hover); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+      .markdown-body pre code { background: none; padding: 0; font-size: 0.8rem; line-height: 1.5; }
+      .markdown-body ul, .markdown-body ol { padding-left: 20px; margin: 6px 0; }
+      .markdown-body li { margin: 3px 0; line-height: 1.5; }
+      .markdown-body blockquote { border-left: 3px solid var(--accent); padding: 4px 12px; margin: 8px 0; color: var(--text-secondary); background: rgba(88,166,255,0.05); border-radius: 0 4px 4px 0; }
+      .markdown-body table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.82rem; }
+      .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+      .markdown-body th { background: var(--bg-hover); font-weight: 600; color: var(--text-primary); }
+      .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+      .markdown-body a { color: var(--accent); text-decoration: none; }
+      .markdown-body a:hover { text-decoration: underline; }
+    """
+  end
+
   @doc "Shared base CSS reset, body, and scrollbar styles."
   @spec base_css() :: String.t()
   def base_css do
@@ -392,7 +477,11 @@ defmodule SymphonyElixir.Server.UIHelpers do
       end)
       |> Enum.join("\n            ")
 
-    back_btn = if active != "hub", do: ~s[<button class="btn btn-ghost btn-back" onclick="history.back()" title="Go back">&larr;</button>], else: ""
+    back_btn =
+      if active != "hub",
+        do:
+          ~s[<button class="btn btn-ghost btn-back" onclick="history.back()" title="Go back">&larr;</button>],
+        else: ""
 
     """
       <header class="topbar">
@@ -464,7 +553,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
       if ai_draft do
         """
             <div class="ai-draft-bar">
-              <input type="text" id="#{p}-ai-draft-input" class="ai-draft-input" placeholder="Describe what you need in a few words..." onkeydown="if(event.key==='Enter'){event.preventDefault();#{p}AiDraft();}">
+              <textarea id="#{p}-ai-draft-input" class="ai-draft-input" placeholder="Describe what you need in a few words... (Shift+Enter for new line)" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();#{p}AiDraft();}"></textarea>
               <button type="button" class="btn btn-accent-soft btn-sm" id="#{p}-ai-draft-btn" onclick="#{p}AiDraft()">AI Draft</button>
             </div>
         """
@@ -676,8 +765,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @doc "CSS for the AI draft bar used in create modals."
   def ai_draft_css do
     ~S"""
-      .ai-draft-bar { display: flex; align-items: center; gap: 8px; padding: 8px 20px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 0; }
-      .ai-draft-input { flex: 1; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); color: var(--text-primary); font-size: 0.85rem; font-family: inherit; outline: none; }
+      .ai-draft-bar { display: flex; align-items: flex-start; gap: 8px; padding: 8px 20px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 0; }
+      .ai-draft-input { flex: 1; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); color: var(--text-primary); font-size: 0.85rem; font-family: inherit; outline: none; resize: vertical; min-height: 34px; max-height: 200px; line-height: 1.4; }
       .ai-draft-input:focus { border-color: var(--accent); }
       .ai-draft-input::placeholder { color: var(--text-muted); }
     """
@@ -727,6 +816,117 @@ defmodule SymphonyElixir.Server.UIHelpers do
           el.style.display = 'none';
         }
       }
+    """
+  end
+
+  @doc "Shared JS time utilities: timeAgo, formatTime, truncate."
+  @spec time_utils_js() :: String.t()
+  def time_utils_js do
+    ~S"""
+    function formatTime(ts) {
+      try {
+        var d = new Date(ts);
+        return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      } catch(e) { return ''; }
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return '';
+      try {
+        var secs = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+        if (secs < 5) return 'just now';
+        if (secs < 60) return secs + 's ago';
+        var mins = Math.floor(secs / 60); if (mins < 60) return mins + 'm ago';
+        var hrs = Math.floor(mins / 60); if (hrs < 24) return hrs + 'h ago';
+        var days = Math.floor(hrs / 24); if (days < 30) return days + 'd ago';
+        return new Date(ts).toLocaleDateString();
+      } catch(e) { return ''; }
+    }
+
+    function truncate(s, n) {
+      return s.length > n ? s.slice(0, n) + '...' : s;
+    }
+    """
+  end
+
+  @doc "Shared pulse animation CSS."
+  @spec pulse_css() :: String.t()
+  def pulse_css do
+    ~S"""
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    """
+  end
+
+  @doc "Shared spinner CSS."
+  @spec spinner_css() :: String.t()
+  def spinner_css do
+    ~S"""
+      .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    """
+  end
+
+  @doc "Shared label tag CSS."
+  @spec label_css() :: String.t()
+  def label_css do
+    ~S"""
+      .label { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+    """
+  end
+
+  @doc "Shared dropdown CSS (supports both .dropdown.open and .dropdown-menu.open patterns)."
+  @spec dropdown_css() :: String.t()
+  def dropdown_css do
+    ~S"""
+      .dropdown { position: relative; }
+      .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 220px; box-shadow: var(--shadow); z-index: 100; padding: 4px 0; }
+      .dropdown.open .dropdown-menu, .dropdown-menu.open { display: block; }
+      .dropdown-item { display: block; width: 100%; padding: 7px 12px; background: none; border: none; color: var(--text-secondary); font-size: 0.82rem; text-align: left; cursor: pointer; font-family: inherit; transition: background var(--transition); }
+      .dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+      .dropdown-item small { display: block; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; }
+    """
+  end
+
+  @doc "Shared dropdown JS: toggleDropdown, closeDropdowns, click-outside handler."
+  @spec dropdown_js() :: String.t()
+  def dropdown_js do
+    ~S"""
+    function toggleDropdown(id) { var el = document.getElementById(id); document.querySelectorAll('.dropdown.open').forEach(function(d) { if (d.id !== id) d.classList.remove('open'); }); el.classList.toggle('open'); }
+    function closeDropdowns() { document.querySelectorAll('.dropdown.open').forEach(function(d) { d.classList.remove('open'); }); }
+    document.addEventListener('click', function(e) { if (!e.target.closest('.dropdown')) closeDropdowns(); });
+    """
+  end
+
+  @doc "Shared page actions bar CSS (used by board, skills, tech tree, issue detail)."
+  @spec page_actions_css() :: String.t()
+  def page_actions_css do
+    ~S"""
+      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); flex-shrink: 0; }
+      .page-actions-left { display: flex; align-items: center; gap: 10px; }
+      .page-actions-right { display: flex; align-items: center; gap: 6px; }
+      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+    """
+  end
+
+  @doc "Shared JS for loading skills and skill groups from API."
+  @spec load_skills_js() :: String.t()
+  def load_skills_js do
+    ~S"""
+    var allSkills = [];
+    var allSkillGroups = [];
+
+    async function loadAllSkills() {
+      try {
+        var results = await Promise.all([
+          fetch('/board/api/skills'),
+          fetch('/board/api/skill-groups')
+        ]);
+        var skillsData = await results[0].json();
+        var groupsData = await results[1].json();
+        allSkills = (skillsData.skills || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
+        allSkillGroups = (groupsData.skill_groups || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
+      } catch(e) { allSkills = []; allSkillGroups = []; }
+    }
     """
   end
 

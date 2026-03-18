@@ -68,10 +68,7 @@ defmodule SymphonyElixir.Server.TechTreeUI do
         display: flex;
         flex-direction: column;
       }
-      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
-      .page-actions-left { display: flex; align-items: center; gap: 10px; }
-      .page-actions-right { display: flex; align-items: center; gap: 6px; }
-      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+      #{UIHelpers.page_actions_css()}
 
       .project-select {
         background: var(--bg-tertiary);
@@ -244,237 +241,237 @@ defmodule SymphonyElixir.Server.TechTreeUI do
 
   defp js do
     SymphonyElixir.Server.UIHelpers.esc_js() <>
-    SymphonyElixir.Server.UIHelpers.toast_js() <>
-    ~S"""
-    const API = '/board/api';
-    let allIssues = [];
-    let currentProject = '';
+      SymphonyElixir.Server.UIHelpers.toast_js() <>
+      ~S"""
+      const API = '/board/api';
+      let allIssues = [];
+      let currentProject = '';
 
-    async function loadIssues() {
-      const res = await fetch(API + '/issues');
-      const data = await res.json();
-      allIssues = data.issues || [];
-      populateProjectFilter();
-      renderTree();
-    }
-
-    function populateProjectFilter() {
-      const sel = document.getElementById('project-filter');
-      fetch(API + '/snapshot').then(function(r) { return r.json(); }).then(function(data) {
-        const projs = data.projects || [];
-        sel.innerHTML = '<option value="">All Projects</option>';
-        projs.forEach(function(p) {
-          sel.innerHTML += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
-        });
-        if (currentProject) sel.value = currentProject;
-      }).catch(function() {});
-    }
-
-    function filterProject() {
-      currentProject = document.getElementById('project-filter').value;
-      renderTree();
-    }
-
-    function buildTree(issues) {
-      const byId = {};
-      issues.forEach(function(i) { byId[i.id] = i; });
-      const children = {};
-      const roots = [];
-      issues.forEach(function(i) {
-        if (i.parent_issue_id && byId[i.parent_issue_id]) {
-          if (!children[i.parent_issue_id]) children[i.parent_issue_id] = [];
-          children[i.parent_issue_id].push(i);
-        } else {
-          roots.push(i);
-        }
-      });
-      const sortByIdent = function(a, b) {
-        const na = parseInt((a.identifier || '').split('-').pop()) || 0;
-        const nb = parseInt((b.identifier || '').split('-').pop()) || 0;
-        return na - nb;
-      };
-      roots.sort(sortByIdent);
-      Object.keys(children).forEach(function(pid) { children[pid].sort(sortByIdent); });
-      return { roots: roots, children: children };
-    }
-
-    const NODE_W = 220, BASE_NODE_H = 90, H_GAP = 80, V_GAP = 20;
-    function nodeHeight(issue) {
-      var fus = (issue.agent_run && issue.agent_run.follow_ups) || [];
-      return BASE_NODE_H + (fus.length > 0 ? 20 + fus.length * 18 : 0);
-    }
-
-    function layoutTree(tree) {
-      const nodes = [];
-      const subtreeHeights = {};
-
-      function getSubtreeHeight(issue) {
-        if (subtreeHeights[issue.id] !== undefined) return subtreeHeights[issue.id];
-        var nh = nodeHeight(issue);
-        const kids = tree.children[issue.id] || [];
-        if (kids.length === 0) { subtreeHeights[issue.id] = nh; return nh; }
-        let total = 0;
-        kids.forEach(function(kid, idx) { if (idx > 0) total += V_GAP; total += getSubtreeHeight(kid); });
-        subtreeHeights[issue.id] = Math.max(nh, total);
-        return subtreeHeights[issue.id];
+      async function loadIssues() {
+        const res = await fetch(API + '/issues');
+        const data = await res.json();
+        allIssues = data.issues || [];
+        populateProjectFilter();
+        renderTree();
       }
 
-      let totalH = 0;
-      tree.roots.forEach(function(r, idx) { if (idx > 0) totalH += V_GAP; totalH += getSubtreeHeight(r); });
-
-      function placeNode(issue, depth, yStart, parentId) {
-        const subtreeH = subtreeHeights[issue.id];
-        var nh = nodeHeight(issue);
-        const x = depth * (NODE_W + H_GAP);
-        const y = yStart + (subtreeH - nh) / 2;
-        const kids = tree.children[issue.id] || [];
-        nodes.push({ issue: issue, x: x, y: y, nh: nh, depth: depth, parentId: parentId, isRoot: !parentId, childCount: kids.length });
-        let childY = yStart;
-        kids.forEach(function(kid, idx) { if (idx > 0) childY += V_GAP; placeNode(kid, depth + 1, childY, issue.id); childY += subtreeHeights[kid.id]; });
-      }
-
-      let yOff = 0;
-      tree.roots.forEach(function(r, idx) { if (idx > 0) yOff += V_GAP; placeNode(r, 0, yOff, null); yOff += subtreeHeights[r.id]; });
-      return nodes;
-    }
-
-    function renderTree() {
-      let issues = allIssues;
-      if (currentProject) { issues = issues.filter(function(i) { return i.project_id === currentProject; }); }
-
-      const canvas = document.getElementById('canvas');
-      const svg = document.getElementById('connectors');
-
-      if (issues.length === 0) {
-        canvas.innerHTML = '<div class="empty-state">No issues to display</div>';
-        svg.innerHTML = ''; svg.setAttribute('width', 0); svg.setAttribute('height', 0);
-        return;
-      }
-
-      const tree = buildTree(issues);
-      const nodes = layoutTree(tree);
-
-      let maxX = 0, maxY = 0;
-      nodes.forEach(function(n) { if (n.x + NODE_W > maxX) maxX = n.x + NODE_W; if (n.y + n.nh > maxY) maxY = n.y + n.nh; });
-      maxX += 80; maxY += 80;
-
-      canvas.style.width = maxX + 'px';
-      canvas.style.height = maxY + 'px';
-      svg.setAttribute('width', maxX);
-      svg.setAttribute('height', maxY);
-
-      const posMap = {};
-      nodes.forEach(function(n) { posMap[n.issue.id] = { x: n.x, y: n.y }; });
-
-      let paths = '';
-      nodes.forEach(function(n) {
-        if (!n.parentId || !posMap[n.parentId]) return;
-        const parent = posMap[n.parentId];
-        var parentNode = nodes.find(function(nn) { return nn.issue.id === n.parentId; });
-        var parentNh = parentNode ? parentNode.nh : BASE_NODE_H;
-        const px = parent.x + NODE_W + 40, py = parent.y + parentNh / 2 + 40;
-        const cx = n.x + 40, cy = n.y + n.nh / 2 + 40;
-        const midX = (px + cx) / 2;
-        paths += '<path d="M' + px + ' ' + py + ' C' + midX + ' ' + py + ' ' + midX + ' ' + cy + ' ' + cx + ' ' + cy + '" fill="none" stroke="#58687a" stroke-width="2" opacity="0.7"/>';
-        paths += '<polygon points="' + cx + ',' + cy + ' ' + (cx - 8) + ',' + (cy - 4) + ' ' + (cx - 8) + ',' + (cy + 4) + '" fill="#58687a" opacity="0.7"/>';
-      });
-      svg.innerHTML = paths;
-
-      canvas.innerHTML = '';
-      nodes.forEach(function(n) {
-        const issue = n.issue;
-        const stateSlug = (issue.state || '').toLowerCase().replace(/\s+/g, '-');
-        let stateClass = 'state-' + stateSlug;
-        if (n.isRoot) stateClass += ' is-root';
-
-        let labelsHtml = '';
-        if (issue.labels && issue.labels.length > 0) {
-          labelsHtml = '<div class="node-labels">' + issue.labels.slice(0, 3).map(function(l) { return '<span class="node-label">' + esc(l) + '</span>'; }).join('') + '</div>';
-        }
-
-        let childBadge = '';
-        if (n.childCount > 0) {
-          childBadge = '<span class="node-children-count">' + n.childCount + ' follow-up' + (n.childCount > 1 ? 's' : '') + '</span>';
-        }
-
-        // Temporal encoding (#35)
-        var ageHtml = '';
-        var temporalClass = '';
-        if (issue.created_at) {
-          var days = Math.floor((Date.now() - new Date(issue.created_at).getTime()) / 86400000);
-          var ageClass = days > 30 ? 'old' : (days > 14 ? 'stale' : '');
-          ageHtml = '<span class="node-age ' + ageClass + '">' + (days > 0 ? days + 'd ago' : 'today') + '</span>';
-          // Temporal visual encoding for completed items
-          var isDone = stateSlug === 'done' || stateSlug === 'archived';
-          if (isDone && days > 30) temporalClass = ' temporal-old';
-          else if (days <= 3) temporalClass = ' temporal-recent';
-        }
-
-        // Build proposed follow-ups section
-        var followUps = (issue.agent_run && issue.agent_run.follow_ups) || [];
-        var fuHtml = '';
-        if (followUps.length > 0) {
-          fuHtml = '<div class="node-followups">';
-          followUps.forEach(function(fu) {
-            fuHtml += '<div class="fu-item">';
-            fuHtml += '<span class="fu-status ' + fu.status + '">' + fu.status + '</span>';
-            fuHtml += '<span class="fu-title" title="' + esc(fu.title) + '">' + esc(fu.title) + '</span>';
-            if (fu.status === 'proposed') {
-              fuHtml += '<button class="fu-action accept" onclick="event.stopPropagation(); acceptFollowUp(\'' + issue.id + '\',\'' + fu.id + '\')" title="Accept">\u2713</button>';
-              fuHtml += '<button class="fu-action reject" onclick="event.stopPropagation(); rejectFollowUp(\'' + issue.id + '\',\'' + fu.id + '\')" title="Reject">\u2717</button>';
-            }
-            if (fu.created_issue_identifier) {
-              fuHtml += '<a href="/board/issues/' + fu.created_issue_id + '" onclick="event.stopPropagation()" style="font-size:0.6rem;color:var(--accent)">' + esc(fu.created_issue_identifier) + '</a>';
-            } else if (fu.created_feature_id) {
-              fuHtml += '<a href="/board?product=' + fu.created_product_id + '&tab=spec" onclick="event.stopPropagation()" style="font-size:0.6rem;color:var(--green)" title="Feature added to product">\u2705 feature</a>';
-            }
-            fuHtml += '</div>';
+      function populateProjectFilter() {
+        const sel = document.getElementById('project-filter');
+        fetch(API + '/snapshot').then(function(r) { return r.json(); }).then(function(data) {
+          const projs = data.projects || [];
+          sel.innerHTML = '<option value="">All Projects</option>';
+          projs.forEach(function(p) {
+            sel.innerHTML += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
           });
-          fuHtml += '</div>';
+          if (currentProject) sel.value = currentProject;
+        }).catch(function() {});
+      }
+
+      function filterProject() {
+        currentProject = document.getElementById('project-filter').value;
+        renderTree();
+      }
+
+      function buildTree(issues) {
+        const byId = {};
+        issues.forEach(function(i) { byId[i.id] = i; });
+        const children = {};
+        const roots = [];
+        issues.forEach(function(i) {
+          if (i.parent_issue_id && byId[i.parent_issue_id]) {
+            if (!children[i.parent_issue_id]) children[i.parent_issue_id] = [];
+            children[i.parent_issue_id].push(i);
+          } else {
+            roots.push(i);
+          }
+        });
+        const sortByIdent = function(a, b) {
+          const na = parseInt((a.identifier || '').split('-').pop()) || 0;
+          const nb = parseInt((b.identifier || '').split('-').pop()) || 0;
+          return na - nb;
+        };
+        roots.sort(sortByIdent);
+        Object.keys(children).forEach(function(pid) { children[pid].sort(sortByIdent); });
+        return { roots: roots, children: children };
+      }
+
+      const NODE_W = 220, BASE_NODE_H = 90, H_GAP = 80, V_GAP = 20;
+      function nodeHeight(issue) {
+        var fus = (issue.agent_run && issue.agent_run.follow_ups) || [];
+        return BASE_NODE_H + (fus.length > 0 ? 20 + fus.length * 18 : 0);
+      }
+
+      function layoutTree(tree) {
+        const nodes = [];
+        const subtreeHeights = {};
+
+        function getSubtreeHeight(issue) {
+          if (subtreeHeights[issue.id] !== undefined) return subtreeHeights[issue.id];
+          var nh = nodeHeight(issue);
+          const kids = tree.children[issue.id] || [];
+          if (kids.length === 0) { subtreeHeights[issue.id] = nh; return nh; }
+          let total = 0;
+          kids.forEach(function(kid, idx) { if (idx > 0) total += V_GAP; total += getSubtreeHeight(kid); });
+          subtreeHeights[issue.id] = Math.max(nh, total);
+          return subtreeHeights[issue.id];
         }
 
-        const div = document.createElement('div');
-        div.className = 'tree-node ' + stateClass + temporalClass;
-        div.style.left = (n.x + 40) + 'px';
-        div.style.top = (n.y + 40) + 'px';
-        div.onclick = function() { window.location.href = '/board/issues/' + issue.id; };
-        div.innerHTML =
-          '<div class="node-identifier">' + esc(issue.identifier) + ' ' + ageHtml + '</div>' +
-          '<div class="node-title">' + esc(issue.title) + '</div>' +
-          '<div class="node-meta"><span class="node-state ' + stateSlug + '">' + esc(issue.state) + '</span>' + labelsHtml + childBadge + '</div>' +
-          fuHtml;
-        canvas.appendChild(div);
-      });
-    }
+        let totalH = 0;
+        tree.roots.forEach(function(r, idx) { if (idx > 0) totalH += V_GAP; totalH += getSubtreeHeight(r); });
 
-    (function() {
-      const vp = document.getElementById('viewport');
-      let dragging = false, startX, startY, scrollL, scrollT;
-      vp.addEventListener('mousedown', function(e) {
-        if (e.target.closest('.tree-node')) return;
-        dragging = true; startX = e.clientX; startY = e.clientY; scrollL = vp.scrollLeft; scrollT = vp.scrollTop;
-      });
-      window.addEventListener('mousemove', function(e) { if (!dragging) return; vp.scrollLeft = scrollL - (e.clientX - startX); vp.scrollTop = scrollT - (e.clientY - startY); });
-      window.addEventListener('mouseup', function() { dragging = false; });
-    })();
+        function placeNode(issue, depth, yStart, parentId) {
+          const subtreeH = subtreeHeights[issue.id];
+          var nh = nodeHeight(issue);
+          const x = depth * (NODE_W + H_GAP);
+          const y = yStart + (subtreeH - nh) / 2;
+          const kids = tree.children[issue.id] || [];
+          nodes.push({ issue: issue, x: x, y: y, nh: nh, depth: depth, parentId: parentId, isRoot: !parentId, childCount: kids.length });
+          let childY = yStart;
+          kids.forEach(function(kid, idx) { if (idx > 0) childY += V_GAP; placeNode(kid, depth + 1, childY, issue.id); childY += subtreeHeights[kid.id]; });
+        }
 
-    async function acceptFollowUp(issueId, fuId) {
-      try {
-        var res = await fetch(API + '/issues/' + issueId + '/follow-ups/' + fuId + '/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-        if (res.ok) { showToast('Follow-up accepted', { type: 'success' }); await loadIssues(); }
-        else { var data = await res.json().catch(function() { return {}; }); showToast('Failed: ' + (data.error || 'unknown'), { type: 'error' }); }
-      } catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
-    }
+        let yOff = 0;
+        tree.roots.forEach(function(r, idx) { if (idx > 0) yOff += V_GAP; placeNode(r, 0, yOff, null); yOff += subtreeHeights[r.id]; });
+        return nodes;
+      }
 
-    async function rejectFollowUp(issueId, fuId) {
-      try {
-        var res = await fetch(API + '/issues/' + issueId + '/follow-ups/' + fuId + '/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-        if (res.ok) { showToast('Follow-up rejected', { type: 'success' }); await loadIssues(); }
-        else { var data = await res.json().catch(function() { return {}; }); showToast('Failed: ' + (data.error || 'unknown'), { type: 'error' }); }
-      } catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
-    }
+      function renderTree() {
+        let issues = allIssues;
+        if (currentProject) { issues = issues.filter(function(i) { return i.project_id === currentProject; }); }
 
-    loadIssues();
-    """
+        const canvas = document.getElementById('canvas');
+        const svg = document.getElementById('connectors');
+
+        if (issues.length === 0) {
+          canvas.innerHTML = '<div class="empty-state">No issues to display</div>';
+          svg.innerHTML = ''; svg.setAttribute('width', 0); svg.setAttribute('height', 0);
+          return;
+        }
+
+        const tree = buildTree(issues);
+        const nodes = layoutTree(tree);
+
+        let maxX = 0, maxY = 0;
+        nodes.forEach(function(n) { if (n.x + NODE_W > maxX) maxX = n.x + NODE_W; if (n.y + n.nh > maxY) maxY = n.y + n.nh; });
+        maxX += 80; maxY += 80;
+
+        canvas.style.width = maxX + 'px';
+        canvas.style.height = maxY + 'px';
+        svg.setAttribute('width', maxX);
+        svg.setAttribute('height', maxY);
+
+        const posMap = {};
+        nodes.forEach(function(n) { posMap[n.issue.id] = { x: n.x, y: n.y }; });
+
+        let paths = '';
+        nodes.forEach(function(n) {
+          if (!n.parentId || !posMap[n.parentId]) return;
+          const parent = posMap[n.parentId];
+          var parentNode = nodes.find(function(nn) { return nn.issue.id === n.parentId; });
+          var parentNh = parentNode ? parentNode.nh : BASE_NODE_H;
+          const px = parent.x + NODE_W + 40, py = parent.y + parentNh / 2 + 40;
+          const cx = n.x + 40, cy = n.y + n.nh / 2 + 40;
+          const midX = (px + cx) / 2;
+          paths += '<path d="M' + px + ' ' + py + ' C' + midX + ' ' + py + ' ' + midX + ' ' + cy + ' ' + cx + ' ' + cy + '" fill="none" stroke="#58687a" stroke-width="2" opacity="0.7"/>';
+          paths += '<polygon points="' + cx + ',' + cy + ' ' + (cx - 8) + ',' + (cy - 4) + ' ' + (cx - 8) + ',' + (cy + 4) + '" fill="#58687a" opacity="0.7"/>';
+        });
+        svg.innerHTML = paths;
+
+        canvas.innerHTML = '';
+        nodes.forEach(function(n) {
+          const issue = n.issue;
+          const stateSlug = (issue.state || '').toLowerCase().replace(/\s+/g, '-');
+          let stateClass = 'state-' + stateSlug;
+          if (n.isRoot) stateClass += ' is-root';
+
+          let labelsHtml = '';
+          if (issue.labels && issue.labels.length > 0) {
+            labelsHtml = '<div class="node-labels">' + issue.labels.slice(0, 3).map(function(l) { return '<span class="node-label">' + esc(l) + '</span>'; }).join('') + '</div>';
+          }
+
+          let childBadge = '';
+          if (n.childCount > 0) {
+            childBadge = '<span class="node-children-count">' + n.childCount + ' follow-up' + (n.childCount > 1 ? 's' : '') + '</span>';
+          }
+
+          // Temporal encoding (#35)
+          var ageHtml = '';
+          var temporalClass = '';
+          if (issue.created_at) {
+            var days = Math.floor((Date.now() - new Date(issue.created_at).getTime()) / 86400000);
+            var ageClass = days > 30 ? 'old' : (days > 14 ? 'stale' : '');
+            ageHtml = '<span class="node-age ' + ageClass + '">' + (days > 0 ? days + 'd ago' : 'today') + '</span>';
+            // Temporal visual encoding for completed items
+            var isDone = stateSlug === 'done' || stateSlug === 'archived';
+            if (isDone && days > 30) temporalClass = ' temporal-old';
+            else if (days <= 3) temporalClass = ' temporal-recent';
+          }
+
+          // Build proposed follow-ups section
+          var followUps = (issue.agent_run && issue.agent_run.follow_ups) || [];
+          var fuHtml = '';
+          if (followUps.length > 0) {
+            fuHtml = '<div class="node-followups">';
+            followUps.forEach(function(fu) {
+              fuHtml += '<div class="fu-item">';
+              fuHtml += '<span class="fu-status ' + fu.status + '">' + fu.status + '</span>';
+              fuHtml += '<span class="fu-title" title="' + esc(fu.title) + '">' + esc(fu.title) + '</span>';
+              if (fu.status === 'proposed') {
+                fuHtml += '<button class="fu-action accept" onclick="event.stopPropagation(); acceptFollowUp(\'' + issue.id + '\',\'' + fu.id + '\')" title="Accept">\u2713</button>';
+                fuHtml += '<button class="fu-action reject" onclick="event.stopPropagation(); rejectFollowUp(\'' + issue.id + '\',\'' + fu.id + '\')" title="Reject">\u2717</button>';
+              }
+              if (fu.created_issue_identifier) {
+                fuHtml += '<a href="/board/issues/' + fu.created_issue_id + '" onclick="event.stopPropagation()" style="font-size:0.6rem;color:var(--accent)">' + esc(fu.created_issue_identifier) + '</a>';
+              } else if (fu.created_feature_id) {
+                fuHtml += '<a href="/board?product=' + fu.created_product_id + '&tab=spec" onclick="event.stopPropagation()" style="font-size:0.6rem;color:var(--green)" title="Feature added to product">\u2705 feature</a>';
+              }
+              fuHtml += '</div>';
+            });
+            fuHtml += '</div>';
+          }
+
+          const div = document.createElement('div');
+          div.className = 'tree-node ' + stateClass + temporalClass;
+          div.style.left = (n.x + 40) + 'px';
+          div.style.top = (n.y + 40) + 'px';
+          div.onclick = function() { window.location.href = '/board/issues/' + issue.id; };
+          div.innerHTML =
+            '<div class="node-identifier">' + esc(issue.identifier) + ' ' + ageHtml + '</div>' +
+            '<div class="node-title">' + esc(issue.title) + '</div>' +
+            '<div class="node-meta"><span class="node-state ' + stateSlug + '">' + esc(issue.state) + '</span>' + labelsHtml + childBadge + '</div>' +
+            fuHtml;
+          canvas.appendChild(div);
+        });
+      }
+
+      (function() {
+        const vp = document.getElementById('viewport');
+        let dragging = false, startX, startY, scrollL, scrollT;
+        vp.addEventListener('mousedown', function(e) {
+          if (e.target.closest('.tree-node')) return;
+          dragging = true; startX = e.clientX; startY = e.clientY; scrollL = vp.scrollLeft; scrollT = vp.scrollTop;
+        });
+        window.addEventListener('mousemove', function(e) { if (!dragging) return; vp.scrollLeft = scrollL - (e.clientX - startX); vp.scrollTop = scrollT - (e.clientY - startY); });
+        window.addEventListener('mouseup', function() { dragging = false; });
+      })();
+
+      async function acceptFollowUp(issueId, fuId) {
+        try {
+          var res = await fetch(API + '/issues/' + issueId + '/follow-ups/' + fuId + '/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+          if (res.ok) { showToast('Follow-up accepted', { type: 'success' }); await loadIssues(); }
+          else { var data = await res.json().catch(function() { return {}; }); showToast('Failed: ' + (data.error || 'unknown'), { type: 'error' }); }
+        } catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
+      }
+
+      async function rejectFollowUp(issueId, fuId) {
+        try {
+          var res = await fetch(API + '/issues/' + issueId + '/follow-ups/' + fuId + '/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+          if (res.ok) { showToast('Follow-up rejected', { type: 'success' }); await loadIssues(); }
+          else { var data = await res.json().catch(function() { return {}; }); showToast('Failed: ' + (data.error || 'unknown'), { type: 'error' }); }
+        } catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
+      }
+
+      loadIssues();
+      """
   end
 end

@@ -99,6 +99,41 @@ defmodule SymphonyElixir.LocalBoardTest do
     test "returns not_found for missing id" do
       assert {:error, :not_found} = LocalBoard.update_issue("bogus", %{"title" => "x"})
     end
+
+    test "updates rerun_hint, plan_status, and plan_text" do
+      {:ok, issue} = LocalBoard.create_issue(%{"title" => "Rerun test"})
+
+      {:ok, updated} =
+        LocalBoard.update_issue(issue.id, %{
+          "rerun_hint" => "Be more thorough",
+          "plan_status" => "approved",
+          "plan_text" => "Step 1: Analyze. Step 2: Write."
+        })
+
+      assert updated.rerun_hint == "Be more thorough"
+      assert updated.plan_status == "approved"
+      assert updated.plan_text == "Step 1: Analyze. Step 2: Write."
+    end
+
+    test "updates product_id and project_id" do
+      {:ok, issue} = LocalBoard.create_issue(%{"title" => "Product test"})
+
+      {:ok, updated} =
+        LocalBoard.update_issue(issue.id, %{
+          "product_id" => "prod-123",
+          "project_id" => "proj-456"
+        })
+
+      assert updated.product_id == "prod-123"
+      assert updated.project_id == "proj-456"
+    end
+
+    test "clears rerun_hint with nil" do
+      {:ok, issue} = LocalBoard.create_issue(%{"title" => "Clear hint"})
+      {:ok, _} = LocalBoard.update_issue(issue.id, %{"rerun_hint" => "some hint"})
+      {:ok, updated} = LocalBoard.update_issue(issue.id, %{"rerun_hint" => nil})
+      assert updated.rerun_hint == nil
+    end
   end
 
   describe "move_issue/2" do
@@ -211,6 +246,32 @@ defmodule SymphonyElixir.LocalBoardTest do
       assert issue.priority == 2
       assert issue.labels == ["bug"]
       assert issue.blocked_by == []
+    end
+
+    test "includes rerun_hint, plan_status, plan_text, product_id, project_id" do
+      {:ok, record} =
+        LocalBoard.create_issue(%{
+          "title" => "Full Fields",
+          "state" => "In Progress"
+        })
+
+      {:ok, record} =
+        LocalBoard.update_issue(record.id, %{
+          "rerun_hint" => "improve output",
+          "plan_status" => "approved",
+          "plan_text" => "Do X then Y",
+          "product_id" => "prod-1",
+          "project_id" => "proj-2"
+        })
+
+      issue = LocalBoard.to_issue_struct(record)
+
+      assert %SymphonyElixir.Issue{} = issue
+      assert issue.rerun_hint == "improve output"
+      assert issue.plan_status == "approved"
+      assert issue.plan_text == "Do X then Y"
+      assert issue.product_id == "prod-1"
+      assert issue.project_id == "proj-2"
     end
   end
 

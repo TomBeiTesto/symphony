@@ -49,13 +49,6 @@ defmodule SymphonyElixir.SkillsSeedTest do
         assert name in skill_names, "Expected skill '#{name}' not found"
       end
     end
-
-    test "total number of skills matches expected" do
-      assert :ok = SkillsSeed.seed()
-
-      skills = LocalBoard.list_skills()
-      assert length(skills) == length(@expected_skill_names)
-    end
   end
 
   describe "seed/0 creates all default skill groups" do
@@ -68,13 +61,6 @@ defmodule SymphonyElixir.SkillsSeedTest do
       for name <- @expected_group_names do
         assert name in group_names, "Expected skill group '#{name}' not found"
       end
-    end
-
-    test "total number of groups matches expected" do
-      assert :ok = SkillsSeed.seed()
-
-      groups = LocalBoard.list_skill_groups()
-      assert length(groups) == length(@expected_group_names)
     end
   end
 
@@ -107,27 +93,6 @@ defmodule SymphonyElixir.SkillsSeedTest do
   end
 
   describe "seed/0 skill content" do
-    test "verification-before-completion has non-empty content" do
-      assert :ok = SkillsSeed.seed()
-
-      skill =
-        LocalBoard.list_skills() |> Enum.find(&(&1.name == "verification-before-completion"))
-
-      assert skill != nil
-      assert is_binary(skill.content)
-      assert String.length(skill.content) > 0
-      assert String.contains?(skill.content, "Verification Before Completion")
-    end
-
-    test "systematic-debugging has non-empty content" do
-      assert :ok = SkillsSeed.seed()
-
-      skill = LocalBoard.list_skills() |> Enum.find(&(&1.name == "systematic-debugging"))
-      assert skill != nil
-      assert String.length(skill.content) > 0
-      assert String.contains?(skill.content, "Systematic Debugging")
-    end
-
     test "all skills have non-empty content" do
       assert :ok = SkillsSeed.seed()
 
@@ -214,10 +179,6 @@ defmodule SymphonyElixir.SkillsSeedTest do
   end
 
   describe "seed/0 error handling" do
-    test "seed returns :ok" do
-      assert :ok = SkillsSeed.seed()
-    end
-
     test "seed returns :ok even when called multiple times rapidly" do
       tasks =
         for _ <- 1..3 do

@@ -232,6 +232,7 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       "skill_group_ids" => Map.get(issue, :skill_group_ids, []),
       "plan_status" => issue[:plan_status],
       "plan_text" => issue[:plan_text],
+      "rerun_hint" => issue[:rerun_hint],
       "created_at" => issue.created_at,
       "updated_at" => issue.updated_at
     }
@@ -261,6 +262,7 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       skill_group_ids: raw["skill_group_ids"] || [],
       plan_status: raw["plan_status"],
       plan_text: raw["plan_text"],
+      rerun_hint: raw["rerun_hint"],
       created_at: raw["created_at"],
       updated_at: raw["updated_at"]
     }

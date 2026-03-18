@@ -75,11 +75,12 @@ defmodule SymphonyElixir.Integrations.GitlabCI do
 
     case Req.post(url, form: form_data) do
       {:ok, %{status: 201, body: body}} ->
-        {:ok, %{
-          pipeline_id: body["id"],
-          web_url: body["web_url"],
-          status: body["status"]
-        }}
+        {:ok,
+         %{
+           pipeline_id: body["id"],
+           web_url: body["web_url"],
+           status: body["status"]
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, "GitLab trigger failed (#{status}): #{inspect(body)}"}

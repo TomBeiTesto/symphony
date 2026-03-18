@@ -246,6 +246,33 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  post "/api/issues/:id/rerun" do
+    hint =
+      case conn.body_params do
+        %{"hint" => h} when is_binary(h) and h != "" -> h
+        _ -> nil
+      end
+
+    try do
+      case SymphonyElixir.Orchestrator.rerun_issue(id, hint) do
+        :ok ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(%{ok: true}))
+
+        {:error, reason} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(422, Jason.encode!(%{error: to_string(reason)}))
+      end
+    catch
+      :exit, _ ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(503, Jason.encode!(%{error: "orchestrator_unavailable"}))
+    end
+  end
+
   # --- Follow-ups API ---
 
   post "/api/issues/:id/follow-ups/:fu_id/accept" do
@@ -633,7 +660,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
       {:error, :duplicate_name} ->
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(409, Jason.encode!(%{error: "duplicate_name", message: "A product with that name already exists"}))
+        |> send_resp(
+          409,
+          Jason.encode!(%{
+            error: "duplicate_name",
+            message: "A product with that name already exists"
+          })
+        )
 
       {:error, reason} ->
         conn
@@ -685,7 +718,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
       {:error, :duplicate_name} ->
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(409, Jason.encode!(%{error: "duplicate_name", message: "A feature with that name already exists in this product"}))
+        |> send_resp(
+          409,
+          Jason.encode!(%{
+            error: "duplicate_name",
+            message: "A feature with that name already exists in this product"
+          })
+        )
     end
   end
 
@@ -750,6 +789,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       |> send_resp(400, Jason.encode!(%{error: "project_id and status are required"}))
     else
       source = conn.body_params["source"] || "manual"
+
       case LocalBoard.set_feature_status(prod_id, feature_id, project_id, status, source) do
         {:ok, prod} ->
           conn
@@ -764,7 +804,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
         {:error, :invalid_status} ->
           conn
           |> put_resp_content_type("application/json")
-          |> send_resp(400, Jason.encode!(%{error: "invalid_status", message: "Status must be one of: missing, planned, in_progress, done, n_a"}))
+          |> send_resp(
+            400,
+            Jason.encode!(%{
+              error: "invalid_status",
+              message: "Status must be one of: missing, planned, in_progress, done, n_a"
+            })
+          )
       end
     end
   end
@@ -1346,10 +1392,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           all_issues
           |> Enum.filter(fn issue ->
             # Match by product_id field
+            # Match by product:<id> label
+            # Match by project membership
             Map.get(issue, :product_id) == id ||
-              # Match by product:<id> label
               Enum.any?(Map.get(issue, :labels, []), &(&1 == "product:#{id}")) ||
-              # Match by project membership
               (is_binary(issue.project_id) and MapSet.member?(project_ids, issue.project_id))
           end)
           |> Enum.sort_by(fn i -> i.updated_at || "" end, :desc)
@@ -1609,10 +1655,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
         |> Enum.map(fn s -> Map.get(s, :name) || s["name"] end)
         |> Enum.reject(&is_nil/1)
 
+      product_id = Map.get(conn.body_params, "product_id")
+
       product_context =
-        case Map.get(conn.body_params, "product_id") do
-          nil -> ""
-          "" -> ""
+        case product_id do
+          nil ->
+            ""
+
+          "" ->
+            ""
+
           pid ->
             case LocalBoard.get_product(pid) do
               {:ok, prod} -> "\nProduct: #{prod.name}. #{prod.description || ""}"
@@ -1620,10 +1672,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
             end
         end
 
+      kb_context = build_kb_context_for_draft(product_id)
+
       project_context =
         case Map.get(conn.body_params, "project_id") do
-          nil -> ""
-          "" -> ""
+          nil ->
+            ""
+
+          "" ->
+            ""
+
           proj_id ->
             case LocalBoard.get_project(proj_id) do
               {:ok, proj} -> "\nProject: #{proj.name}. #{Map.get(proj, :description, "") || ""}"
@@ -1640,10 +1698,12 @@ defmodule SymphonyElixir.Server.BoardRouter do
       - title: concise, actionable (under 80 chars)
       - description: 2-4 paragraphs in markdown with acceptance criteria
       - priority: 1=Urgent, 2=High, 3=Medium, 4=Low
-      - labels: 1-3 relevant labels (lowercase, hyphenated)
+      - labels: 1-3 relevant labels (lowercase, hyphenated). Use these special labels when appropriate:
+        * "extract-logic" — when the task is about extracting, documenting, or cataloging business rules/logic from a codebase
+        * "research" — when the task is about researching a topic, technology, or approach
       - skill_names: pick 0-3 from available skills that match the task
 
-      Available skills: #{Enum.join(skill_names, ", ")}#{product_context}#{project_context}
+      Available skills: #{Enum.join(skill_names, ", ")}#{product_context}#{project_context}#{kb_context}
 
       User hint: #{hint}
       """
@@ -1678,13 +1738,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
             {:error, _} ->
               conn
               |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(%{
-                title: hint,
-                description: clean,
-                priority: 3,
-                labels: [],
-                skill_ids: []
-              }))
+              |> send_resp(
+                200,
+                Jason.encode!(%{
+                  title: hint,
+                  description: clean,
+                  priority: 3,
+                  labels: [],
+                  skill_ids: []
+                })
+              )
           end
 
         {:error, reason} ->
@@ -1783,7 +1846,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             {:error, _} ->
               conn
               |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(%{name: hint, description: clean, tags: [], priority: 3}))
+              |> send_resp(
+                200,
+                Jason.encode!(%{name: hint, description: clean, tags: [], priority: 3})
+              )
           end
 
         {:error, reason} ->
@@ -2110,11 +2176,19 @@ defmodule SymphonyElixir.Server.BoardRouter do
         {:ok, output} ->
           # claude -p --output-format json wraps in {"type":"result","result":"..."}
           case Jason.decode(output) do
-            {:ok, %{"result" => text}} -> {:ok, text}
-            {:ok, %{"content" => content}} when is_list(content) ->
-              text = content |> Enum.filter(&(&1["type"] == "text")) |> Enum.map_join("\n", & &1["text"])
+            {:ok, %{"result" => text}} ->
               {:ok, text}
-            _ -> {:ok, String.trim(output)}
+
+            {:ok, %{"content" => content}} when is_list(content) ->
+              text =
+                content
+                |> Enum.filter(&(&1["type"] == "text"))
+                |> Enum.map_join("\n", & &1["text"])
+
+              {:ok, text}
+
+            _ ->
+              {:ok, String.trim(output)}
           end
 
         {:error, _} = err ->
@@ -2482,6 +2556,383 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(400, Jason.encode!(%{error: "restore_failed", reason: inspect(reason)}))
+    end
+  end
+
+  # --- Knowledge Base / Vault ---
+
+  post "/api/vault/test" do
+    kb_type = conn.body_params["kb_type"] || "local"
+    vault_path = conn.body_params["vault_path"] || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.test_connection(config) do
+      {:ok, message} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true, message: message}))
+
+      {:error, message} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: false, message: message}))
+    end
+  end
+
+  post "/api/vault/send" do
+    issue_id = conn.body_params["issue_id"]
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+
+    if vault_path == "" and kb_type not in ["local", "confluence"] do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "Knowledge base vault not configured"}))
+    else
+      case LocalBoard.get_issue(issue_id) do
+        {:ok, issue} ->
+          product_name = resolve_product_name(issue)
+
+          config = %{
+            "kb_type" => kb_type,
+            "vault_path" => vault_path,
+            "subfolder" => subfolder,
+            "action" => "write_note"
+          }
+
+          # Try to find workspace reports
+          report_files = find_issue_reports(issue)
+
+          notes_written =
+            if report_files != [] do
+              Enum.flat_map(report_files, fn report_path ->
+                title = Path.basename(report_path, ".md")
+                content = File.read!(report_path)
+
+                context = %{
+                  "title" => title,
+                  "content" => content,
+                  "tags" => ["symphony" | issue.labels || []],
+                  "source_issue" => issue.identifier,
+                  "product_name" => product_name
+                }
+
+                case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+                  {:ok, %{path: path}} -> [path]
+                  _ -> []
+                end
+              end)
+            else
+              # No reports — write issue description as a note
+              title = issue.title || "Untitled"
+              content = issue.description || issue.title || ""
+
+              context = %{
+                "title" => title,
+                "content" => content,
+                "tags" => ["symphony" | issue.labels || []],
+                "source_issue" => issue.identifier,
+                "product_name" => product_name
+              }
+
+              case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+                {:ok, %{path: path}} -> [path]
+                _ -> []
+              end
+            end
+
+          source = if report_files != [], do: "reports", else: "description"
+
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(
+            200,
+            Jason.encode!(%{ok: true, notes_written: notes_written, source: source})
+          )
+
+        {:error, :not_found} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(404, Jason.encode!(%{error: "Issue not found"}))
+      end
+    end
+  end
+
+  get "/api/vault/search" do
+    query = conn.query_params["q"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+
+    config = %{
+      "kb_type" => kb_type,
+      "vault_path" => vault_path,
+      "subfolder" => subfolder,
+      "action" => "search"
+    }
+
+    context = %{"query" => query}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, %{results: results}} ->
+        serialized =
+          Enum.map(results, fn r ->
+            %{"path" => r.path, "title" => r.title, "snippet" => r.snippet}
+          end)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{results: serialized}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  get "/api/vault/note" do
+    note_path = conn.query_params["path"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path, "action" => "read_note"}
+    context = %{"note_path" => note_path}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, result} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          200,
+          Jason.encode!(%{frontmatter: result.frontmatter, content: result.content})
+        )
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, :file_not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  delete "/api/vault/note" do
+    note_path = conn.body_params["path"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path, "action" => "delete_note"}
+    context = %{"note_path" => note_path}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, _result} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true}))
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, :file_not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  defp resolve_product_name(issue) do
+    if issue.product_id do
+      case LocalBoard.get_product(issue.product_id) do
+        {:ok, product} -> product.name || "unknown"
+        _ -> nil
+      end
+    else
+      nil
+    end
+  end
+
+  defp find_issue_reports(issue) do
+    workspace_key = issue.identifier || issue.id
+
+    # Build candidates: configured workspace root + common fallback locations
+    workspace_root =
+      case Process.get(:symphony_workspace_root) do
+        nil ->
+          # Try to read from the default tmp-based workspace root
+          Path.join(System.tmp_dir!(), "symphony_workspaces")
+
+        root ->
+          root
+      end
+
+    # The agent's actual workspace may be the project/product path (not the
+    # symphony workspace dir) — resolve those paths too.
+    project_paths = resolve_issue_project_paths(issue)
+
+    candidates =
+      Enum.map(project_paths, fn p -> Path.join(p, "reports") end) ++
+        [
+          Path.join([workspace_root, workspace_key, "reports"]),
+          Path.join(["~/code/symphony-workspaces", workspace_key, "reports"]),
+          Path.join(["~/symphony_workspaces", workspace_key, "reports"])
+        ]
+
+    candidates
+    |> Enum.map(&Path.expand/1)
+    |> Enum.find(fn dir -> File.dir?(dir) end)
+    |> case do
+      nil -> []
+      dir -> Path.wildcard(Path.join(dir, "*.md") |> String.replace("\\", "/"))
+    end
+  end
+
+  # Resolve the project/product workspace paths an agent would have used.
+  defp resolve_issue_project_paths(issue) do
+    project_path =
+      case issue.project_id do
+        pid when is_binary(pid) and pid != "" ->
+          case LocalBoard.get_project(pid) do
+            {:ok, %{path: path}} when is_binary(path) and path != "" -> path
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
+    product_paths =
+      case issue.product_id do
+        prod_id when is_binary(prod_id) and prod_id != "" ->
+          case LocalBoard.get_product(prod_id) do
+            {:ok, product} ->
+              (product.project_ids || [])
+              |> Enum.flat_map(fn pid ->
+                case LocalBoard.get_project(pid) do
+                  {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
+                  _ -> []
+                end
+              end)
+
+            _ ->
+              []
+          end
+
+        _ ->
+          []
+      end
+
+    Enum.reject([project_path | product_paths], &is_nil/1)
+    |> Enum.uniq()
+  end
+
+  # Build a condensed KB context string for AI draft prompts.
+  # Reads KB notes for the product and extracts headings + rule IDs to keep it concise.
+  defp build_kb_context_for_draft(nil), do: ""
+  defp build_kb_context_for_draft(""), do: ""
+
+  defp build_kb_context_for_draft(product_id) do
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+
+    config = %{
+      "kb_type" => kb_type,
+      "vault_path" => vault_path,
+      "subfolder" => subfolder,
+      "action" => "search"
+    }
+
+    # Resolve product name for subfolder
+    product_name =
+      case LocalBoard.get_product(product_id) do
+        {:ok, prod} -> prod.name
+        _ -> nil
+      end
+
+    if product_name == nil do
+      ""
+    else
+      # Search for all notes under product subfolder
+      context = %{"query" => "", "product_name" => product_name}
+
+      case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+        {:ok, %{results: results}} when results != [] ->
+          # Read each note and extract a summary (headings + rule IDs)
+          summaries =
+            results
+            |> Enum.take(10)
+            |> Enum.map(fn result ->
+              full_config = Map.put(config, "action", "read_note")
+              note_context = %{"note_path" => result.path}
+
+              case SymphonyElixir.Integrations.KnowledgeBase.execute(full_config, note_context) do
+                {:ok, %{content: content}} ->
+                  summary = extract_kb_summary(content, result.title)
+                  "### #{result.title}\n#{summary}"
+
+                _ ->
+                  nil
+              end
+            end)
+            |> Enum.reject(&is_nil/1)
+
+          if summaries == [] do
+            ""
+          else
+            "\n\nKnowledge Base (documented business rules for this product):\n" <>
+              Enum.join(summaries, "\n\n")
+          end
+
+        _ ->
+          ""
+      end
+    end
+  end
+
+  # Extract headings and rule/constraint IDs from KB note content for a concise summary.
+  defp extract_kb_summary(content, _title) do
+    lines = String.split(content, "\n")
+
+    relevant =
+      lines
+      |> Enum.filter(fn line ->
+        trimmed = String.trim(line)
+
+        String.starts_with?(trimmed, "#") or
+          Regex.match?(~r/^(BR|CV|HC|EC|WF)-\d+/, trimmed) or
+          Regex.match?(~r/^\*\*(BR|CV|HC|EC|WF)-\d+/, trimmed) or
+          Regex.match?(~r/^- \*\*(BR|CV|HC|EC|WF)-\d+/, trimmed) or
+          Regex.match?(~r/^\|\s*(BR|CV|HC|EC|WF)-\d+/, trimmed)
+      end)
+      |> Enum.take(40)
+
+    if relevant == [] do
+      # Fallback: first 10 non-empty lines
+      lines
+      |> Enum.reject(fn l -> String.trim(l) == "" end)
+      |> Enum.reject(fn l -> String.starts_with?(String.trim(l), "---") end)
+      |> Enum.take(10)
+      |> Enum.join("\n")
+    else
+      Enum.join(relevant, "\n")
     end
   end
 
