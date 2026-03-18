@@ -246,13 +246,15 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       UIHelpers.button_css() <>
       UIHelpers.toast_css() <>
       UIHelpers.markdown_css() <>
+      UIHelpers.page_actions_css() <>
+      UIHelpers.pulse_css() <>
+      UIHelpers.label_css() <>
       ~S"""
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { height: 100%; overflow: hidden; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
       h1 { color: var(--text-primary); font-size: 1.15rem; }
-      #{UIHelpers.page_actions_css()}
       .page-actions-bar { padding: 8px 20px; }
       .issue-identifier { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
       .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
@@ -261,7 +263,6 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .state-badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
       .state-badge.in-progress { background: rgba(88,166,255,0.15); color: var(--accent); }
       .state-badge.review { background: rgba(188,140,255,0.15); color: var(--purple); }
-      #{UIHelpers.pulse_css()}
       .meta { color: var(--text-muted); font-size: 0.8rem; }
       .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
@@ -275,7 +276,6 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
       .priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
       .priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
-      #{UIHelpers.label_css()}
       .description { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
       .description p { margin-bottom: 8px; }
       .activity-panel { display: flex; flex-direction: column; }
@@ -461,8 +461,19 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     vars <> js_body()
   end
 
-  # All JS logic in ~S to avoid Elixir escape processing on \n, \s, \w, etc.
   defp js_body do
+    polling_js() <>
+      UIHelpers.time_utils_js() <>
+      followups_js() <>
+      render_events_js() <>
+      edit_js() <>
+      kb_and_actions_js() <>
+      skills_js() <>
+      init_and_pipeline_js() <>
+      plan_review_and_poll_js()
+  end
+
+  defp polling_js do
     ~S"""
     let lastEventCount = 0;
     let lastOrchStatus = null;
@@ -602,6 +613,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       renderFollowups(orch);
     }
 
+    """
+  end
+
+  defp followups_js do
+    ~S"""
     var followupsData = [];
     var editingFollowupId = null;
 
@@ -687,6 +703,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       if (res.ok) pollActivity();
     }
 
+    """
+  end
+
+  defp render_events_js do
+    ~S"""
     function renderEvents(events) {
       const feed = document.getElementById('activity-feed');
       if (events.length === 0) {
@@ -759,8 +780,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       feed.scrollTop = feed.scrollHeight;
     }
 
-    #{UIHelpers.time_utils_js()}
+    """
+  end
 
+  defp edit_js do
+    ~S"""
     function toggleDetail(el) {
       el.classList.toggle('expanded');
     }
@@ -800,6 +824,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } catch(e) {}
     }
 
+    """
+  end
+
+  defp kb_and_actions_js do
+    ~S"""
     // Send to KB
     async function checkKBAvailable() {
       try {
@@ -1040,6 +1069,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       }
     });
 
+    """
+  end
+
+  defp skills_js do
+    ~S"""
     // --- Skills Management ---
     var allSkills = [];
     var allGroups = [];
@@ -1156,6 +1190,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       }
     }
 
+    """
+  end
+
+  defp init_and_pipeline_js do
+    ~S"""
     // Load issue data on init
     loadIssueData();
     loadSkillsData();
@@ -1167,7 +1206,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         const res = await fetch('/board/api/pipelines');
         const data = await res.json();
         const pipelines = data.pipelines || [];
-        const issueId = issue.id;
+        const issueId = ISSUE_ID;
         const matches = [];
 
         pipelines.forEach(function(p) {
@@ -1219,6 +1258,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } catch(e) {}
     }
 
+    """
+  end
+
+  defp plan_review_and_poll_js do
+    ~S"""
     // --- Plan Review Actions ---
     async function approvePlan() {
       try {

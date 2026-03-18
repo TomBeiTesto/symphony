@@ -68,6 +68,7 @@ defmodule SymphonyElixir.LocalBoard.Issues do
       skill_group_ids: parse_labels(Map.get(attrs, "skill_group_ids", [])),
       plan_status: Map.get(attrs, "plan_status"),
       plan_text: Map.get(attrs, "plan_text"),
+      rerun_hint: nil,
       created_at: now,
       updated_at: now
     }
@@ -107,6 +108,7 @@ defmodule SymphonyElixir.LocalBoard.Issues do
           |> maybe_update(:plan_status, attrs)
           |> maybe_update(:plan_text, attrs)
           |> maybe_update(:rerun_hint, attrs)
+          |> maybe_update(:kb_synced_at, attrs)
           |> Map.put(:updated_at, now)
 
         board = %{board | issues: Map.put(board.issues, id, updated)}

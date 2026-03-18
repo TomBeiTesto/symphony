@@ -1,4 +1,13 @@
-import { type APIRequestContext } from "@playwright/test";
+import { type APIRequestContext, type Page } from "@playwright/test";
+
+export async function goToIssuesTab(page: Page) {
+  await page.goto("/board");
+  await page.waitForTimeout(500);
+  await page.click("#all-issues-item");
+  await page.waitForTimeout(200);
+  await page.click('[data-tab="issues"]');
+  await page.waitForTimeout(500);
+}
 
 export async function cleanupAll(request: APIRequestContext) {
   try {

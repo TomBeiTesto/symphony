@@ -6,6 +6,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBaseTest do
   setup do
     test_vault = Path.join(System.tmp_dir!(), "kb_test_#{:rand.uniform(1_000_000)}")
     File.mkdir_p!(test_vault)
+    start_supervised!({SymphonyElixir.Integrations.KBIndex, []})
     on_exit(fn -> File.rm_rf!(test_vault) end)
 
     base_config = %{

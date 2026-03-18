@@ -68,9 +68,10 @@ defmodule SymphonyElixir.CLI do
 
       case Supervisor.start_link(children, opts) do
         {:ok, pid} ->
-          # Seed built-in skills after LocalBoard is started
+          # Seed built-in skills and pipelines after LocalBoard is started
           if Config.local_board?(config) do
             SymphonyElixir.SkillsSeed.seed()
+            SymphonyElixir.PipelineSeed.seed()
           end
 
           {:ok, pid}
@@ -140,13 +141,24 @@ defmodule SymphonyElixir.CLI do
         []
       end
 
+    kb_children =
+      if Config.local_board?(config) do
+        [{SymphonyElixir.Integrations.KBIndex, []}]
+      else
+        []
+      end
+
     base =
       board_children ++
         [
+          # B1: Task supervisor for worker tasks with concurrency limit
+          {Task.Supervisor,
+           name: SymphonyElixir.WorkerTaskSupervisor, max_children: config.max_concurrent_agents},
           {SymphonyElixir.Orchestrator, config: config, prompt_template: prompt},
           {SymphonyElixir.WorkflowWatcher, workflow_path: workflow_path}
         ] ++
-        pipeline_children
+        pipeline_children ++
+        kb_children
 
     if config.server_port do
       plug_module =

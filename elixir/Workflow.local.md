@@ -66,10 +66,10 @@ This issue belongs to product **{{ product.name }}**{% if product.description %}
 {% if product_projects.size > 0 %}
 This product spans the following project directories — you have access to all of them:
 {% for proj in product_projects %}
-- **{{ proj.name }}**{% if proj.path %}: `{{ proj.path }}`{% endif %}{% if proj.description %} — {{ proj.description }}{% endif %}
+- **{{ proj.name }}**{% if proj.container_path %}: `{{ proj.container_path }}`{% elsif proj.path %}: `{{ proj.path }}`{% endif %}{% if proj.description %} — {{ proj.description }}{% endif %}
 {% endfor %}
 
-Consider cross-project impact when making changes.
+Your current workspace (`/workspace`) is one of these projects. Other projects are mounted under `/projects/`. Consider cross-project impact when making changes.
 {% endif %}
 {% endif %}
 
@@ -228,21 +228,55 @@ You are a **research agent**. Investigate the topic and produce a written report
 {% endif %}
 
 {% if issue.labels contains "extract-logic" %}
-### Business Logic Extraction Mode
+### Knowledge Extraction Mode
 
-You are extracting business rules from the codebase{% if product %} for product **{{ product.name }}**{% endif %}.
+You are extracting knowledge from the codebase{% if product %} for product **{{ product.name }}**{% endif %}.
 
-1. Analyze the codebase thoroughly — read all relevant source files.
-2. Write structured business logic documents to `reports/`:
-   - `reports/domain-rules.md` — core business rules and invariants
-   - `reports/workflows.md` — user-facing workflows and state machines
-   - `reports/constraints.md` — validation rules, limits, edge cases
-   - `reports/glossary.md` — domain terminology and definitions
-3. Each file should use this format:
-   - YAML frontmatter: `tags`, `product`, `date`, `source_files`
-   - Clear sections with rule IDs (e.g., `BR-001: ...`)
-   - Code references where each rule is enforced
-4. Be exhaustive — these documents will guide future implementation work.
+**IMPORTANT: Analyze ALL projects in this product, not just the current workspace.**
+Your workspace (`/workspace`) contains one project. Additional projects are mounted under `/projects/` — list that directory to discover them. You MUST read and analyze source code from every project directory to produce a complete picture of the product.
+
+Write all output to `reports/`. Each file must have YAML frontmatter with `tags`, `product`, `date`, `source_files`.
+Use clear sections with IDs (e.g., `BR-001`, `ARCH-001`) and file:line references where applicable. Prefix file paths with the project name (e.g., `reporting-etl/src/main.py`).
+Be exhaustive — these documents will guide future implementation work.
+
+{% if issue.labels contains "extract-architecture" %}
+**Focus: System Architecture**
+Output: `reports/architecture.md`
+Document: system boundary, entry points, major components (name, responsibility, interfaces, dependencies), data flow for a typical request, state storage locations, async boundaries, tech stack and versions.
+Sections: Overview, Components, Data Flow, Tech Stack, Key Decisions.
+
+{% elsif issue.labels contains "extract-business-logic" %}
+**Focus: Business Logic & Domain Rules**
+Output: `reports/business-logic.md`
+Document: domain entities (fields, constraints, relationships), validation rules (field, cross-field, invariants), state machines (states, transitions, guards, side effects), domain calculations (formulas with business meaning), authorization rules.
+Sections: Domain Entities, Validation Rules, State Machines, Calculations, Authorization. Use tables for rule catalogs.
+
+{% elsif issue.labels contains "extract-constraints" %}
+**Focus: Technical Constraints**
+Output: `reports/constraints.md`
+Document: performance constraints (timeouts, rate limits, size limits, concurrency), security boundaries (sandboxing, sanitization, auth constraints), compatibility requirements (versions, OS, APIs, data formats), operational constraints (deployment, monitoring, licensing).
+Sections: Performance, Security, Compatibility, Operational. Use table format: Constraint | Value | Where Configured | Impact of Violation.
+
+{% elsif issue.labels contains "extract-workflows" %}
+**Focus: Process Workflows**
+Output: `reports/workflows.md`
+Document: user-facing flows, system flows (startup, sync, scheduled), integration flows (webhooks, API consumption), error/recovery flows. For each: trigger, ordered steps (actor, action, I/O, decisions), terminal states, side effects, async boundaries.
+Sections: one per major workflow. Use numbered step lists and Mermaid diagrams for complex flows.
+
+{% elsif issue.labels contains "extract-product-overview" %}
+**Focus: Product Overview**
+Output: `reports/product-overview.md`
+Document: product identity (what, who, why, how deployed), feature inventory (name, description, status: complete/partial/stub/planned/deprecated, evidence, key files), project structure (directories, config, tests, build), dependencies and integrations, known gaps and tech debt (TODOs, missing coverage, dead code, hardcoded values).
+Sections: Product Identity, Feature Inventory (as table), Project Structure, Dependencies, Known Gaps.
+
+{% else %}
+Write structured documents to `reports/`:
+- `reports/domain-rules.md` — core business rules and invariants
+- `reports/workflows.md` — user-facing workflows and state machines
+- `reports/constraints.md` — validation rules, limits, edge cases
+- `reports/glossary.md` — domain terminology and definitions
+Each with clear sections, rule IDs, and code references.
+{% endif %}
 {% endif %}
 
 {% if rerun_hint %}

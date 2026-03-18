@@ -371,12 +371,28 @@ defmodule SymphonyElixir.LocalBoard do
     GenServer.call(__MODULE__, {:get_pipeline_run, pipeline_id, run_id})
   end
 
+  def get_pipeline_run_by_id(run_id) do
+    GenServer.call(__MODULE__, {:get_pipeline_run_by_id, run_id})
+  end
+
   def update_pipeline_run_status(run_id, status) do
     GenServer.call(__MODULE__, {:update_pipeline_run_status, run_id, status})
   end
 
   def update_node_state(run_id, node_id, state) do
     GenServer.call(__MODULE__, {:update_node_state, run_id, node_id, state})
+  end
+
+  def set_run_node_issue_id(run_id, node_id, issue_id) do
+    GenServer.call(__MODULE__, {:set_run_node_issue_id, run_id, node_id, issue_id})
+  end
+
+  def set_node_output(run_id, node_id, output) do
+    GenServer.call(__MODULE__, {:set_node_output, run_id, node_id, output})
+  end
+
+  def get_predecessor_outputs(run_id, node_id) do
+    GenServer.call(__MODULE__, {:get_predecessor_outputs, run_id, node_id})
   end
 
   def record_gate_decision(run_id, node_id, action, feedback \\ nil) do
@@ -576,11 +592,23 @@ defmodule SymphonyElixir.LocalBoard do
   def handle_call({:get_pipeline_run, pipeline_id, run_id}, _from, board),
     do: Pipelines.get_pipeline_run(board, pipeline_id, run_id)
 
+  def handle_call({:get_pipeline_run_by_id, run_id}, _from, board),
+    do: Pipelines.get_pipeline_run_by_id(board, run_id)
+
   def handle_call({:update_pipeline_run_status, run_id, status}, _from, board),
     do: Pipelines.update_pipeline_run_status(board, run_id, status)
 
   def handle_call({:update_node_state, run_id, node_id, state}, _from, board),
     do: Pipelines.update_node_state(board, run_id, node_id, state)
+
+  def handle_call({:set_run_node_issue_id, run_id, node_id, issue_id}, _from, board),
+    do: Pipelines.set_run_node_issue_id(board, run_id, node_id, issue_id)
+
+  def handle_call({:set_node_output, run_id, node_id, output}, _from, board),
+    do: Pipelines.set_node_output(board, run_id, node_id, output)
+
+  def handle_call({:get_predecessor_outputs, run_id, node_id}, _from, board),
+    do: Pipelines.get_predecessor_outputs(board, run_id, node_id)
 
   def handle_call({:record_gate_decision, run_id, node_id, action, feedback}, _from, board),
     do: Pipelines.record_gate_decision(board, run_id, node_id, action, feedback)

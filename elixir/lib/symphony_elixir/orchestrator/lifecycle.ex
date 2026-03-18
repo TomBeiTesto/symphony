@@ -13,17 +13,25 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   @doc "Handle a worker result (success or failure) and update state accordingly."
   def handle_worker_result(state, issue_id, result) do
     running_entry = Map.get(state.running, issue_id)
-    identifier = running_entry_identifier(running_entry)
 
-    state = preserve_completed_run(state, issue_id, running_entry, identifier)
-    state = State.remove_running(state, issue_id)
+    # If the issue is no longer in state.running (e.g. it was canceled and the
+    # worker was already terminated), ignore the late result entirely.
+    if is_nil(running_entry) do
+      Logger.info("Ignoring late worker result for issue=#{issue_id} (no longer running)")
+      state
+    else
+      identifier = running_entry_identifier(running_entry)
 
-    case result do
-      {:ok, _} ->
-        handle_worker_success(state, issue_id, identifier, running_entry, result)
+      state = preserve_completed_run(state, issue_id, running_entry, identifier)
+      state = State.remove_running(state, issue_id)
 
-      {:error, reason} ->
-        handle_worker_failure(state, issue_id, identifier, reason)
+      case result do
+        {:ok, _} ->
+          handle_worker_success(state, issue_id, identifier, running_entry, result)
+
+        {:error, reason} ->
+          handle_worker_failure(state, issue_id, identifier, reason)
+      end
     end
   end
 
@@ -36,8 +44,16 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
     end
 
     if state.config.tracker_kind == "local" do
-      # Check if this was a planning phase run
+      # Check current issue state — don't move issues that were manually
+      # moved to a terminal state (e.g. Canceled) while the worker ran.
       case SymphonyElixir.LocalBoard.get_issue(issue_id) do
+        {:ok, issue} when issue.state in ["Canceled", "Done"] ->
+          Logger.info(
+            "Skipping post-completion move for #{identifier}: " <>
+              "issue is already in #{issue.state}"
+          )
+
+        # Check if this was a planning phase run
         {:ok, issue} when issue.plan_status == "planning" ->
           # Save the result as the plan and move to plan_review
           plan_text = running_entry[:result_text] || ""
@@ -56,7 +72,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
           # Check if this is a generate-definition issue and update product
           maybe_update_product_definition(issue, running_entry)
           # Clear rerun_hint after successful completion
-          if issue.rerun_hint do
+          if Map.get(issue, :rerun_hint) do
             SymphonyElixir.LocalBoard.update_issue(issue_id, %{"rerun_hint" => nil})
           end
 

@@ -5,6 +5,8 @@ defmodule SymphonyElixir.Server.RouterTest do
   alias SymphonyElixir.{Config, LocalBoard, Orchestrator}
   alias SymphonyElixir.Server.Router
 
+  import SymphonyElixir.TestHelpers, only: [wait_until: 1]
+
   @minimal_config %Config{
     tracker_kind: "local",
     workspace_root: System.tmp_dir!() |> Path.join("symphony_router_test"),
@@ -20,12 +22,14 @@ defmodule SymphonyElixir.Server.RouterTest do
     start_supervised!({LocalBoard, store_path: board_store, project_prefix: "RT"})
     start_supervised!({SymphonyElixir.Settings, store_path: settings_store})
 
+    start_supervised!({Task.Supervisor, name: SymphonyElixir.WorkerTaskSupervisor})
+
     start_supervised!(
       {Orchestrator, config: @minimal_config, prompt_template: "Work on {{ issue.identifier }}"},
       restart: :temporary
     )
 
-    Process.sleep(100)
+    wait_until(fn -> Orchestrator.get_snapshot() != nil end)
 
     on_exit(fn ->
       File.rm(board_store)
@@ -44,11 +48,10 @@ defmodule SymphonyElixir.Server.RouterTest do
   end
 
   describe "GET /" do
-    test "returns 200 HTML dashboard" do
+    test "redirects to /board" do
       conn = call(:get, "/")
-      assert conn.status == 200
-      assert get_resp_header(conn, "content-type") |> hd() =~ "text/html"
-      assert conn.resp_body =~ "Symphony"
+      assert conn.status == 302
+      assert get_resp_header(conn, "location") == ["/board"]
     end
   end
 

@@ -146,6 +146,42 @@ defmodule SymphonyElixir.SettingsTest do
     end
   end
 
+  describe "integration defaults" do
+    test "jira defaults are empty except issue_type" do
+      assert Settings.get("jira_base_url") == ""
+      assert Settings.get("jira_auth_token") == ""
+      assert Settings.get("jira_project_key") == ""
+      assert Settings.get("jira_issue_type") == "Task"
+    end
+
+    test "gitlab_ci defaults are empty except ref" do
+      assert Settings.get("gitlab_ci_base_url") == ""
+      assert Settings.get("gitlab_ci_project_id") == ""
+      assert Settings.get("gitlab_ci_trigger_token") == ""
+      assert Settings.get("gitlab_ci_ref") == "main"
+    end
+
+    test "confluence defaults are all empty" do
+      assert Settings.get("confluence_base_url") == ""
+      assert Settings.get("confluence_auth_token") == ""
+      assert Settings.get("confluence_space_key") == ""
+      assert Settings.get("confluence_parent_page_id") == ""
+    end
+
+    test "updates integration settings" do
+      :ok =
+        Settings.update(%{
+          "jira_base_url" => "https://test.atlassian.net",
+          "gitlab_ci_project_id" => "42",
+          "confluence_space_key" => "ENG"
+        })
+
+      assert Settings.get("jira_base_url") == "https://test.atlassian.net"
+      assert Settings.get("gitlab_ci_project_id") == "42"
+      assert Settings.get("confluence_space_key") == "ENG"
+    end
+  end
+
   describe "persistence across restarts" do
     test "loads persisted settings on restart" do
       :ok = Settings.update(%{"ai_provider" => "gemini", "git_host" => "https://git.example.com"})

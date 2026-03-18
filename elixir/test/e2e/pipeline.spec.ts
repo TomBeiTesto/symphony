@@ -587,7 +587,7 @@ test.describe("Pipeline Designer — Config Modal", () => {
     await expect(page.locator("#cfg-checks")).toHaveCount(1);
   });
 
-  test("integration node config shows type selector and JSON config", async ({
+  test("integration node config shows type selector and action fields", async ({
     page,
     request,
   }) => {
@@ -601,7 +601,9 @@ test.describe("Pipeline Designer — Config Modal", () => {
 
     await openConfigViaToolbar(page, page.locator(".p-node").first());
     await expect(page.locator("#cfg-int-type")).toHaveCount(1);
-    await expect(page.locator("#cfg-int-config")).toHaveCount(1);
+    // Integration config now has dynamic action fields instead of raw JSON
+    await expect(page.locator("#cfg-int-fields")).toHaveCount(1);
+    await expect(page.locator("#cfg-int-help")).toHaveCount(1);
   });
 });
 
@@ -1112,5 +1114,331 @@ test.describe("Pipeline — Navigation", () => {
       'a[href="/board/pipeline"].nav-active'
     );
     await expect(pipelineLink).toHaveCount(1);
+  });
+});
+
+// ============================================================
+// Fix T: Pipeline — Reject/Loop Flow
+// ============================================================
+
+test.describe("Pipeline — Reject/Loop Flow", () => {
+  const createdIds: string[] = [];
+  const createdIssueIds: string[] = [];
+
+  test.afterEach(async ({ request }) => {
+    // Cancel any active runs before cleanup
+    for (const id of createdIds) {
+      try {
+        const runsRes = await request.get(`/board/api/pipelines/${id}/runs`);
+        const runsData = await runsRes.json();
+        for (const r of runsData.runs || []) {
+          if (r.status === "running" || r.status === "paused") {
+            await request.post(`/board/api/pipelines/${id}/runs/${r.id}/cancel`);
+          }
+        }
+      } catch {}
+    }
+    await cleanupPipelines(request, createdIds.splice(0));
+    for (const id of createdIssueIds.splice(0)) {
+      try { await request.delete(`/board/api/issues/${id}`); } catch {}
+    }
+  });
+
+  test("reject gate via API resets node and re-waits", async ({ request }) => {
+    // Build: start -> human_gate (reject loops back) -> end
+    const pipeline = await createPipeline(request, { name: "Reject Loop Test" });
+    createdIds.push(pipeline.id);
+
+    await request.patch(`/board/api/pipelines/${pipeline.id}`, {
+      data: {
+        nodes: [
+          { id: "s1", type: "start", label: "Start", position: { x: 0, y: 0 }, config: {} },
+          { id: "g1", type: "human_gate", label: "Gate", position: { x: 200, y: 0 }, config: {} },
+          { id: "e1", type: "end", label: "End", position: { x: 400, y: 0 }, config: {} },
+        ],
+        edges: [
+          { id: "e-sg", source_node_id: "s1", target_node_id: "g1", source_port: "output" },
+          { id: "e-ge", source_node_id: "g1", target_node_id: "e1", source_port: "output" },
+          { id: "e-gg", source_node_id: "g1", target_node_id: "g1", source_port: "reject" },
+        ],
+      },
+    });
+
+    // Start run
+    const runRes = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    expect(runRes.ok()).toBeTruthy();
+    const run = await runRes.json();
+
+    // Wait for gate
+    await new Promise((r) => setTimeout(r, 3000));
+
+    let statusRes = await request.get(`/board/api/pipelines/${pipeline.id}/runs/${run.id}`);
+    let runData = await statusRes.json();
+    expect(runData.node_states["g1"]).toBe("waiting_gate");
+
+    // Reject the gate
+    const rejectRes = await request.post(
+      `/board/api/pipelines/${pipeline.id}/runs/${run.id}/gate/g1`,
+      { data: { action: "reject", feedback: "Try again" } }
+    );
+    expect(rejectRes.ok()).toBeTruthy();
+
+    // Wait for re-advance
+    await new Promise((r) => setTimeout(r, 4000));
+
+    statusRes = await request.get(`/board/api/pipelines/${pipeline.id}/runs/${run.id}`);
+    runData = await statusRes.json();
+    // Gate should be waiting again
+    expect(runData.node_states["g1"]).toBe("waiting_gate");
+    expect(runData.status).toBe("running");
+
+    // Now approve
+    await request.post(
+      `/board/api/pipelines/${pipeline.id}/runs/${run.id}/gate/g1`,
+      { data: { action: "approve" } }
+    );
+
+    await new Promise((r) => setTimeout(r, 4000));
+
+    statusRes = await request.get(`/board/api/pipelines/${pipeline.id}/runs/${run.id}`);
+    runData = await statusRes.json();
+    expect(runData.status).toBe("completed");
+  });
+
+  test("invalid gate action returns 400", async ({ request }) => {
+    const pipeline = await createPipelineWithNodes(request, {
+      nodeTypes: ["human_gate"],
+    });
+    createdIds.push(pipeline.id);
+
+    const runRes = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    const run = await runRes.json();
+
+    await new Promise((r) => setTimeout(r, 2000));
+
+    const gateNode = pipeline.nodes.find((n: { type: string }) => n.type === "human_gate");
+    if (gateNode) {
+      const res = await request.post(
+        `/board/api/pipelines/${pipeline.id}/runs/${run.id}/gate/${gateNode.id}`,
+        { data: { action: "appprove" } }
+      );
+      expect(res.status()).toBe(400);
+    }
+
+    await request.post(`/board/api/pipelines/${pipeline.id}/runs/${run.id}/cancel`);
+  });
+});
+
+// ============================================================
+// Fix U: Pipeline — Integration Node Execution
+// ============================================================
+
+test.describe("Pipeline — Integration Node", () => {
+  const createdIds: string[] = [];
+
+  test.afterEach(async ({ request }) => {
+    for (const id of createdIds) {
+      try {
+        const runsRes = await request.get(`/board/api/pipelines/${id}/runs`);
+        const runsData = await runsRes.json();
+        for (const r of runsData.runs || []) {
+          if (r.status === "running" || r.status === "paused") {
+            await request.post(`/board/api/pipelines/${id}/runs/${r.id}/cancel`);
+          }
+        }
+      } catch {}
+    }
+    await cleanupPipelines(request, createdIds.splice(0));
+  });
+
+  test("integration node executes and pipeline completes or fails", async ({
+    request,
+  }) => {
+    // Build: start -> integration (KB write, likely succeeds or fails gracefully) -> end
+    const pipeline = await createPipeline(request, { name: "Integration Test" });
+    createdIds.push(pipeline.id);
+
+    await request.patch(`/board/api/pipelines/${pipeline.id}`, {
+      data: {
+        nodes: [
+          { id: "s1", type: "start", label: "Start", position: { x: 0, y: 0 }, config: {} },
+          {
+            id: "int1", type: "integration", label: "KB Write",
+            position: { x: 200, y: 0 },
+            config: {
+              integration_type: "knowledge_base",
+              action: "write_note",
+              action_config: { title: "Integration Test Note" },
+            },
+          },
+          { id: "e1", type: "end", label: "End", position: { x: 400, y: 0 }, config: {} },
+        ],
+        edges: [
+          { id: "e-si", source_node_id: "s1", target_node_id: "int1", source_port: "output" },
+          { id: "e-ie", source_node_id: "int1", target_node_id: "e1", source_port: "output" },
+        ],
+      },
+    });
+
+    const runRes = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    expect(runRes.ok()).toBeTruthy();
+    const run = await runRes.json();
+
+    // Wait for integration to execute (async)
+    await new Promise((r) => setTimeout(r, 5000));
+
+    const statusRes = await request.get(
+      `/board/api/pipelines/${pipeline.id}/runs/${run.id}`
+    );
+    const runData = await statusRes.json();
+    // Integration node should have reached a terminal state
+    const intState = runData.node_states["int1"];
+    expect(["completed", "failed"]).toContain(intState);
+    expect(["completed", "failed"]).toContain(runData.status);
+  });
+});
+
+// ============================================================
+// Fix V: Pipeline — Template Issue Creation
+// ============================================================
+
+test.describe("Pipeline — Template Issue Creation", () => {
+  const createdIds: string[] = [];
+  const createdIssueIds: string[] = [];
+
+  test.afterEach(async ({ request }) => {
+    for (const id of createdIds) {
+      try {
+        const runsRes = await request.get(`/board/api/pipelines/${id}/runs`);
+        const runsData = await runsRes.json();
+        for (const r of runsData.runs || []) {
+          if (r.status === "running" || r.status === "paused") {
+            await request.post(`/board/api/pipelines/${id}/runs/${r.id}/cancel`);
+          }
+        }
+      } catch {}
+    }
+    await cleanupPipelines(request, createdIds.splice(0));
+    for (const id of createdIssueIds.splice(0)) {
+      try { await request.delete(`/board/api/issues/${id}`); } catch {}
+    }
+  });
+
+  test("issue node with template config auto-creates issue", async ({
+    request,
+  }) => {
+    const pipeline = await createPipeline(request, { name: "Template Issue Test" });
+    createdIds.push(pipeline.id);
+
+    await request.patch(`/board/api/pipelines/${pipeline.id}`, {
+      data: {
+        nodes: [
+          { id: "s1", type: "start", label: "Start", position: { x: 0, y: 0 }, config: {} },
+          {
+            id: "i1", type: "issue", label: "Template Node",
+            position: { x: 200, y: 0 },
+            config: {
+              title: "Auto-Created From Template",
+              description: "Created by pipeline runner",
+              labels: ["pipeline", "auto"],
+              priority: 2,
+            },
+          },
+          { id: "e1", type: "end", label: "End", position: { x: 400, y: 0 }, config: {} },
+        ],
+        edges: [
+          { id: "e-si", source_node_id: "s1", target_node_id: "i1", source_port: "output" },
+          { id: "e-ie", source_node_id: "i1", target_node_id: "e1", source_port: "output" },
+        ],
+      },
+    });
+
+    const runRes = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    expect(runRes.ok()).toBeTruthy();
+    const run = await runRes.json();
+
+    // Wait for issue creation
+    await new Promise((r) => setTimeout(r, 3000));
+
+    const statusRes = await request.get(
+      `/board/api/pipelines/${pipeline.id}/runs/${run.id}`
+    );
+    const runData = await statusRes.json();
+
+    // Should have created an issue in node_issue_ids
+    expect(runData.node_issue_ids).toBeTruthy();
+    const createdIssueId = runData.node_issue_ids["i1"];
+    expect(createdIssueId).toBeTruthy();
+    if (createdIssueId) createdIssueIds.push(createdIssueId);
+
+    // Verify the created issue
+    const issueRes = await request.get(`/board/api/issues/${createdIssueId}`);
+    expect(issueRes.ok()).toBeTruthy();
+    const issue = await issueRes.json();
+    expect(issue.title).toBe("Auto-Created From Template");
+    expect(issue.state).toBe("Todo");
+
+    // Move issue to Done so pipeline completes
+    await request.patch(`/board/api/issues/${createdIssueId}`, {
+      data: { state: "Done" },
+    });
+
+    await new Promise((r) => setTimeout(r, 5000));
+
+    const finalRes = await request.get(
+      `/board/api/pipelines/${pipeline.id}/runs/${run.id}`
+    );
+    const finalData = await finalRes.json();
+    expect(finalData.status).toBe("completed");
+  });
+
+  test("concurrency guard returns 409 for second run", async ({ request }) => {
+    const pipeline = await createPipelineWithNodes(request, {
+      nodeTypes: ["human_gate"],
+    });
+    createdIds.push(pipeline.id);
+
+    const run1 = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    expect(run1.ok()).toBeTruthy();
+
+    const run2 = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    expect(run2.status()).toBe(409);
+    const body = await run2.json();
+    expect(body.error).toBe("already_running");
+
+    // Cleanup: cancel first run
+    const r1 = await run1.json();
+    await request.post(`/board/api/pipelines/${pipeline.id}/runs/${r1.id}/cancel`);
+  });
+
+  test("run history endpoint returns completed runs", async ({ request }) => {
+    const pipeline = await createPipeline(request, { name: "History Test" });
+    createdIds.push(pipeline.id);
+
+    // Create a simple start -> end pipeline
+    await request.patch(`/board/api/pipelines/${pipeline.id}`, {
+      data: {
+        nodes: [
+          { id: "s1", type: "start", label: "Start", position: { x: 0, y: 0 }, config: {} },
+          { id: "e1", type: "end", label: "End", position: { x: 200, y: 0 }, config: {} },
+        ],
+        edges: [
+          { id: "e-se", source_node_id: "s1", target_node_id: "e1", source_port: "output" },
+        ],
+      },
+    });
+
+    // Run it
+    const runRes = await request.post(`/board/api/pipelines/${pipeline.id}/run`);
+    expect(runRes.ok()).toBeTruthy();
+
+    await new Promise((r) => setTimeout(r, 4000));
+
+    // Check history
+    const historyRes = await request.get(`/board/api/pipelines/${pipeline.id}/runs`);
+    expect(historyRes.ok()).toBeTruthy();
+    const historyData = await historyRes.json();
+    expect(historyData.runs.length).toBeGreaterThanOrEqual(1);
+    expect(historyData.runs[0].status).toBe("completed");
   });
 });

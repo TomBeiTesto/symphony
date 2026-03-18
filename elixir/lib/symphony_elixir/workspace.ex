@@ -218,6 +218,81 @@ defmodule SymphonyElixir.Workspace do
     end
   end
 
+  # --- Report Discovery ---
+
+  @doc """
+  Find report markdown files in an issue's workspace.
+
+  Searches the issue's project/product paths and the symphony workspace root
+  for a `reports/` directory containing `.md` files.
+  """
+  @spec find_issue_reports(map()) :: [String.t()]
+  def find_issue_reports(issue) do
+    workspace_key = Map.get(issue, :identifier) || Map.get(issue, :id)
+
+    workspace_root =
+      case Process.get(:symphony_workspace_root) do
+        nil -> Path.join(System.tmp_dir!(), "symphony_workspaces")
+        root -> root
+      end
+
+    project_paths = resolve_issue_project_paths(issue)
+
+    candidates =
+      Enum.map(project_paths, fn p -> Path.join(p, "reports") end) ++
+        [
+          Path.join([workspace_root, workspace_key, "reports"]),
+          Path.join(["~/code/symphony-workspaces", workspace_key, "reports"]),
+          Path.join(["~/symphony_workspaces", workspace_key, "reports"])
+        ]
+
+    candidates
+    |> Enum.map(&Path.expand/1)
+    |> Enum.find(fn dir -> File.dir?(dir) end)
+    |> case do
+      nil -> []
+      dir -> Path.wildcard(Path.join(dir, "*.md") |> String.replace("\\", "/"))
+    end
+  end
+
+  defp resolve_issue_project_paths(issue) do
+    project_path =
+      case Map.get(issue, :project_id) do
+        pid when is_binary(pid) and pid != "" ->
+          case SymphonyElixir.LocalBoard.get_project(pid) do
+            {:ok, %{path: path}} when is_binary(path) and path != "" -> path
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
+    product_paths =
+      case Map.get(issue, :product_id) do
+        prod_id when is_binary(prod_id) and prod_id != "" ->
+          case SymphonyElixir.LocalBoard.get_product(prod_id) do
+            {:ok, product} ->
+              (product.project_ids || [])
+              |> Enum.flat_map(fn pid ->
+                case SymphonyElixir.LocalBoard.get_project(pid) do
+                  {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
+                  _ -> []
+                end
+              end)
+
+            _ ->
+              []
+          end
+
+        _ ->
+          []
+      end
+
+    Enum.reject([project_path | product_paths], &is_nil/1)
+    |> Enum.uniq()
+  end
+
   # --- Private Helpers ---
 
   defp get_hook_script(%Config{} = config, :after_create), do: config.hooks.after_create

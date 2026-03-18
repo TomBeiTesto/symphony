@@ -334,6 +334,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       UIHelpers.nav_active_css() <>
       UIHelpers.ai_draft_css() <>
       UIHelpers.skill_picker_css() <>
+      UIHelpers.dropdown_css() <>
+      UIHelpers.spinner_css() <>
+      UIHelpers.pulse_css() <>
       ~S"""
 
       body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -389,9 +392,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .product-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
       .action-group { display: flex; gap: 4px; align-items: center; }
       .action-group + .action-group { padding-left: 6px; border-left: 1px solid var(--border); }
-      #{UIHelpers.dropdown_css()}
       .tab-loading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 40px; color: var(--text-muted); font-size: 0.85rem; }
-      #{UIHelpers.spinner_css()}
       .scope-indicator { padding: 8px 16px; font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; }
       .kanban-wrapper { display: flex; flex-direction: column; height: 100%; }
       .product-desc { font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
@@ -509,6 +510,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .card-delete:hover { opacity: 1 !important; color: var(--red); background: rgba(248,81,73,0.15); }
       .issue-card:hover { border-color: var(--border); border-left-color: var(--accent); background: var(--bg-tertiary); }
       .issue-card.dragging { opacity: 0.4; }
+      .plan-badge { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; margin-top: 2px; }
+      .plan-badge.planning { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .plan-badge.review { background: rgba(210,153,34,0.15); color: #d29922; }
+      .plan-badge.approved { background: rgba(63,185,80,0.15); color: #3fb950; }
       .issue-card-id { font-size: 0.62rem; color: var(--text-muted); font-weight: 500; font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; margin-bottom: 1px; }
       .issue-card-title { font-size: 0.78rem; font-weight: 500; color: var(--text-primary); line-height: 1.3; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .issue-card-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -535,7 +540,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .activity-title a:hover { color: var(--accent); }
       .activity-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
       .activity-empty { text-align: center; color: var(--text-muted); padding: 40px; font-size: 0.85rem; }
-      #{UIHelpers.pulse_css()}
 
       /* --- Knowledge Base Tab --- */
       .kb-browser { padding: 24px; max-width: 900px; }
@@ -556,6 +560,35 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .kb-fm-tag { display: inline-block; padding: 2px 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; font-size: 0.72rem; color: var(--text-secondary); }
       .kb-note-content { padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: auto; max-height: 60vh; font-size: 0.85rem; line-height: 1.55; color: var(--text-secondary); }
 
+      /* KB Sync indicator on issue cards */
+      .kb-sync-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 2px; vertical-align: middle; }
+      .kb-sync-dot.synced { background: var(--green); title: 'Synced to KB'; }
+      .kb-sync-dot.not-synced { background: var(--text-muted); opacity: 0.4; }
+      .kb-sync-time { font-size: 0.6rem; color: var(--text-muted); margin-left: 4px; }
+
+      /* Note editor */
+      .kb-editor { padding: 24px; max-width: 900px; }
+      .kb-editor-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+      .kb-editor-header h3 { margin: 0; font-size: 0.95rem; flex: 1; }
+      .kb-editor-field { margin-bottom: 12px; }
+      .kb-editor-field label { display: block; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
+      .kb-editor-field input, .kb-editor-field textarea { width: 100%; padding: 8px 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.85rem; font-family: inherit; box-sizing: border-box; }
+      .kb-editor-field input:focus, .kb-editor-field textarea:focus { outline: none; border-color: var(--accent); }
+      .kb-editor-field textarea { min-height: 300px; resize: vertical; font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 0.82rem; line-height: 1.5; }
+      .kb-editor-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+      /* Version history */
+      .kb-version-list { margin-top: 12px; }
+      .kb-version-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 0.8rem; cursor: pointer; transition: all var(--transition); }
+      .kb-version-item:hover { border-color: var(--accent); background: var(--bg-tertiary); }
+      .kb-version-timestamp { font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; color: var(--text-secondary); min-width: 140px; }
+      .kb-version-size { color: var(--text-muted); font-size: 0.72rem; min-width: 60px; }
+      .kb-version-actions { margin-left: auto; display: flex; gap: 6px; }
+      .kb-diff-view { margin-top: 12px; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: auto; max-height: 50vh; }
+      .kb-diff-view .diff-add { color: var(--green); background: rgba(63,185,80,0.1); }
+      .kb-diff-view .diff-del { color: var(--red); background: rgba(248,81,73,0.1); }
+      .kb-diff-view pre { margin: 0; font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap; }
+
       /* Auto-dispatch controls (in Issues tab actions) */
       .auto-dispatch-bar { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted); }
       .auto-dispatch-bar label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
@@ -565,22 +598,45 @@ defmodule SymphonyElixir.Server.ProductHubUI do
   end
 
   defp javascript do
-    SymphonyElixir.Server.UIHelpers.esc_js() <>
-      SymphonyElixir.Server.UIHelpers.markdown_js() <>
-      SymphonyElixir.Server.UIHelpers.toast_js() <>
-      SymphonyElixir.Server.UIHelpers.color_maps_js() <>
-      SymphonyElixir.Server.UIHelpers.time_utils_js() <>
-      SymphonyElixir.Server.UIHelpers.dropdown_js() <>
-      SymphonyElixir.Server.UIHelpers.create_issue_modal_js("hi") <>
-      ~S"""
+    alias SymphonyElixir.Server.UIHelpers
 
+    UIHelpers.esc_js() <>
+      UIHelpers.markdown_js() <>
+      UIHelpers.toast_js() <>
+      UIHelpers.color_maps_js() <>
+      UIHelpers.time_utils_js() <>
+      UIHelpers.dropdown_js() <>
+      UIHelpers.pipeline_indicator_js() <>
+      UIHelpers.create_issue_modal_js("hi") <>
+      globals_js() <>
+      UIHelpers.load_skills_js() <>
+      UIHelpers.skill_picker_js() <>
+      UIHelpers.kanban_drag_drop_js() <>
+      init_js() <>
+      data_loading_js() <>
+      sidebar_js() <>
+      tabs_js() <>
+      spec_sheet_js() <>
+      kanban_js() <>
+      activity_js() <>
+      kb_browser_js() <>
+      kb_editor_js() <>
+      kb_versions_js() <>
+      modal_product_js() <>
+      modal_feature_js() <>
+      modal_agent_js() <>
+      modal_issue_js() <>
+      modal_project_js() <>
+      scan_import_js() <>
+      keyboard_shortcuts_js() <>
+      auto_refresh_js()
+  end
+
+  defp globals_js do
+    ~S"""
       const API = '/board/api';
       let allProducts = [];
       let allProjects = [];
-      """ <>
-      SymphonyElixir.Server.UIHelpers.load_skills_js() <>
-      SymphonyElixir.Server.UIHelpers.skill_picker_js() <>
-      ~S"""
       let currentProd = null;
       let selectedProductId = null;
       let activeTab = 'spec';
@@ -608,6 +664,24 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       const STATUS_ICONS = { done:'\u2705', partial:'\uD83D\uDFE1', in_progress:'\uD83D\uDD35', planned:'\uD83D\uDFE0', missing:'\uD83D\uDD34', n_a:'\u2B1C' };
       const BADGE_CLASSES = { 'backlog':'badge-backlog','todo':'badge-todo','in progress':'badge-in-progress','review':'badge-review','done':'badge-done','cancelled':'badge-cancelled','archived':'badge-archived' };
 
+
+      // Kanban config for shared drag-drop
+      window._kanbanOpts = {
+        cardSelector: '.issue-card',
+        bodySelector: '.kb-column-body',
+        getQuickAddExtras: function() {
+          var extras = {};
+          if (currentProd && currentProd.project_ids && currentProd.project_ids.length > 0) extras.project_id = currentProd.project_ids[0];
+          if (currentProd && selectedProductId !== '__all__') extras.product_id = selectedProductId;
+          return extras;
+        }
+      };
+      async function kanbanAfterMutation() { await refreshAfterMutation(); }
+    """
+  end
+
+  defp init_js do
+    ~S"""
       // ========== INIT ==========
 
       async function init() {
@@ -639,6 +713,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         history.replaceState(null, '', url);
       }
 
+    """
+  end
+
+  defp data_loading_js do
+    ~S"""
       // ========== DATA LOADING ==========
 
       async function loadProducts() {
@@ -672,6 +751,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (e) { activityData = []; }
       }
 
+    """
+  end
+
+  defp sidebar_js do
+    ~S"""
       // ========== SIDEBAR ==========
 
       function countIssuesForProduct(prod) {
@@ -893,6 +977,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           '<button class="btn btn-primary" onclick="openNewProductModal()">Create Product</button></div>';
       }
 
+    """
+  end
+
+  defp tabs_js do
+    ~S"""
       // ========== TABS ==========
 
       function switchTab(tab) {
@@ -952,9 +1041,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
                 '<div class="kb-scope">' +
                   (currentProd && selectedProductId !== '__all__' ? '<span class="scope-indicator" style="font-size:0.82rem">Scoped to <strong>' + esc(currentProd.name) + '</strong></span>' : '<span style="font-size:0.82rem;color:var(--text-muted)">All products</span>') +
                 '</div>' +
+                '<div style="display:flex;gap:6px;margin-left:auto">' +
+                  '<button class="btn btn-ghost btn-sm" onclick="openKBEditor()">+ New Note</button>' +
+                  (currentProd && selectedProductId !== '__all__' ? '<button class="btn btn-primary btn-sm" onclick="batchSendToKB()">Send All to KB</button>' : '') +
+                '</div>' +
               '</div>' +
               '<div id="kb-results" class="kb-results"></div>' +
               '<div id="kb-note-viewer" class="kb-note-viewer" style="display:none"></div>' +
+              '<div id="kb-editor" class="kb-editor" style="display:none"></div>' +
             '</div>';
             loadKBNotes();
             break;
@@ -978,6 +1072,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
       }
 
+    """
+  end
+
+  defp spec_sheet_js do
+    ~S"""
       // ========== SPEC SHEET TAB ==========
 
       function getProjectById(id) {
@@ -1192,6 +1291,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       function loadCollapseState() { if (!currentProd) { collapsedCategories = {}; return; } try { var s = localStorage.getItem('symphony_collapse_' + currentProd.id); collapsedCategories = s ? JSON.parse(s) : {}; } catch(e) { collapsedCategories = {}; } }
       function updateCategoryDatalist(features) { var cats = {}; features.forEach(function(f) { if (f.category) cats[f.category] = true; }); var dl = document.getElementById('category-list'); if (dl) dl.innerHTML = Object.keys(cats).map(function(c) { return '<option value="' + esc(c) + '">'; }).join(''); }
 
+    """
+  end
+
+  defp kanban_js do
+    ~S"""
       // ========== ISSUES TAB (KANBAN) ==========
 
       function issueMatchesProduct(issue) {
@@ -1248,6 +1352,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var skillBadge = skillCount > 0 ? '<span class="card-skills">\u26A1 ' + skillCount + '</span>' : '';
         var ageHtml = '';
         if (issue.created_at) { var days = Math.floor((Date.now() - new Date(issue.created_at).getTime()) / 86400000); if (days > 14) ageHtml = '<span class="card-age stale">' + days + 'd</span>'; else if (days > 3) ageHtml = '<span class="card-age">' + days + 'd</span>'; }
+        var planBadge = '';
+        if (issue.plan_status === 'planning') planBadge = '<span class="plan-badge planning" title="Planning phase">\u{1F4CB} Planning</span>';
+        else if (issue.plan_status === 'plan_review') planBadge = '<span class="plan-badge review" title="Plan awaiting review">\u{1F4CB} Plan Ready</span>';
+        else if (issue.plan_status === 'approved') planBadge = '<span class="plan-badge approved" title="Plan approved, executing">\u{1F4CB} Executing</span>';
         var delBtn = DELETABLE_STATES.includes(issue.state)
           ? '<button class="card-delete" onclick="event.stopPropagation(); deleteIssueFromHub(\'' + issue.id + '\', \'' + esc(issue.identifier) + '\')" title="Delete">&times;</button>'
           : '';
@@ -1255,7 +1363,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           delBtn +
           '<div class="issue-card-id">' + esc(issue.identifier) + '</div>' +
           '<div class="issue-card-title">' + esc(issue.title) + '</div>' +
-          '<div class="issue-card-meta"><span class="priority-dot priority-' + (issue.priority || 0) + '"></span>' + projBadge + labels + skillBadge + ageHtml + '</div></div>';
+          planBadge +
+          '<div class="issue-card-meta"><span class="priority-dot priority-' + (issue.priority || 0) + '"></span>' + projBadge + labels + skillBadge + ageHtml +
+          (issue.kb_synced_at ? '<span class="kb-sync-dot synced" title="Synced to KB: ' + new Date(issue.kb_synced_at).toLocaleString() + '"></span>' : '') +
+          '</div></div>';
       }
 
       function toggleKbColumn(state) {
@@ -1264,21 +1375,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         renderKanban();
       }
 
-      // Drag & Drop
-      function handleDragStart(e) { draggedCard = e.target.closest('.issue-card'); if (draggedCard) { draggedCard.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', draggedCard.dataset.id); } }
-      function handleDragEnd(e) { if (draggedCard) draggedCard.classList.remove('dragging'); draggedCard = null; document.querySelectorAll('.kb-column-body').forEach(function(el) { el.classList.remove('drag-over'); }); }
-      function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.classList.add('drag-over'); }
-      function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
-      async function handleDrop(e) {
-        e.preventDefault(); e.currentTarget.classList.remove('drag-over');
-        var issueId = e.dataTransfer.getData('text/plain'); var newState = e.currentTarget.dataset.state;
-        if (!issueId || !newState || _apiLock) return;
-        if (['Cancelled','Archived'].includes(newState)) { if (!confirm('Move issue to ' + newState + '?')) return; }
-        _apiLock = true;
-        try { await fetch(API + '/issues/' + issueId + '/move', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: newState }) }); await refreshAfterMutation(); }
-        catch (err) { showToast('Move failed: ' + err.message, { type: 'error' }); }
-        finally { _apiLock = false; }
-      }
+      // Drag & Drop and Quick Add — provided by shared kanban_drag_drop_js()
 
       // Delete issue from hub
       async function deleteIssueFromHub(id, identifier) {
@@ -1290,19 +1387,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (err) { showToast('Delete failed: ' + err.message, { type: 'error' }); }
       }
 
-      // Quick Add
-      async function handleQuickAdd(e) {
-        if (e.key !== 'Enter') return;
-        var input = e.target; var title = input.value.trim(); if (!title || _apiLock) return;
-        var state = input.dataset.state; input.value = '';
-        var body = { title: title, state: state };
-        if (currentProd && currentProd.project_ids && currentProd.project_ids.length > 0) body.project_id = currentProd.project_ids[0];
-        if (currentProd && selectedProductId !== '__all__') body.product_id = selectedProductId;
-        _apiLock = true;
-        try { await fetch(API + '/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); await refreshAfterMutation(); }
-        catch (err) { showToast('Quick add failed', { type: 'error' }); }
-        finally { _apiLock = false; }
-      }
 
       // Auto-dispatch
       async function loadAutoSettings() {
@@ -1326,6 +1410,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         await fetch(API + '/settings/auto-add', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ segregate_by_project: enabled ? 'true' : 'false' }) });
       }
 
+    """
+  end
+
+  defp activity_js do
+    ~S"""
       // ========== ACTIVITY TAB ==========
 
       function renderActivity() {
@@ -1352,6 +1441,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('activity-tab-badge').textContent = activityData.length;
       }
 
+    """
+  end
+
+  defp kb_browser_js do
+    ~S"""
       // ========== KNOWLEDGE BASE TAB ==========
 
       var kbNotes = [];
@@ -1448,10 +1542,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           viewer.innerHTML = '<div class="kb-note-header">' +
             '<button class="btn btn-ghost btn-sm" onclick="closeKBNote()">Back</button>' +
             '<span class="kb-note-path">' + esc(notePath) + '</span>' +
+            '<button class="btn btn-ghost btn-sm" onclick="openKBEditorForNote(\'' + esc(notePath) + '\')">Edit</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="openAppendToNote(\'' + esc(notePath) + '\')">Append</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="showVersionHistory(\'' + esc(notePath) + '\')">History</button>' +
             '<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteKBNote(\'' + esc(notePath) + '\')">Delete</button>' +
           '</div>' +
           (fmHtml ? '<div class="kb-frontmatter">' + fmHtml + '</div>' : '') +
-          '<div class="kb-note-content markdown-body">' + renderMarkdown(data.content || '') + '</div>';
+          '<div class="kb-note-content markdown-body">' + renderMarkdown(data.content || '') + '</div>' +
+          '<div id="kb-version-panel" style="display:none"></div>';
         } catch (err) {
           viewer.innerHTML = '<div class="kb-note-header"><button class="btn btn-ghost btn-sm" onclick="closeKBNote()">Back</button></div>' +
             '<div class="empty-state"><p>Failed to load note: ' + esc(err.message) + '</p></div>';
@@ -1484,6 +1582,331 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
       }
 
+    """
+  end
+
+  defp kb_editor_js do
+    ~S"""
+      // ========== NOTE EDITOR (Gap 2) ==========
+
+      var editingNotePath = null;
+
+      function openKBEditor(productName) {
+        var editor = document.getElementById('kb-editor');
+        var results = document.getElementById('kb-results');
+        var viewer = document.getElementById('kb-note-viewer');
+        if (!editor) return;
+        editingNotePath = null;
+        if (results) results.style.display = 'none';
+        if (viewer) viewer.style.display = 'none';
+        editor.style.display = '';
+        var prodName = productName || (currentProd && selectedProductId !== '__all__' ? currentProd.name : '');
+        editor.innerHTML = '<div class="kb-editor-header">' +
+          '<h3>New Note</h3>' +
+          '<button class="btn btn-ghost btn-sm" onclick="closeKBEditor()">Cancel</button>' +
+        '</div>' +
+        '<div class="kb-editor-field"><label>Title</label><input type="text" id="kb-edit-title" placeholder="Note title..."></div>' +
+        '<div class="kb-editor-field"><label>Product</label><input type="text" id="kb-edit-product" value="' + esc(prodName) + '" placeholder="Product name (optional)"></div>' +
+        '<div class="kb-editor-field"><label>Tags (comma-separated)</label><input type="text" id="kb-edit-tags" placeholder="symphony, business-rule"></div>' +
+        '<div class="kb-editor-field"><label>Content (Markdown)</label><textarea id="kb-edit-content" placeholder="Write your note in Markdown..."></textarea></div>' +
+        '<div class="kb-editor-actions">' +
+          '<button class="btn btn-primary btn-sm" onclick="saveKBNote()">Save Note</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="closeKBEditor()">Cancel</button>' +
+        '</div>';
+        document.getElementById('kb-edit-title').focus();
+      }
+
+      async function openKBEditorForNote(notePath) {
+        var editor = document.getElementById('kb-editor');
+        var viewer = document.getElementById('kb-note-viewer');
+        if (!editor) return;
+        editingNotePath = notePath;
+        if (viewer) viewer.style.display = 'none';
+        editor.style.display = '';
+        editor.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Loading note...</div>';
+        try {
+          var res = await fetch('/board/api/vault/note?path=' + encodeURIComponent(notePath));
+          if (!res.ok) throw new Error('Failed to load note');
+          var data = await res.json();
+          var fm = data.frontmatter || {};
+          var title = notePath.split('/').pop().replace('.md', '');
+          var product = fm.product || '';
+          var tags = Array.isArray(fm.tags) ? fm.tags.join(', ') : (fm.tags || '');
+          editor.innerHTML = '<div class="kb-editor-header">' +
+            '<h3>Edit Note</h3>' +
+            '<button class="btn btn-ghost btn-sm" onclick="closeKBEditor()">Cancel</button>' +
+          '</div>' +
+          '<div class="kb-editor-field"><label>Title</label><input type="text" id="kb-edit-title" value="' + esc(title) + '"></div>' +
+          '<div class="kb-editor-field"><label>Product</label><input type="text" id="kb-edit-product" value="' + esc(product) + '"></div>' +
+          '<div class="kb-editor-field"><label>Tags (comma-separated)</label><input type="text" id="kb-edit-tags" value="' + esc(tags) + '"></div>' +
+          '<div class="kb-editor-field"><label>Content (Markdown)</label><textarea id="kb-edit-content">' + esc(data.content || '') + '</textarea></div>' +
+          '<div class="kb-editor-actions">' +
+            '<button class="btn btn-primary btn-sm" onclick="saveKBNote()">Save Note</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="closeKBEditor()">Cancel</button>' +
+          '</div>';
+        } catch (err) {
+          editor.innerHTML = '<p style="color:var(--red)">Failed to load: ' + esc(err.message) + '</p>' +
+            '<button class="btn btn-ghost btn-sm" onclick="closeKBEditor()">Back</button>';
+        }
+      }
+
+      async function saveKBNote() {
+        var title = (document.getElementById('kb-edit-title').value || '').trim();
+        if (!title) { document.getElementById('kb-edit-title').focus(); showToast('Title is required', { type: 'error' }); return; }
+        var product = (document.getElementById('kb-edit-product').value || '').trim() || null;
+        var tagsStr = (document.getElementById('kb-edit-tags').value || '').trim();
+        var tags = tagsStr ? tagsStr.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
+        var content = document.getElementById('kb-edit-content').value || '';
+        try {
+          var res = await fetch('/board/api/vault/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, content: content, product_name: product, tags: tags })
+          });
+          var data = await res.json();
+          if (data.ok) {
+            showToast(editingNotePath ? 'Note updated' : 'Note created', { type: 'success' });
+            closeKBEditor();
+            loadKBNotes();
+          } else {
+            showToast('Save failed: ' + (data.error || 'unknown'), { type: 'error' });
+          }
+        } catch (err) {
+          showToast('Save failed: ' + err.message, { type: 'error' });
+        }
+      }
+
+      function closeKBEditor() {
+        var editor = document.getElementById('kb-editor');
+        var results = document.getElementById('kb-results');
+        if (editor) editor.style.display = 'none';
+        if (results) results.style.display = '';
+        editingNotePath = null;
+      }
+
+      // ========== APPEND TO NOTE ==========
+
+      async function openAppendToNote(notePath) {
+        var viewer = document.getElementById('kb-note-viewer');
+        if (!viewer) return;
+        var existing = document.getElementById('kb-append-form');
+        if (existing) { existing.remove(); return; }
+        var form = document.createElement('div');
+        form.id = 'kb-append-form';
+        form.style.marginTop = '12px';
+        form.innerHTML = '<div class="kb-editor-field"><label>Append Content</label>' +
+          '<textarea id="kb-append-content" style="min-height:120px" placeholder="Content to append..."></textarea></div>' +
+          '<div class="kb-editor-actions">' +
+            '<button class="btn btn-primary btn-sm" onclick="doAppendToNote(\'' + esc(notePath) + '\')">Append</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'kb-append-form\').remove()">Cancel</button>' +
+          '</div>';
+        viewer.appendChild(form);
+        document.getElementById('kb-append-content').focus();
+      }
+
+      async function doAppendToNote(notePath) {
+        var content = (document.getElementById('kb-append-content').value || '').trim();
+        if (!content) { showToast('Content is required', { type: 'error' }); return; }
+        try {
+          var res = await fetch('/board/api/vault/append', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: notePath, content: content })
+          });
+          var data = await res.json();
+          if (data.ok) {
+            showToast('Content appended', { type: 'success' });
+            viewKBNote(notePath);
+          } else {
+            showToast('Append failed: ' + (data.error || 'unknown'), { type: 'error' });
+          }
+        } catch (err) {
+          showToast('Append failed: ' + err.message, { type: 'error' });
+        }
+      }
+
+    """
+  end
+
+  defp kb_versions_js do
+    ~S"""
+      // ========== BATCH SEND TO KB (Gap 6) ==========
+
+      async function batchSendToKB() {
+        if (!currentProd || selectedProductId === '__all__') {
+          showToast('Select a product first', { type: 'error' });
+          return;
+        }
+        // Find all completed/done issues for this product
+        var doneIssues = [];
+        if (boardData && boardData.columns) {
+          boardData.columns.forEach(function(col) {
+            if (col.state === 'Done' || col.state === 'Review') {
+              col.issues.forEach(function(i) {
+                if (i.product_id === selectedProductId) doneIssues.push(i);
+              });
+            }
+          });
+        }
+        if (doneIssues.length === 0) {
+          showToast('No completed issues found for this product', { type: 'error' });
+          return;
+        }
+        var unsynced = doneIssues.filter(function(i) { return !i.kb_synced_at; });
+        var msg = unsynced.length > 0
+          ? 'Send ' + unsynced.length + ' unsynced issue(s) to KB? (' + doneIssues.length + ' total completed)'
+          : 'All ' + doneIssues.length + ' issue(s) already synced. Re-send all?';
+        if (!confirm(msg)) return;
+        var idsToSend = unsynced.length > 0 ? unsynced.map(function(i) { return i.id; }) : doneIssues.map(function(i) { return i.id; });
+        showToast('Sending ' + idsToSend.length + ' issue(s) to KB...', { type: 'info' });
+        try {
+          var res = await fetch('/board/api/vault/send-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ issue_ids: idsToSend })
+          });
+          var data = await res.json();
+          if (data.ok) {
+            showToast('Sent ' + (data.total_notes_written || 0) + ' note(s) to KB', { type: 'success' });
+            await loadBoardSnapshot();
+            renderKanban();
+            loadKBNotes();
+          } else {
+            showToast('Batch send failed: ' + (data.error || 'unknown'), { type: 'error' });
+          }
+        } catch (err) {
+          showToast('Batch send failed: ' + err.message, { type: 'error' });
+        }
+      }
+
+      // ========== VERSION HISTORY (Gap 7) ==========
+
+      async function showVersionHistory(notePath) {
+        var panel = document.getElementById('kb-version-panel');
+        if (!panel) return;
+        if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+        panel.style.display = '';
+        panel.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Loading versions...</div>';
+        try {
+          var res = await fetch('/board/api/vault/versions?path=' + encodeURIComponent(notePath));
+          var data = await res.json();
+          var versions = data.versions || [];
+          if (versions.length === 0) {
+            panel.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem">No previous versions found.</div>';
+            return;
+          }
+          var html = '<div style="padding:12px 0"><h4 style="margin:0 0 8px;font-size:0.88rem">Version History (' + versions.length + ')</h4><div class="kb-version-list">';
+          versions.forEach(function(v) {
+            var sizeKb = (v.size / 1024).toFixed(1);
+            var ts = v.timestamp.replace('T', ' ');
+            html += '<div class="kb-version-item">' +
+              '<span class="kb-version-timestamp">' + esc(ts) + '</span>' +
+              '<span class="kb-version-size">' + sizeKb + ' KB</span>' +
+              '<div class="kb-version-actions">' +
+                '<button class="btn btn-ghost btn-sm" onclick="viewVersion(\'' + esc(v.path) + '\', \'' + esc(notePath) + '\')">View</button>' +
+                '<button class="btn btn-ghost btn-sm" onclick="diffVersion(\'' + esc(v.path) + '\', \'' + esc(notePath) + '\')">Diff</button>' +
+                '<button class="btn btn-ghost btn-sm" style="color:var(--orange)" onclick="restoreVersion(\'' + esc(v.path) + '\', \'' + esc(notePath) + '\')">Restore</button>' +
+              '</div>' +
+            '</div>';
+          });
+          html += '</div></div>';
+          panel.innerHTML = html;
+        } catch (err) {
+          panel.innerHTML = '<div style="padding:12px;color:var(--red)">Failed to load versions: ' + esc(err.message) + '</div>';
+        }
+      }
+
+      async function viewVersion(versionPath, notePath) {
+        var panel = document.getElementById('kb-version-panel');
+        if (!panel) return;
+        try {
+          var res = await fetch('/board/api/vault/version?path=' + encodeURIComponent(versionPath));
+          if (!res.ok) throw new Error('Version not found');
+          var data = await res.json();
+          var diffEl = document.getElementById('kb-version-diff');
+          if (diffEl) diffEl.remove();
+          var div = document.createElement('div');
+          div.id = 'kb-version-diff';
+          div.className = 'kb-diff-view';
+          div.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+            '<strong style="font-size:0.82rem">Version: ' + esc(versionPath.split('/').pop()) + '</strong>' +
+            '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'kb-version-diff\').remove()">Close</button>' +
+          '</div>' +
+          '<div class="kb-note-content markdown-body" style="max-height:40vh">' + renderMarkdown(data.content || '') + '</div>';
+          panel.appendChild(div);
+        } catch (err) {
+          showToast('Failed to load version: ' + err.message, { type: 'error' });
+        }
+      }
+
+      async function diffVersion(versionPath, notePath) {
+        var panel = document.getElementById('kb-version-panel');
+        if (!panel) return;
+        try {
+          var resCurrent = await fetch('/board/api/vault/note?path=' + encodeURIComponent(notePath));
+          var resVersion = await fetch('/board/api/vault/version?path=' + encodeURIComponent(versionPath));
+          if (!resCurrent.ok || !resVersion.ok) throw new Error('Failed to load');
+          var currentData = await resCurrent.json();
+          var versionData = await resVersion.json();
+          var currentLines = (currentData.content || '').split('\\n');
+          var versionLines = (versionData.content || '').split('\\n');
+          var diffHtml = computeSimpleDiff(versionLines, currentLines);
+          var diffEl = document.getElementById('kb-version-diff');
+          if (diffEl) diffEl.remove();
+          var div = document.createElement('div');
+          div.id = 'kb-version-diff';
+          div.className = 'kb-diff-view';
+          div.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+            '<strong style="font-size:0.82rem">Diff: version vs current</strong>' +
+            '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'kb-version-diff\').remove()">Close</button>' +
+          '</div><pre>' + diffHtml + '</pre>';
+          panel.appendChild(div);
+        } catch (err) {
+          showToast('Diff failed: ' + err.message, { type: 'error' });
+        }
+      }
+
+      function computeSimpleDiff(oldLines, newLines) {
+        var html = '';
+        var maxLen = Math.max(oldLines.length, newLines.length);
+        for (var i = 0; i < maxLen; i++) {
+          var oldLine = i < oldLines.length ? oldLines[i] : null;
+          var newLine = i < newLines.length ? newLines[i] : null;
+          if (oldLine === newLine) {
+            html += ' ' + esc(oldLine || '') + '\\n';
+          } else {
+            if (oldLine !== null) html += '<span class="diff-del">-' + esc(oldLine) + '</span>\\n';
+            if (newLine !== null) html += '<span class="diff-add">+' + esc(newLine) + '</span>\\n';
+          }
+        }
+        return html;
+      }
+
+      async function restoreVersion(versionPath, notePath) {
+        if (!confirm('Restore this version? The current version will be saved to history first.')) return;
+        try {
+          var res = await fetch('/board/api/vault/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ version_path: versionPath, note_path: notePath })
+          });
+          var data = await res.json();
+          if (data.ok) {
+            showToast('Version restored', { type: 'success' });
+            viewKBNote(notePath);
+          } else {
+            showToast('Restore failed: ' + (data.error || 'unknown'), { type: 'error' });
+          }
+        } catch (err) {
+          showToast('Restore failed: ' + err.message, { type: 'error' });
+        }
+      }
+
+    """
+  end
+
+  defp modal_product_js do
+    ~S"""
       // ========== MODALS: PRODUCT CRUD ==========
 
       function openNewProductModal() {
@@ -1551,6 +1974,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         await loadProducts(); renderSidebar(); saveState(); showWelcome();
       }
 
+    """
+  end
+
+  defp modal_feature_js do
+    ~S"""
       // ========== MODALS: FEATURE CRUD ==========
 
       function renderDepsChecklist(selectedIds, excludeId) {
@@ -1640,6 +2068,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var res = await fetch(API + '/products/' + currentProd.id); currentProd = await res.json(); renderSpecSheet(); openFeatureDetail(featureId);
       }
 
+    """
+  end
+
+  defp modal_agent_js do
+    ~S"""
       // ========== MODALS: AGENT ACTIONS ==========
 
       // Skill picker — shared from UIHelpers.skill_picker_js()
@@ -1718,6 +2151,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         finally { btn.innerHTML = 'Create Task'; btn.disabled = false; }
       }
 
+    """
+  end
+
+  defp modal_issue_js do
+    ~S"""
       // ========== ISSUE CREATE MODAL ==========
 
       // Hooks for the shared AI draft (prefix "hi")
@@ -1812,6 +2250,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (err) { showToast('Save failed', { type: 'error' }); }
       }
 
+    """
+  end
+
+  defp modal_project_js do
+    ~S"""
       // ========== PROJECT CRUD ==========
 
       function openNewProjectModal() {
@@ -1900,6 +2343,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (err) { showToast('Failed to open folder dialog', { type: 'error' }); }
       }
 
+    """
+  end
+
+  defp scan_import_js do
+    ~S"""
       // Import / Scan
       var scannedCandidates = [];
 
@@ -1964,9 +2412,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         finally { btn.disabled = false; }
       }
 
-      // ========== DROPDOWNS ==========
-      #{UIHelpers.dropdown_js()}
+    """
+  end
 
+  defp keyboard_shortcuts_js do
+    ~S"""
       // ========== KEYBOARD SHORTCUTS ==========
 
       document.addEventListener('keydown', function(e) {
@@ -1984,6 +2434,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (e.key === '?') showToast('1/2/3=Tabs  n=New Issue  Esc=Close', { duration: 3000 });
       });
 
+    """
+  end
+
+  defp auto_refresh_js do
+    ~S"""
       // ========== AUTO-REFRESH ==========
 
       async function refreshCurrentView() {
@@ -2007,6 +2462,6 @@ defmodule SymphonyElixir.Server.ProductHubUI do
 
       // ========== START ==========
       init();
-      """
+    """
   end
 end

@@ -7,27 +7,6 @@ import { test, expect } from "@playwright/test";
  * Run: cd test/e2e && npx playwright test dashboard.spec.ts
  */
 
-// --- Orchestrator Dashboard (GET /) ---
-
-test.describe("Dashboard — GET /", () => {
-  test("loads and shows Symphony title", async ({ page }) => {
-    const response = await page.goto("/");
-    expect(response!.status()).toBe(200);
-    expect(response!.headers()["content-type"]).toContain("text/html");
-    await expect(page.locator("h1")).toContainText("Symphony");
-  });
-
-  test("displays running/retrying counts and token totals", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("body")).toContainText("Running");
-    await expect(page.locator("body")).toContainText("Retrying");
-    await expect(page.locator("body")).toContainText("Input Tokens");
-    await expect(page.locator("body")).toContainText("Output Tokens");
-    await expect(page.locator("body")).toContainText("Runtime");
-  });
-
-});
-
 // --- Orchestrator JSON API ---
 
 test.describe("JSON API — /api/v1", () => {

@@ -142,8 +142,18 @@ defmodule SymphonyElixir.Prompt do
 
     Enum.flat_map(project_ids, fn pid ->
       case safe_get_project(pid) do
-        nil -> []
-        proj -> [proj]
+        nil ->
+          []
+
+        proj ->
+          # Add container_path for sandbox mode: extra projects mount at /projects/<basename>
+          container_path =
+            case proj["path"] do
+              p when is_binary(p) and p != "" -> "/projects/#{Path.basename(p)}"
+              _ -> nil
+            end
+
+          [Map.put(proj, "container_path", container_path)]
       end
     end)
   rescue

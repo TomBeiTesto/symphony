@@ -1,11 +1,15 @@
 import { test, expect } from "@playwright/test";
-import { cleanupAll, createIssue, createProject } from "./helpers";
+import { cleanupAll, createIssue, createProject, goToIssuesTab } from "./helpers";
 
 /**
- * Real interaction tests for Symphony board UI.
+ * Real interaction tests for Symphony Product Hub UI.
  *
  * Tests actual user workflows: creating issues, editing, deleting,
  * drag-and-drop, keyboard navigation, settings, etc.
+ *
+ * The board page (/board) now serves the Product Hub with a tab-based UI.
+ * The Kanban view is in the "Issues" tab. The default tab is "Spec Sheet".
+ * To see cards, navigate to the Issues tab via "All Issues" sidebar or tab click.
  *
  * Run: cd test/e2e && npx playwright test board.spec.ts
  */
@@ -19,31 +23,32 @@ test.describe("Board — Issue CRUD", () => {
     await cleanupAll(request);
   });
 
-  test("create issue via New Issue button and modal", async ({ page }) => {
-    await page.goto("/board");
-    await page.waitForTimeout(500);
+  test("create issue via + Issue button and modal", async ({ page }) => {
+    await goToIssuesTab(page);
 
     // Open create modal
-    await page.click("button:has-text('New Issue')");
-    await expect(page.locator("#modal-overlay")).toHaveClass(/active/);
+    await page.click("button:has-text('+ Issue')");
+    await page.waitForTimeout(300);
+
+    // Modal should be visible
+    await expect(page.locator("#hi-modal")).toHaveCSS("display", "flex");
 
     // Fill in the form
-    await page.fill("#form-title", "Test issue from Playwright");
-    await page.fill("#form-description", "Automated test description");
-    await page.selectOption("#form-state", "Todo");
-    await page.selectOption("#form-priority", "2");
-    await page.fill("#form-labels", "e2e, automated");
+    await page.fill("#hi-title", "Test issue from Playwright");
+    await page.fill("#hi-description", "Automated test description");
+    await page.selectOption("#hi-priority", "2");
+    await page.fill("#hi-labels", "e2e, automated");
 
     // Submit
-    await page.click('#modal-overlay button[type="submit"]');
+    await page.click("#hi-submit");
     await page.waitForTimeout(500);
 
     // Modal should close
-    await expect(page.locator("#modal-overlay")).not.toHaveClass(/active/);
+    await expect(page.locator("#hi-modal")).toHaveCSS("display", "none");
 
     // Issue card should appear on the board
-    await expect(page.locator(".card")).toHaveCount(1);
-    await expect(page.locator(".card-title")).toContainText(
+    await expect(page.locator(".issue-card")).toHaveCount(1);
+    await expect(page.locator(".issue-card-title")).toContainText(
       "Test issue from Playwright"
     );
   });
@@ -56,8 +61,7 @@ test.describe("Board — Issue CRUD", () => {
     await createIssue(request, { title: "In progress item", state: "In Progress" });
     await createIssue(request, { title: "Done item", state: "Done" });
 
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
+    await goToIssuesTab(page);
 
     // Verify via API that all 3 issues were created in correct states
     const snapRes = await request.get("/board/api/snapshot");
@@ -66,7 +70,7 @@ test.describe("Board — Issue CRUD", () => {
     expect(allIssues).toHaveLength(3);
 
     // Verify board renders multiple columns (some may be collapsed)
-    const columns = page.locator(".column");
+    const columns = page.locator(".kb-column");
     const colCount = await columns.count();
     expect(colCount).toBeGreaterThanOrEqual(3);
   });
@@ -80,10 +84,9 @@ test.describe("Board — Issue CRUD", () => {
       state: "Todo",
     });
 
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
+    await goToIssuesTab(page);
 
-    await page.click(`.card[data-id="${issue.id}"]`);
+    await page.click(`.issue-card[data-id="${issue.id}"]`);
     await page.waitForURL(`**/board/issues/${issue.id}`);
     await expect(page.locator("body")).toContainText("Clickable issue");
   });
@@ -91,10 +94,9 @@ test.describe("Board — Issue CRUD", () => {
   test("delete issue via card delete button", async ({ page, request }) => {
     await createIssue(request, { title: "Delete me", state: "Backlog", priority: 4 });
 
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
+    await goToIssuesTab(page);
 
-    const card = page.locator(".card").first();
+    const card = page.locator(".issue-card").first();
     await card.hover();
 
     page.on("dialog", (dialog) => dialog.accept());
@@ -103,21 +105,7 @@ test.describe("Board — Issue CRUD", () => {
     await expect(deleteBtn).toHaveCount(1);
     await deleteBtn.click();
     await page.waitForTimeout(500);
-    await expect(page.locator(".card")).toHaveCount(0);
-  });
-
-  test("quick-add input creates issue in column", async ({ page }) => {
-    await page.goto("/board");
-    await page.waitForTimeout(500);
-
-    const quickAdd = page.locator(".quick-add-input").first();
-    await expect(quickAdd).toHaveCount(1);
-    await quickAdd.fill("Quick added issue");
-    await quickAdd.press("Enter");
-    await page.waitForTimeout(500);
-
-    await expect(page.locator(".card")).toHaveCount(1);
-    await expect(page.locator(".card-title")).toContainText("Quick added issue");
+    await expect(page.locator(".issue-card")).toHaveCount(0);
   });
 });
 
@@ -139,14 +127,13 @@ test.describe("Board — Drag and Drop", () => {
       state: "Backlog",
     });
 
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
+    await goToIssuesTab(page);
 
-    const card = page.locator(`.card[data-id="${issue.id}"]`);
+    const card = page.locator(`.issue-card[data-id="${issue.id}"]`);
     await expect(card).toHaveCount(1);
 
-    const todoColumn = page.locator(".column").filter({ hasText: "Todo" }).first();
-    const dropTarget = todoColumn.locator(".column-body");
+    const todoColumn = page.locator(".kb-column").filter({ hasText: "Todo" }).first();
+    const dropTarget = todoColumn.locator(".kb-column-body");
 
     await expect(dropTarget).toHaveCount(1);
     await card.dragTo(dropTarget);
@@ -174,7 +161,7 @@ test.describe("Board — Keyboard Navigation", () => {
     await page.keyboard.press("n");
     await page.waitForTimeout(200);
 
-    await expect(page.locator("#modal-overlay")).toHaveClass(/active/);
+    await expect(page.locator("#hi-modal")).toHaveCSS("display", "flex");
   });
 
   test("Escape closes modal", async ({ page }) => {
@@ -183,32 +170,11 @@ test.describe("Board — Keyboard Navigation", () => {
 
     await page.keyboard.press("n");
     await page.waitForTimeout(200);
-    await expect(page.locator("#modal-overlay")).toHaveClass(/active/);
+    await expect(page.locator("#hi-modal")).toHaveCSS("display", "flex");
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
-    await expect(page.locator("#modal-overlay")).not.toHaveClass(/active/);
-  });
-
-  test("j/k keys navigate cards", async ({ page, request }) => {
-    await createIssue(request, { title: "Issue A", state: "Todo" });
-    await createIssue(request, { title: "Issue B", state: "Todo" });
-    await createIssue(request, { title: "Issue C", state: "Todo" });
-
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
-
-    await page.keyboard.press("j");
-    await page.waitForTimeout(100);
-    await expect(page.locator(".card.kb-focused")).toHaveCount(1);
-
-    await page.keyboard.press("j");
-    await page.waitForTimeout(100);
-    await expect(page.locator(".card.kb-focused")).toHaveCount(1);
-
-    await page.keyboard.press("k");
-    await page.waitForTimeout(100);
-    await expect(page.locator(".card.kb-focused")).toHaveCount(1);
+    await expect(page.locator("#hi-modal")).toHaveCSS("display", "none");
   });
 
   test("'?' key shows help toast", async ({ page }) => {
@@ -222,7 +188,7 @@ test.describe("Board — Keyboard Navigation", () => {
 
     const toast = page.locator("#toast-container .toast");
     await expect(toast.first()).toBeVisible({ timeout: 3000 });
-    await expect(toast.first()).toContainText("Navigate");
+    await expect(toast.first()).toContainText("Tabs");
   });
 });
 
@@ -241,35 +207,11 @@ test.describe("Board — Column Collapse", () => {
   }) => {
     await createIssue(request, { title: "Done thing", state: "Done" });
 
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
+    await goToIssuesTab(page);
 
-    const collapsed = page.locator(".column.collapsed");
+    const collapsed = page.locator(".kb-column.collapsed");
     const count = await collapsed.count();
     expect(count).toBeGreaterThanOrEqual(1);
-  });
-});
-
-// ============================================================
-// Board — Metrics Bar
-// ============================================================
-
-test.describe("Board — Metrics Bar", () => {
-  test.beforeEach(async ({ request }) => {
-    await cleanupAll(request);
-  });
-
-  test("metrics bar shows correct counts", async ({ page, request }) => {
-    await createIssue(request, { title: "A", state: "Todo" });
-    await createIssue(request, { title: "B", state: "In Progress" });
-    await createIssue(request, { title: "C", state: "Done" });
-
-    await page.goto("/board");
-    await page.waitForTimeout(1000);
-
-    const metrics = page.locator("#metrics-bar");
-    await expect(metrics).toHaveCount(1);
-    await expect(metrics).toContainText("3");
   });
 });
 
@@ -302,14 +244,15 @@ test.describe("Issue Detail Page", () => {
     await expect(page.locator("body")).toContainText("urgent");
   });
 
-  test("breadcrumb links back to board", async ({ page, request }) => {
+  test("topbar links back to board", async ({ page, request }) => {
     const issue = await createIssue(request, { title: "Breadcrumb test", state: "Todo" });
 
     await page.goto(`/board/issues/${issue.id}`);
     await page.waitForTimeout(500);
 
-    const boardLink = page.locator('.breadcrumb a[href="/board"]');
-    await expect(boardLink).toHaveCount(1);
+    // Topbar has a link back to /board via logo or Hub nav item
+    const boardLink = page.locator('.topbar a[href="/board"]').first();
+    await expect(boardLink).toBeVisible();
     await boardLink.click();
     await page.waitForURL("**/board");
   });
@@ -374,79 +317,8 @@ test.describe("Settings — Save & Load", () => {
 });
 
 // ============================================================
-// Task Lineage Page
 // ============================================================
-
-test.describe("Task Lineage — Interaction", () => {
-  test.beforeEach(async ({ request }) => {
-    await cleanupAll(request);
-  });
-
-  test("renders tree nodes from seeded issues", async ({ page, request }) => {
-    await createIssue(request, { title: "Root issue", state: "Todo" });
-    await createIssue(request, { title: "Another root", state: "In Progress" });
-
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1500);
-
-    await expect(page.locator(".tree-node")).toHaveCount(2);
-    await expect(page.locator(".node-title").first()).toContainText(
-      /Root issue|Another root/
-    );
-  });
-
-  test("tree nodes show age indicator", async ({ page, request }) => {
-    await createIssue(request, { title: "Fresh issue", state: "Todo" });
-
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1500);
-
-    const ageEl = page.locator(".tree-node").first().locator(".node-age");
-    await expect(ageEl).toHaveCount(1);
-    await expect(ageEl).toContainText("today");
-  });
-
-  test("clicking a tree node navigates to issue detail", async ({
-    page,
-    request,
-  }) => {
-    const issue = await createIssue(request, { title: "Navigate me", state: "Todo" });
-
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1500);
-
-    await page.locator(".tree-node").first().click();
-    await page.waitForURL(`**/board/issues/${issue.id}`);
-    await expect(page.locator("body")).toContainText("Navigate me");
-  });
-
-  test("project filter dropdown works", async ({ page, request }) => {
-    const project = await createProject(request, { name: "Filter Project" });
-    await createIssue(request, { title: "Proj issue", state: "Todo", project_id: project.id });
-    await createIssue(request, { title: "No proj issue", state: "Todo" });
-
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1500);
-
-    await expect(page.locator(".tree-node")).toHaveCount(2);
-
-    await page.locator("#project-filter").selectOption(project.id);
-    await page.waitForTimeout(500);
-
-    await expect(page.locator(".tree-node")).toHaveCount(1);
-    await expect(page.locator(".node-title")).toContainText("Proj issue");
-  });
-
-  test("empty state when no issues", async ({ page }) => {
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1000);
-
-    await expect(page.locator(".empty-state")).toContainText("No issues to display");
-  });
-});
-
-// ============================================================
-// Products Page
+// Products Page (now the Hub default view)
 // ============================================================
 
 test.describe("Products — Interaction", () => {
@@ -454,11 +326,18 @@ test.describe("Products — Interaction", () => {
     await cleanupAll(request);
   });
 
-  test("empty state shows select prompt", async ({ page }) => {
-    await page.goto("/board/products");
+  test("empty state shows welcome prompt", async ({ page }) => {
+    // Clear localStorage to reset tab/product selection from prior tests
+    await page.goto("/board");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board");
     await page.waitForTimeout(500);
 
-    await expect(page.locator("#product-select")).toHaveCount(1);
+    // With no products, spec tab is disabled; call switchTab directly to verify welcome screen
+    await page.evaluate(() => switchTab('spec'));
+    await page.waitForTimeout(300);
+    await expect(page.locator(".empty-state")).toBeVisible();
+    await expect(page.locator(".empty-state")).toContainText("Welcome to Symphony");
   });
 
   test("selecting a product shows the spec sheet", async ({ page, request }) => {
@@ -472,12 +351,18 @@ test.describe("Products — Interaction", () => {
       data: { name: "Auth", description: "Authentication feature" },
     });
 
-    await page.goto("/board/products");
+    await page.goto("/board");
     await page.waitForTimeout(1000);
 
-    const select = page.locator("#product-select");
-    await select.selectOption(product.id);
+    // Click on the product in the sidebar
+    const prodItem = page.locator(`.sidebar-item[data-product-id="${product.id}"]`);
+    await expect(prodItem).toBeVisible({ timeout: 5000 });
+    await prodItem.click();
     await page.waitForTimeout(1000);
+
+    // Ensure we're on Spec Sheet tab
+    await page.click('[data-tab="spec"]');
+    await page.waitForTimeout(500);
 
     await expect(page.locator(".spec-sheet")).toBeVisible();
     await expect(page.locator(".feature-card")).toHaveCount(1);
@@ -493,11 +378,16 @@ test.describe("Products — Interaction", () => {
     const product = await prodRes.json();
     await request.post(`/board/api/products/${product.id}/features`, { data: { name: "F1" } });
 
-    await page.goto("/board/products");
+    await page.goto("/board");
     await page.waitForTimeout(1000);
 
-    await page.locator("#product-select").selectOption(product.id);
-    await page.waitForTimeout(1000);
+    const prodItem = page.locator(`.sidebar-item[data-product-id="${product.id}"]`);
+    await expect(prodItem).toBeVisible({ timeout: 5000 });
+    await prodItem.click();
+    await page.waitForTimeout(500);
+
+    await page.click('[data-tab="spec"]');
+    await page.waitForTimeout(500);
 
     await expect(page.locator(".overall-bar")).toHaveCount(1);
     await expect(page.locator(".overall-bar")).toContainText("Overall Completeness");
@@ -511,14 +401,19 @@ test.describe("Products — Interaction", () => {
     const product = await prodRes.json();
     await request.post(`/board/api/products/${product.id}/features`, { data: { name: "F1" } });
 
-    await page.goto("/board/products");
+    await page.goto("/board");
     await page.waitForTimeout(1000);
 
-    await page.locator("#product-select").selectOption(product.id);
-    await page.waitForTimeout(1000);
+    const prodItem = page.locator(`.sidebar-item[data-product-id="${product.id}"]`);
+    await expect(prodItem).toBeVisible({ timeout: 5000 });
+    await prodItem.click();
+    await page.waitForTimeout(500);
+
+    await page.click('[data-tab="spec"]');
+    await page.waitForTimeout(500);
 
     await page.locator(".feature-card").first().hover();
-    const detailBtn = page.locator('.feature-action-btn[title="Per-project details"]').first();
+    const detailBtn = page.locator('.feature-action-btn[title="Details"]').first();
     await expect(detailBtn).toHaveCount(1);
     await detailBtn.click();
     await page.waitForTimeout(500);
@@ -537,27 +432,21 @@ test.describe("Cross-page Navigation", () => {
     await page.goto("/board");
     await page.waitForTimeout(500);
 
-    await expect(page.locator('a[href="/board/task-lineage"]')).toHaveCount(1);
-    await expect(page.locator('a[href="/board"]')).toHaveCount(1);
-    await expect(page.locator('a[href="/board/settings"]')).toHaveCount(1);
-    await expect(page.locator('a[href="/"]')).toHaveCount(1);
+    // Topbar has links to all main pages
+    await expect(page.locator('.topbar-nav a[href="/board/settings"]')).toHaveCount(1);
+    // At least one link to /board (logo + Hub nav link)
+    const boardLinks = await page.locator('a[href="/board"]').count();
+    expect(boardLinks).toBeGreaterThanOrEqual(1);
   });
 
-  test("sub-pages have back link to board", async ({ page }) => {
-    const subPages = ["/board/task-lineage", "/board/products", "/board/settings"];
+  test("sub-pages have link to board", async ({ page }) => {
+    const subPages = ["/board/settings"];
 
     for (const url of subPages) {
       await page.goto(url);
       await page.waitForTimeout(300);
-      await expect(page.locator('a[href="/board"]')).toHaveCount(1);
+      const boardLinks = await page.locator('a[href="/board"]').count();
+      expect(boardLinks).toBeGreaterThanOrEqual(1);
     }
-  });
-
-  test("dashboard has link to board and settings", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(300);
-
-    await expect(page.locator('a[href="/board"]')).toHaveCount(1);
-    await expect(page.locator('a[href="/board/settings"]')).toHaveCount(1);
   });
 });

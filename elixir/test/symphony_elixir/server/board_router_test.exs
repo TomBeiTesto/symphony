@@ -19,6 +19,7 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     )
 
     start_supervised!({Settings, store_path: @settings_path})
+    start_supervised!({SymphonyElixir.Integrations.KBIndex, []})
 
     on_exit(fn ->
       File.rm(@store_path)
@@ -363,17 +364,6 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
       body = Jason.decode!(conn.resp_body)
       assert body["ai_provider"] == "gemini"
       refute Map.has_key?(body, "unknown_key")
-    end
-  end
-
-  # --- Task Lineage ---
-
-  describe "GET /task-lineage" do
-    test "returns HTML task lineage page" do
-      conn = call(:get, "/task-lineage")
-      assert conn.status == 200
-      assert conn.resp_body =~ "Task Lineage"
-      assert conn.resp_body =~ "tree-viewport"
     end
   end
 
@@ -1063,6 +1053,34 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
 
       conn = call(:delete, "/api/vault/note", %{"path" => "../../../etc/passwd"})
       assert conn.status in [400, 403]
+    end
+  end
+
+  # --- Unified Integration Test Endpoint ---
+
+  describe "POST /api/integrations/:type/test" do
+    test "returns ok for knowledge_base with local type" do
+      Settings.update(%{"kb_type" => "local"})
+      conn = call(:post, "/api/integrations/knowledge_base/test")
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == true
+    end
+
+    test "returns error for unknown integration type" do
+      conn = call(:post, "/api/integrations/nonexistent/test")
+      assert conn.status == 400
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == false
+      assert body["message"] =~ "Unknown integration"
+    end
+
+    test "returns error when jira credentials are not configured" do
+      Settings.update(%{"jira_base_url" => "", "jira_auth_token" => ""})
+      conn = call(:post, "/api/integrations/jira/test")
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == false
     end
   end
 end

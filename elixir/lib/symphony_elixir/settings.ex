@@ -43,7 +43,22 @@ defmodule SymphonyElixir.Settings do
     # --- Knowledge Base ---
     "kb_type" => "local",
     "kb_vault_path" => "",
-    "kb_subfolder" => "symphony"
+    "kb_subfolder" => "symphony",
+    # --- Jira Integration ---
+    "jira_base_url" => "",
+    "jira_auth_token" => "",
+    "jira_project_key" => "",
+    "jira_issue_type" => "Task",
+    # --- GitLab CI Integration ---
+    "gitlab_ci_base_url" => "",
+    "gitlab_ci_project_id" => "",
+    "gitlab_ci_trigger_token" => "",
+    "gitlab_ci_ref" => "main",
+    # --- Confluence Integration ---
+    "confluence_base_url" => "",
+    "confluence_auth_token" => "",
+    "confluence_space_key" => "",
+    "confluence_parent_page_id" => ""
   }
 
   @type settings_map :: %{String.t() => String.t() | nil}

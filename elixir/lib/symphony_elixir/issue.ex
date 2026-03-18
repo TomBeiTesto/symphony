@@ -32,7 +32,8 @@ defmodule SymphonyElixir.Issue do
           plan_text: String.t() | nil,
           rerun_hint: String.t() | nil,
           created_at: DateTime.t() | nil,
-          updated_at: DateTime.t() | nil
+          updated_at: DateTime.t() | nil,
+          kb_synced_at: String.t() | nil
         }
 
   @enforce_keys [:id, :identifier, :title, :state]
@@ -53,6 +54,7 @@ defmodule SymphonyElixir.Issue do
     :rerun_hint,
     :created_at,
     :updated_at,
+    :kb_synced_at,
     labels: [],
     blocked_by: [],
     propose_followups: true,

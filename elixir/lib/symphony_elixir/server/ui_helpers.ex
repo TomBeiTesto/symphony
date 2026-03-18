@@ -201,6 +201,30 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .breadcrumb a { color: var(--text-muted); text-decoration: none; }
       .breadcrumb a:hover { color: var(--accent); }
       .breadcrumb .sep { opacity: 0.4; }
+      .pipeline-run-dot {
+        display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--accent); margin-left: 4px; vertical-align: middle;
+        animation: pulse 2s infinite;
+      }
+    """
+  end
+
+  @doc "Shared JS snippet that checks for active pipeline runs and shows indicator dot."
+  @spec pipeline_indicator_js() :: String.t()
+  def pipeline_indicator_js do
+    ~S"""
+    (function() {
+      var dot = document.getElementById('pipeline-run-indicator');
+      if (!dot) return;
+      function check() {
+        fetch('/board/api/pipeline-runs/active').then(function(r) { return r.json(); }).then(function(d) {
+          dot.style.display = (d.runs && d.runs.length > 0) ? 'inline-block' : 'none';
+          dot.title = (d.runs && d.runs.length > 0) ? d.runs.length + ' pipeline(s) running' : '';
+        }).catch(function() {});
+      }
+      check();
+      setInterval(check, 10000);
+    })();
     """
   end
 
@@ -463,9 +487,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
     nav_items = [
       {"hub", "/board", "Hub"},
       {"pipeline", "/board/pipeline", "Pipeline"},
-      {"lineage", "/board/task-lineage", "Issue Lineage"},
       {"skills", "/board/skills", "Skills"},
-      {"dashboard", "/", "Dashboard"},
       {"settings", "/board/settings", "Settings"}
     ]
 
@@ -473,7 +495,14 @@ defmodule SymphonyElixir.Server.UIHelpers do
       nav_items
       |> Enum.map(fn {key, href, label} ->
         cls = if key == active, do: "btn btn-ghost nav-active", else: "btn btn-ghost"
-        ~s(<a href="#{href}" class="#{cls}">#{label}</a>)
+
+        indicator =
+          if key == "pipeline",
+            do:
+              ~s(<span id="pipeline-run-indicator" class="pipeline-run-dot" style="display:none" title="Pipeline running"></span>),
+            else: ""
+
+        ~s(<a href="#{href}" class="#{cls}">#{label}#{indicator}</a>)
       end)
       |> Enum.join("\n            ")
 
@@ -936,6 +965,127 @@ defmodule SymphonyElixir.Server.UIHelpers do
     ~S"""
       .nav-active { color: var(--accent) !important; background: rgba(88,166,255,0.08) !important; }
       .btn-back { font-size: 1.1rem; padding: 2px 8px; min-height: 0; line-height: 1; margin-right: 4px; }
+    """
+  end
+
+  @doc "Shared CSS for integration help/info boxes in pipeline config panels."
+  @spec integration_help_css() :: String.t()
+  def integration_help_css do
+    ~S"""
+      .integration-help {
+        background: var(--bg-hover); border-left: 3px solid var(--accent);
+        padding: 8px 12px; margin: 8px 0 12px; font-size: 0.78rem;
+        color: var(--text-muted); line-height: 1.5; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      }
+      .integration-help .warn {
+        color: var(--warning, #d29922); font-weight: 500;
+      }
+      .integration-help a { color: var(--accent); text-decoration: underline; }
+    """
+  end
+
+  @doc """
+  Shared JS for kanban drag-drop handlers.
+
+  Expects the caller to define:
+  - `draggedCard` variable (set to null initially)
+  - `_apiLock` variable
+  - `API` constant
+  - `kanbanAfterMutation()` callback invoked after a successful drop or quick-add
+
+  Options (set via `window._kanbanOpts`):
+  - `cardSelector`: CSS selector for draggable card (default: '.issue-card')
+  - `bodySelector`: CSS selector for drop zone columns (default: '.kb-column-body')
+  - `getQuickAddExtras()`: function returning extra fields for quick-add POST body (default: {})
+  """
+  @spec kanban_drag_drop_js() :: String.t()
+  def kanban_drag_drop_js do
+    ~S"""
+    var _kanbanOpts = window._kanbanOpts || {};
+    var _kCardSel = _kanbanOpts.cardSelector || '.issue-card';
+    var _kBodySel = _kanbanOpts.bodySelector || '.kb-column-body';
+
+    function handleDragStart(e) {
+      draggedCard = e.target.closest(_kCardSel);
+      if (draggedCard) {
+        draggedCard.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', draggedCard.dataset.id);
+      }
+    }
+
+    function handleDragEnd(e) {
+      if (draggedCard) draggedCard.classList.remove('dragging');
+      draggedCard = null;
+      document.querySelectorAll(_kBodySel).forEach(function(el) { el.classList.remove('drag-over'); });
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    async function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      var issueId = e.dataTransfer.getData('text/plain');
+      var newState = e.currentTarget.dataset.state;
+      if (!issueId || !newState || _apiLock) return;
+      if (['Cancelled', 'Archived'].includes(newState)) {
+        if (!confirm('Move issue to ' + newState + '?')) return;
+      }
+      _apiLock = true;
+      try {
+        var res = await fetch(API + '/issues/' + issueId + '/move', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: newState })
+        });
+        if (!res.ok) {
+          var data = await res.json().catch(function() { return {}; });
+          showToast('Move failed: ' + esc(data.error || 'unknown'), { type: 'error' });
+        }
+        await kanbanAfterMutation();
+      } catch (err) {
+        showToast('Move failed: ' + esc(err.message || 'network error'), { type: 'error' });
+      } finally {
+        _apiLock = false;
+      }
+    }
+
+    async function handleQuickAdd(e) {
+      if (e.key !== 'Enter') return;
+      var input = e.target;
+      var title = input.value.trim();
+      if (!title || _apiLock) return;
+      var state = input.dataset.state;
+      input.value = '';
+      var body = { title: title, state: state };
+      var extras = (_kanbanOpts.getQuickAddExtras || function() { return {}; })();
+      Object.keys(extras).forEach(function(k) { body[k] = extras[k]; });
+      _apiLock = true;
+      try {
+        var res = await fetch(API + '/issues', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          var data = await res.json().catch(function() { return {}; });
+          showToast('Quick add failed: ' + esc(data.error || 'unknown'), { type: 'error' });
+        }
+        await kanbanAfterMutation();
+      } catch (err) {
+        showToast('Quick add failed: ' + esc(err.message || 'network error'), { type: 'error' });
+      } finally {
+        _apiLock = false;
+      }
+    }
     """
   end
 end

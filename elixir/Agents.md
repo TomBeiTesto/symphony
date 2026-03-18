@@ -1,6 +1,6 @@
 # Symphony Elixir
 
-This directory contains the Elixir agent orchestration service that polls your issue tracker, creates per-issue workspaces, and runs coding agents in app-server mode. It also includes a built-in local Kanban board with a task lineage visualization.
+This directory contains the Elixir agent orchestration service that polls your issue tracker, creates per-issue workspaces, and runs coding agents in app-server mode. It also includes a built-in local Kanban board with product hub.
 
 ## Environment
 
@@ -33,7 +33,22 @@ This directory contains the Elixir agent orchestration service that polls your i
 - Issues with pending follow-ups land in "Review"; they auto-move to "Done" when all follow-ups are accepted/rejected.
 - Done issues auto-archive to "Archived" after 1 day (via orchestrator tick).
 - Deleting a project cascade-deletes all its issues.
-- Issue lineage is tracked via `parent_issue_id` — follow-up issues link to the parent that proposed them.
+- Follow-up issues link to the parent that proposed them via `parent_issue_id`.
+
+### UI Pages
+
+- `/board` — Product Hub (default landing page) with tabs: Spec Sheet, Issues, Activity, Knowledge Base
+- `/board/issues/:id` — Issue detail with edit, rerun, Send to KB, delete actions
+- `/board/pipeline` — Pipeline designer (canvas-based node editor)
+- `/board/skills` — Skills library with category filters and search
+- `/board/settings` — Settings (Git, AI Provider, Skills, KB, Jira, GitLab CI, Confluence, Issue Tracker)
+
+### Key Integrations
+
+- `Integrations.Registry` dispatches to type-specific modules: Jira, GitlabCI, Confluence, KnowledgeBase
+- KB has three backends: local (filesystem), obsidian (vault path), confluence (HTTP)
+- `KBIndex` (GenServer + ETS) provides fast in-memory search; started in supervision tree under `Config.local_board?`
+- KB mutations (write, append, delete, restore) invalidate the index via `KBIndex.invalidate/2`
 
 ## Tests and Validation
 
@@ -46,7 +61,7 @@ make all
 ### Test Organization
 
 - `test/symphony_elixir/` — ExUnit tests for all modules
-- `test/e2e/` — Playwright browser tests covering dashboard, board, task lineage, settings, and APIs
+- `test/e2e/` — Playwright browser tests covering board, settings, skills, pipelines, and APIs
 
 ## Required Rules
 

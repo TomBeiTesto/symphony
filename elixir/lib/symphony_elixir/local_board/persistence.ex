@@ -234,7 +234,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       "plan_text" => issue[:plan_text],
       "rerun_hint" => issue[:rerun_hint],
       "created_at" => issue.created_at,
-      "updated_at" => issue.updated_at
+      "updated_at" => issue.updated_at,
+      "kb_synced_at" => issue[:kb_synced_at]
     }
 
     case issue[:agent_run] do
@@ -264,7 +265,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       plan_text: raw["plan_text"],
       rerun_hint: raw["rerun_hint"],
       created_at: raw["created_at"],
-      updated_at: raw["updated_at"]
+      updated_at: raw["updated_at"],
+      kb_synced_at: raw["kb_synced_at"]
     }
 
     case raw["agent_run"] do
@@ -502,6 +504,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       "status" => run.status,
       "node_states" => run.node_states,
       "node_attempts" => run.node_attempts,
+      "node_issue_ids" => run.node_issue_ids || %{},
+      "node_outputs" => run.node_outputs || %{},
       "gate_decisions" =>
         Enum.map(run.gate_decisions, fn d ->
           %{
@@ -523,6 +527,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       status: raw["status"] || "running",
       node_states: atomize_map_values(raw["node_states"] || %{}),
       node_attempts: raw["node_attempts"] || %{},
+      node_issue_ids: raw["node_issue_ids"] || %{},
+      node_outputs: raw["node_outputs"] || %{},
       gate_decisions:
         Enum.map(raw["gate_decisions"] || [], fn d ->
           %{

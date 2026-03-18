@@ -1,6 +1,6 @@
 defmodule SymphonyElixir.Server.Router do
   @moduledoc """
-  HTTP router for the optional observability dashboard and JSON API.
+  HTTP router for the orchestrator JSON API.
 
   See SPEC Section 13.7.
   """
@@ -11,15 +11,11 @@ defmodule SymphonyElixir.Server.Router do
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:dispatch)
 
-  # --- Dashboard ---
-
+  # Root redirects to board
   get "/" do
-    snapshot = SymphonyElixir.Orchestrator.get_snapshot()
-    html = SymphonyElixir.Server.Dashboard.render(snapshot)
-
     conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    |> put_resp_header("location", "/board")
+    |> send_resp(302, "")
   end
 
   # --- JSON API ---

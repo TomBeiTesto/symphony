@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { cleanupAll, cleanupSkills, createIssue } from "./helpers";
+import { cleanupAll, cleanupSkills, createIssue, goToIssuesTab } from "./helpers";
 
 /**
  * End-to-end tests for Plan Review, Follow-ups, Skills CRUD,
@@ -27,11 +27,11 @@ test.describe("Plan Review Flow", () => {
       plan_status: "planning",
     });
 
-    await page.goto("/board");
-    await page.waitForSelector(".card");
+    await goToIssuesTab(page);
+    await page.waitForSelector(".issue-card");
 
-    // The card should contain a plan badge with "Planning" text
-    const planBadge = page.locator(".card-plan-badge.planning");
+    // The Hub card should contain a plan badge with "Planning" text
+    const planBadge = page.locator(".plan-badge.planning");
     await expect(planBadge).toHaveCount(1);
     await expect(planBadge).toContainText("Planning");
   });
@@ -47,10 +47,10 @@ test.describe("Plan Review Flow", () => {
       plan_text: "## Step 1\nDo the thing\n## Step 2\nVerify the thing",
     });
 
-    await page.goto("/board");
-    await page.waitForSelector(".card");
+    await goToIssuesTab(page);
+    await page.waitForSelector(".issue-card");
 
-    const planBadge = page.locator(".card-plan-badge.review");
+    const planBadge = page.locator(".plan-badge.review");
     await expect(planBadge).toHaveCount(1);
     await expect(planBadge).toContainText("Plan Ready");
   });
@@ -192,10 +192,10 @@ test.describe("Plan Review Flow", () => {
       plan_text: "The plan",
     });
 
-    await page.goto("/board");
-    await page.waitForSelector(".card");
+    await goToIssuesTab(page);
+    await page.waitForSelector(".issue-card");
 
-    const planBadge = page.locator(".card-plan-badge.approved");
+    const planBadge = page.locator(".plan-badge.approved");
     await expect(planBadge).toHaveCount(1);
     await expect(planBadge).toContainText("Executing");
   });
@@ -267,7 +267,7 @@ test.describe("Skills CRUD", () => {
     await page.waitForSelector(".skills-grid");
 
     // Page title should show "Skills Library"
-    await expect(page.locator("h1")).toContainText("Skills Library");
+    await expect(page.locator(".page-title")).toContainText("Skills Library");
 
     // Should have the sidebar with category filters
     await expect(page.locator("#category-filters")).toBeVisible();

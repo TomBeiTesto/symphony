@@ -689,6 +689,325 @@ defmodule SymphonyElixir.SkillsSeed do
       - Centering something vertically with a magic pixel offset
       - Layout that works at exactly one screen size
       """
+    },
+    %{
+      "name" => "extract-architecture",
+      "description" =>
+        "Use when extracting system architecture from a codebase. Produces a structured KB note documenting components, boundaries, data flow, and tech stack.",
+      "category" => "knowledge-extraction",
+      "tags" => "extraction,architecture,documentation,kb",
+      "built_in" => true,
+      "content" => """
+      # Extract Architecture
+
+      ## Goal
+      Produce a structured KB note that documents the system's architecture so that anyone — human or agent — can understand the system's shape without reading every file.
+
+      ## Process
+
+      ### 1. Identify the system boundary
+      - What is the top-level application or service?
+      - What are its entry points (CLI, HTTP, message queue, cron)?
+      - What external systems does it talk to (databases, APIs, file systems)?
+
+      ### 2. Map the major components
+      For each component document:
+      - **Name** — the module, namespace, or service name
+      - **Responsibility** — one sentence: what does it own?
+      - **Key interfaces** — public functions, endpoints, or messages it exposes
+      - **Dependencies** — what it calls or imports
+
+      ### 3. Document the data flow
+      - Trace the path of a typical request from entry point to response
+      - Identify where state is stored (database, ETS, GenServer state, files)
+      - Note any async boundaries (message queues, background jobs, pub/sub)
+
+      ### 4. Record the tech stack
+      - Language(s) and versions
+      - Frameworks and key libraries
+      - Infrastructure assumptions (OS, runtime, container, cloud services)
+
+      ## Output Format
+      Write a markdown note with YAML frontmatter:
+      ```
+      ---
+      tags:
+        - architecture
+        - extraction
+      date: YYYY-MM-DD
+      source: codebase analysis
+      product: <product-name>
+      ---
+      ```
+
+      Sections: Overview, Components, Data Flow, Tech Stack, Key Decisions (if discoverable from comments/docs).
+
+      ## What NOT to include
+      - Line-by-line code explanations (link to files instead)
+      - Opinions about what should change (that's a separate issue)
+      - Speculative future architecture
+      """
+    },
+    %{
+      "name" => "extract-business-logic",
+      "description" =>
+        "Use when extracting business rules and domain logic from a codebase. Produces a structured KB note cataloging validation rules, state machines, invariants, and domain concepts.",
+      "category" => "knowledge-extraction",
+      "tags" => "extraction,business-logic,domain,rules,kb",
+      "built_in" => true,
+      "content" => """
+      # Extract Business Logic
+
+      ## Goal
+      Produce a structured KB note that catalogs the business rules embedded in the code — the "why" behind conditionals, validations, and state transitions.
+
+      ## Process
+
+      ### 1. Identify domain entities
+      - What are the core data structures (models, schemas, types)?
+      - What are their required fields, defaults, and constraints?
+      - How do they relate to each other (ownership, references, hierarchies)?
+
+      ### 2. Catalog validation rules
+      For each entity, document:
+      - **Field validations** — required, format, range, uniqueness
+      - **Cross-field rules** — "if X then Y must be Z"
+      - **Business invariants** — conditions that must always be true
+      - **Where enforced** — file:line references
+
+      ### 3. Map state machines and transitions
+      - What states can each entity be in?
+      - What transitions are allowed? What triggers them?
+      - What side effects occur on transition (notifications, cascading updates)?
+      - Are there guard conditions on transitions?
+
+      ### 4. Document domain-specific calculations
+      - Pricing, scoring, ranking, or scheduling logic
+      - Formulas with their business meaning, not just the math
+      - Edge cases and special handling
+
+      ### 5. Record authorization rules
+      - Who can do what? (roles, ownership, permissions)
+      - Where are these checks enforced?
+
+      ## Output Format
+      Write a markdown note with YAML frontmatter:
+      ```
+      ---
+      tags:
+        - business-logic
+        - extraction
+      date: YYYY-MM-DD
+      source: codebase analysis
+      product: <product-name>
+      ---
+      ```
+
+      Sections: Domain Entities, Validation Rules, State Machines, Calculations, Authorization.
+      Use tables for rules catalogs. Include file:line references.
+
+      ## What NOT to include
+      - Implementation details (how the code does it) — focus on WHAT rule is enforced and WHY
+      - Infrastructure logic (caching, retry, logging) — that's architecture
+      """
+    },
+    %{
+      "name" => "extract-constraints",
+      "description" =>
+        "Use when extracting technical constraints and limitations from a codebase. Produces a structured KB note documenting performance limits, security boundaries, compatibility requirements, and operational constraints.",
+      "category" => "knowledge-extraction",
+      "tags" => "extraction,constraints,limits,security,kb",
+      "built_in" => true,
+      "content" => """
+      # Extract Technical Constraints
+
+      ## Goal
+      Produce a structured KB note that documents the hard limits, boundaries, and non-negotiable requirements baked into the system — the things you cannot change without consequences.
+
+      ## Process
+
+      ### 1. Performance constraints
+      - Timeouts (HTTP, database, GenServer calls, external API)
+      - Rate limits (inbound and outbound)
+      - Size limits (file uploads, payload sizes, batch sizes, pagination)
+      - Concurrency limits (pool sizes, max connections, worker counts)
+      - Where these are configured (hardcoded vs. configurable)
+
+      ### 2. Security boundaries
+      - Sandboxing or isolation mechanisms
+      - Input sanitization points
+      - Authentication and session constraints (token expiry, refresh rules)
+      - Secrets management (where stored, how rotated)
+      - CORS, CSP, or network policies
+
+      ### 3. Compatibility requirements
+      - Minimum runtime/language versions
+      - OS or platform dependencies
+      - Browser compatibility targets
+      - API versioning contracts (what can't break)
+      - Data format constraints (encoding, schema versions)
+
+      ### 4. Operational constraints
+      - Deployment requirements (zero-downtime, migration ordering)
+      - Monitoring assumptions (what metrics must exist)
+      - Backup and recovery expectations
+      - Licensing restrictions on dependencies
+
+      ## Output Format
+      Write a markdown note with YAML frontmatter:
+      ```
+      ---
+      tags:
+        - constraints
+        - extraction
+      date: YYYY-MM-DD
+      source: codebase analysis
+      product: <product-name>
+      ---
+      ```
+
+      Sections: Performance, Security, Compatibility, Operational.
+      Use tables: Constraint | Value | Where Configured | Impact of Violation.
+
+      ## What NOT to include
+      - Soft preferences or style choices — only hard constraints
+      - Recommendations for changes (that's a separate issue)
+      """
+    },
+    %{
+      "name" => "extract-workflows",
+      "description" =>
+        "Use when extracting process workflows from a codebase. Produces a structured KB note documenting how data and work flow through the system — pipelines, lifecycles, and multi-step processes.",
+      "category" => "knowledge-extraction",
+      "tags" => "extraction,workflows,processes,lifecycle,kb",
+      "built_in" => true,
+      "content" => """
+      # Extract Process Workflows
+
+      ## Goal
+      Produce a structured KB note that documents the end-to-end processes in the system — how things move from start to finish, who/what is involved at each step, and what triggers transitions.
+
+      ## Process
+
+      ### 1. Identify major workflows
+      - User-facing flows (create, edit, delete, search, import/export)
+      - System flows (startup, shutdown, migration, sync, scheduled jobs)
+      - Integration flows (webhook handling, API consumption, event processing)
+      - Error/recovery flows (retry, fallback, manual intervention)
+
+      ### 2. For each workflow, document:
+      - **Trigger** — what starts the workflow (user action, timer, event, API call)
+      - **Steps** — ordered sequence with:
+        - Actor (user, system, external service)
+        - Action (what happens)
+        - Input/output (what data flows in and out)
+        - Decision points (branches, conditions)
+      - **Terminal states** — success, failure, timeout, cancelled
+      - **Side effects** — notifications, logging, metrics, cascading updates
+
+      ### 3. Map async and parallel flows
+      - Which steps happen synchronously vs. asynchronously?
+      - Are there background jobs, message queues, or pub/sub involved?
+      - What happens if an async step fails? (retry, dead letter, alert)
+
+      ### 4. Document orchestration
+      - Is there a central orchestrator or is it event-driven/choreographed?
+      - Where is the workflow state tracked?
+      - Can workflows be paused, resumed, or cancelled?
+
+      ## Output Format
+      Write a markdown note with YAML frontmatter:
+      ```
+      ---
+      tags:
+        - workflows
+        - extraction
+      date: YYYY-MM-DD
+      source: codebase analysis
+      product: <product-name>
+      ---
+      ```
+
+      Sections: one section per major workflow.
+      Use numbered step lists. Include file:line references for key orchestration points.
+      Mermaid diagrams are encouraged for complex flows.
+
+      ## What NOT to include
+      - UI layout details (that's architecture/design)
+      - Individual function implementations (link to code instead)
+      """
+    },
+    %{
+      "name" => "extract-product-overview",
+      "description" =>
+        "Use when extracting a product or project overview from a codebase. Produces a structured KB note with feature inventory, completeness status, and project structure.",
+      "category" => "knowledge-extraction",
+      "tags" => "extraction,product,features,overview,kb",
+      "built_in" => true,
+      "content" => """
+      # Extract Product/Project Overview
+
+      ## Goal
+      Produce a structured KB note that gives a complete picture of what the product does, what features exist, how complete they are, and how the project is organized.
+
+      ## Process
+
+      ### 1. Product identity
+      - What is this product/project? One-paragraph description.
+      - Who is it for? (target users/audience)
+      - What problem does it solve?
+      - How is it deployed/distributed?
+
+      ### 2. Feature inventory
+      For each feature, document:
+      - **Feature name** — clear, user-facing name
+      - **Description** — what it does in one sentence
+      - **Status** — one of: complete, partial, stub, planned, deprecated
+      - **Evidence for status**:
+        - Complete: has tests, handles edge cases, has UI (if applicable)
+        - Partial: core logic works but missing tests, error handling, or UI polish
+        - Stub: interface exists but implementation is placeholder or TODO
+        - Planned: referenced in code/comments but not implemented
+        - Deprecated: marked for removal or replaced by alternative
+      - **Key files** — where the feature lives (entry points, not every file)
+
+      ### 3. Project structure
+      - Top-level directory layout and what each directory owns
+      - Configuration files and their purpose
+      - Test organization and coverage areas
+      - Build/deploy artifacts
+
+      ### 4. Dependencies and integrations
+      - External services the product integrates with
+      - Key library dependencies and what they provide
+      - Internal shared modules/packages
+
+      ### 5. Known gaps and tech debt
+      - TODOs and FIXMEs found in the code (grouped by area)
+      - Missing test coverage areas
+      - Commented-out code or dead code paths
+      - Hardcoded values that should be configurable
+
+      ## Output Format
+      Write a markdown note with YAML frontmatter:
+      ```
+      ---
+      tags:
+        - product-overview
+        - extraction
+      date: YYYY-MM-DD
+      source: codebase analysis
+      product: <product-name>
+      ---
+      ```
+
+      Sections: Product Identity, Feature Inventory (as a table), Project Structure, Dependencies, Known Gaps.
+      Feature inventory table: Feature | Status | Description | Key Files.
+
+      ## What NOT to include
+      - Detailed code walkthroughs (link to files)
+      - Subjective quality judgments — report facts (has tests / no tests, not "poorly tested")
+      """
     }
   ]
 
@@ -737,6 +1056,18 @@ defmodule SymphonyElixir.SkillsSeed do
         "audience-aware-writing",
         "structured-reporting",
         "content-hierarchy"
+      ]
+    },
+    %{
+      "name" => "Knowledge Extraction",
+      "description" =>
+        "Skills for extracting and documenting knowledge from codebases into structured KB notes",
+      "skill_names" => [
+        "extract-architecture",
+        "extract-business-logic",
+        "extract-constraints",
+        "extract-workflows",
+        "extract-product-overview"
       ]
     }
   ]

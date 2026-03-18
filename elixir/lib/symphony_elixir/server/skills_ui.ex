@@ -171,8 +171,8 @@ defmodule SymphonyElixir.Server.SkillsUI do
       UIHelpers.modal_css() <>
       UIHelpers.badge_css() <>
       UIHelpers.toast_css() <>
+      UIHelpers.page_actions_css() <>
       ~S"""
-      #{UIHelpers.page_actions_css()}
       .skills-page {
         display: flex; height: calc(100vh - 90px); overflow: hidden;
       }

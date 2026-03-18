@@ -181,6 +181,133 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </div>
           </section>
 
+          <!-- Jira Integration -->
+          <section class="settings-section">
+            <h2>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Jira Integration
+            </h2>
+            <p class="section-desc">Connect to Jira for creating/updating issues and syncing status. Used by pipeline integration nodes of type "Jira".</p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="jira_base_url">Base URL</label>
+                <input type="text" id="jira_base_url" placeholder="https://myorg.atlassian.net">
+              </div>
+              <div class="form-group">
+                <label for="jira_project_key">Project Key</label>
+                <input type="text" id="jira_project_key" placeholder="PROJ">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="jira_auth_token">Auth Token</label>
+                <div class="token-input-wrap">
+                  <input type="password" id="jira_auth_token" placeholder="Jira API token" autocomplete="off">
+                  <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('jira_auth_token')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <small class="help-text">API token with read/write access. Create one at <em>Jira &rarr; Profile &rarr; API tokens</em>.</small>
+              </div>
+              <div class="form-group">
+                <label for="jira_issue_type">Default Issue Type</label>
+                <select id="jira_issue_type">
+                  <option value="Task">Task</option>
+                  <option value="Story">Story</option>
+                  <option value="Bug">Bug</option>
+                  <option value="Epic">Epic</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn btn-ghost btn-sm" onclick="testIntegration('jira')">Test Connection</button>
+              <span id="integration-test-jira" style="margin-left:8px;font-size:0.82rem"></span>
+            </div>
+          </section>
+
+          <!-- GitLab CI Integration -->
+          <section class="settings-section">
+            <h2>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              GitLab CI Integration
+            </h2>
+            <p class="section-desc">Trigger GitLab CI pipelines and poll for results. Use as quality gates in pipeline nodes.</p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="gitlab_ci_base_url">GitLab URL</label>
+                <input type="text" id="gitlab_ci_base_url" placeholder="https://gitlab.com">
+              </div>
+              <div class="form-group">
+                <label for="gitlab_ci_project_id">Project ID</label>
+                <input type="text" id="gitlab_ci_project_id" placeholder="12345 or group%2Fproject">
+                <small class="help-text">Numeric ID or URL-encoded path.</small>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="gitlab_ci_trigger_token">Pipeline Trigger Token</label>
+                <div class="token-input-wrap">
+                  <input type="password" id="gitlab_ci_trigger_token" placeholder="glptt-xxxxxxxxxxxx" autocomplete="off">
+                  <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('gitlab_ci_trigger_token')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <small class="help-text">Create under <em>Settings &rarr; CI/CD &rarr; Pipeline triggers</em>.</small>
+              </div>
+              <div class="form-group">
+                <label for="gitlab_ci_ref">Default Branch / Ref</label>
+                <input type="text" id="gitlab_ci_ref" placeholder="main">
+              </div>
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn btn-ghost btn-sm" onclick="testIntegration('gitlab_ci')">Test Connection</button>
+              <span id="integration-test-gitlab_ci" style="margin-left:8px;font-size:0.82rem"></span>
+            </div>
+          </section>
+
+          <!-- Confluence Integration -->
+          <section class="settings-section">
+            <h2>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+              Confluence Integration
+            </h2>
+            <p class="section-desc">Create and update Confluence pages for documentation sync. Also available as a Knowledge Base backend.</p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="confluence_base_url">Base URL</label>
+                <input type="text" id="confluence_base_url" placeholder="https://myorg.atlassian.net">
+              </div>
+              <div class="form-group">
+                <label for="confluence_space_key">Space Key</label>
+                <input type="text" id="confluence_space_key" placeholder="ENG">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="confluence_auth_token">Auth Token</label>
+                <div class="token-input-wrap">
+                  <input type="password" id="confluence_auth_token" placeholder="Confluence API token" autocomplete="off">
+                  <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('confluence_auth_token')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <small class="help-text">API token with Confluence read/write scope.</small>
+              </div>
+              <div class="form-group">
+                <label for="confluence_parent_page_id">Default Parent Page ID</label>
+                <input type="text" id="confluence_parent_page_id" placeholder="123456 (optional)">
+                <small class="help-text">New pages are created under this parent. Leave blank for space root.</small>
+              </div>
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn btn-ghost btn-sm" onclick="testIntegration('confluence')">Test Connection</button>
+              <span id="integration-test-confluence" style="margin-left:8px;font-size:0.82rem"></span>
+            </div>
+          </section>
+
           <!-- Tracker -->
           <section class="settings-section">
             <h2>
@@ -324,7 +451,10 @@ defmodule SymphonyElixir.Server.SettingsUI do
       'git_provider', 'git_token', 'git_host',
       'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell', 'agent_allowed_tools', 'agent_sandbox', 'agent_sandbox_image',
       'tracker_kind', 'tracker_endpoint', 'tracker_api_key', 'tracker_project_slug',
-      'kb_type', 'kb_vault_path', 'kb_subfolder'
+      'kb_type', 'kb_vault_path', 'kb_subfolder',
+      'jira_base_url', 'jira_auth_token', 'jira_project_key', 'jira_issue_type',
+      'gitlab_ci_base_url', 'gitlab_ci_project_id', 'gitlab_ci_trigger_token', 'gitlab_ci_ref',
+      'confluence_base_url', 'confluence_auth_token', 'confluence_space_key', 'confluence_parent_page_id'
     ];
 
     // Provider → default host mapping
@@ -484,6 +614,32 @@ defmodule SymphonyElixir.Server.SettingsUI do
         result.style.color = 'var(--error, #ef4444)';
       }
       btn.disabled = false;
+    }
+
+    // --- Integration Test (unified) ---
+    async function testIntegration(type) {
+      var result = document.getElementById('integration-test-' + type);
+      result.textContent = 'Testing...';
+      result.style.color = 'var(--text-muted)';
+
+      try {
+        var res = await fetch(API + '/integrations/' + type + '/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        var data = await res.json();
+        if (data.ok) {
+          result.textContent = data.message;
+          result.style.color = 'var(--success, #22c55e)';
+        } else {
+          result.textContent = data.message || data.error || 'Connection failed';
+          result.style.color = 'var(--error, #ef4444)';
+        }
+      } catch(e) {
+        result.textContent = 'Test failed: ' + e.message;
+        result.style.color = 'var(--error, #ef4444)';
+      }
     }
 
     // --- Default Skills ---

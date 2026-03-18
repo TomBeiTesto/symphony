@@ -3,6 +3,8 @@ defmodule SymphonyElixir.OrchestratorTest do
 
   alias SymphonyElixir.{Config, LocalBoard, Orchestrator}
 
+  import SymphonyElixir.TestHelpers, only: [wait_until: 1]
+
   @minimal_config %Config{
     tracker_kind: "local",
     workspace_root: System.tmp_dir!() |> Path.join("symphony_orch_test"),
@@ -17,6 +19,7 @@ defmodule SymphonyElixir.OrchestratorTest do
 
     start_supervised!({LocalBoard, store_path: board_store, project_prefix: "ORCH"})
     start_supervised!({SymphonyElixir.Settings, store_path: settings_store})
+    start_supervised!({Task.Supervisor, name: SymphonyElixir.WorkerTaskSupervisor})
 
     on_exit(fn ->
       File.rm(board_store)
@@ -27,16 +30,16 @@ defmodule SymphonyElixir.OrchestratorTest do
   end
 
   defp start_orchestrator do
-    config = %{@minimal_config | poll_interval_ms: 999_999_999}
-
     pid =
       start_supervised!(
-        {Orchestrator, config: config, prompt_template: "Work on {{ issue.identifier }}"},
+        {Orchestrator,
+         config: %{@minimal_config | poll_interval_ms: 999_999_999},
+         prompt_template: "Work on {{ issue.identifier }}"},
         restart: :temporary
       )
 
-    # Allow init + initial tick to complete
-    Process.sleep(150)
+    # Wait for init + initial tick to complete
+    wait_until(fn -> Process.alive?(pid) and Orchestrator.get_snapshot() != nil end)
     pid
   end
 
@@ -218,10 +221,11 @@ defmodule SymphonyElixir.OrchestratorTest do
       LocalBoard.save_agent_run(issue.id, %{"completed_at" => two_days_ago})
 
       start_orchestrator()
-      Process.sleep(200)
 
-      {:ok, updated} = LocalBoard.get_issue(issue.id)
-      assert updated.state == "Archived"
+      wait_until(fn ->
+        {:ok, i} = LocalBoard.get_issue(issue.id)
+        i.state == "Archived"
+      end)
     end
 
     test "does not archive recent Done issues" do
@@ -232,6 +236,8 @@ defmodule SymphonyElixir.OrchestratorTest do
         })
 
       start_orchestrator()
+
+      # Give the tick a chance to run, then verify it wasn't archived
       Process.sleep(200)
 
       {:ok, updated} = LocalBoard.get_issue(issue.id)
@@ -256,11 +262,11 @@ defmodule SymphonyElixir.OrchestratorTest do
         })
 
       start_orchestrator()
-      Process.sleep(200)
 
-      {:ok, updated} = LocalBoard.get_issue(issue.id)
-      # Issue gets promoted from Backlog to Todo, then may get dispatched to In Progress
-      assert updated.state in ["Todo", "In Progress"]
+      wait_until(fn ->
+        {:ok, i} = LocalBoard.get_issue(issue.id)
+        i.state in ["Todo", "In Progress"]
+      end)
     end
 
     test "respects per-project max_todo limit" do
@@ -287,6 +293,8 @@ defmodule SymphonyElixir.OrchestratorTest do
         })
 
       start_orchestrator()
+
+      # Give the tick a chance to run, then verify it stayed in Backlog
       Process.sleep(200)
 
       {:ok, updated} = LocalBoard.get_issue(backlog.id)
@@ -303,6 +311,8 @@ defmodule SymphonyElixir.OrchestratorTest do
         })
 
       start_orchestrator()
+
+      # Give the tick a chance to run, then verify it stayed in Backlog
       Process.sleep(200)
 
       {:ok, updated} = LocalBoard.get_issue(issue.id)

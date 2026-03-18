@@ -5,12 +5,16 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
   Local and obsidian backends use filesystem I/O (markdown files with YAML frontmatter).
   Confluence backend delegates to `SymphonyElixir.Integrations.Confluence`.
 
-  Actions: write_note, read_note, search, append_to_note, delete_note.
+  Actions: write_note, read_note, search, search_by_tags, search_by_metadata, append_to_note,
+  delete_note, list_versions, read_version, restore_version.
   """
 
   require Logger
 
+  alias SymphonyElixir.Integrations.KBIndex
+
   @max_search_results 50
+  @max_versions 50
 
   # ---------------------------------------------------------------------------
   # Public API
@@ -27,15 +31,25 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
   """
   @spec execute(map(), map()) :: {:ok, map()} | {:error, term()}
   def execute(config, context) do
+    kb_type = Map.get(config, "kb_type", "local")
     action = Map.get(config, "action", "write_note")
 
-    case action do
-      "write_note" -> write_note(config, context)
-      "read_note" -> read_note(config, context)
-      "search" -> search(config, context)
-      "append_to_note" -> append_to_note(config, context)
-      "delete_note" -> delete_note(config, context)
-      _ -> {:error, "Unknown KB action: #{action}"}
+    if kb_type == "confluence" do
+      execute_confluence(action, config, context)
+    else
+      case action do
+        "write_note" -> write_note(config, context)
+        "read_note" -> read_note(config, context)
+        "search" -> search(config, context)
+        "search_by_tags" -> search_by_tags(config, context)
+        "search_by_metadata" -> search_by_metadata(config, context)
+        "append_to_note" -> append_to_note(config, context)
+        "delete_note" -> delete_note(config, context)
+        "list_versions" -> list_versions(config, context)
+        "read_version" -> read_version(config, context)
+        "restore_version" -> restore_version(config, context)
+        _ -> {:error, "Unknown KB action: #{action}"}
+      end
     end
   end
 
@@ -107,6 +121,89 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
       _ ->
         {:error, :unknown_kb_type}
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Confluence backend delegation
+  # ---------------------------------------------------------------------------
+
+  defp execute_confluence(action, config, context) do
+    alias SymphonyElixir.Integrations.Confluence
+
+    case action do
+      "write_note" ->
+        title = Map.get(context, "title", "Untitled")
+        content = Map.get(context, "content", "")
+        tags = Map.get(context, "tags", [])
+        tag_line = if tags != [], do: "Tags: #{Enum.join(tags, ", ")}\n\n", else: ""
+
+        confluence_config =
+          Map.merge(config, %{
+            "action" => "create_page",
+            "title" => title,
+            "content" => tag_line <> content
+          })
+
+        case Confluence.execute(confluence_config, context) do
+          {:ok, result} -> {:ok, %{path: result[:page_id] || result["page_id"], title: title}}
+          error -> error
+        end
+
+      "read_note" ->
+        page_id = Map.get(context, "note_path", "") |> Path.basename(".md")
+
+        confluence_config =
+          Map.merge(config, %{
+            "action" => "get_page",
+            "page_id" => page_id
+          })
+
+        case Confluence.execute(confluence_config, context) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               frontmatter: %{},
+               content: result[:content] || result["content"] || "",
+               path: page_id
+             }}
+
+          error ->
+            error
+        end
+
+      "append_to_note" ->
+        page_id = Map.get(context, "note_path", "") |> Path.basename(".md")
+        new_content = Map.get(context, "content", "")
+        timestamp = NaiveDateTime.utc_now() |> NaiveDateTime.to_string()
+
+        confluence_config =
+          Map.merge(config, %{
+            "action" => "update_page",
+            "page_id" => page_id,
+            "append_content" => "\n\n---\n*Updated #{timestamp}*\n\n#{new_content}"
+          })
+
+        case Confluence.execute(confluence_config, context) do
+          {:ok, _} -> {:ok, %{path: page_id}}
+          error -> error
+        end
+
+      "search" ->
+        {:error, "Confluence search not yet implemented — use Confluence UI directly"}
+
+      "search_by_tags" ->
+        {:error, "Confluence tag search not yet implemented — use Confluence UI directly"}
+
+      "search_by_metadata" ->
+        {:error, "Confluence metadata search not yet implemented — use Confluence UI directly"}
+
+      unsupported
+      when unsupported in ~w(delete_note list_versions read_version restore_version) ->
+        {:error, "Action '#{unsupported}' is not supported for Confluence backend"}
+
+      _ ->
+        {:error, "Unknown KB action: #{action}"}
     end
   end
 
@@ -205,7 +302,18 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
           full_content = frontmatter <> "\n" <> body
 
           File.mkdir_p!(target_dir)
+
+          # Archive previous version before overwriting
+          if File.exists?(target_path) do
+            archive_version(target_dir, filename, target_path)
+          end
+
           File.write!(target_path, full_content)
+
+          # Invalidate index — key must match search_dir (base_path + subfolder)
+          search_dir = Path.join(base_path, subfolder)
+          rel = Path.relative_to(target_path, search_dir)
+          KBIndex.invalidate(search_dir, rel)
 
           {:ok, %{path: target_path}}
         end
@@ -242,38 +350,40 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
       if not File.dir?(search_dir) do
         {:ok, %{results: []}}
       else
-        query_lower = String.downcase(query)
+        # Use ETS-backed index for fast search
+        results = KBIndex.search(search_dir, query, @max_search_results)
+        {:ok, %{results: results}}
+      end
+    end
+  end
 
-        # Normalize to forward slashes for Path.wildcard on Windows
-        wildcard_pattern =
-          Path.join(search_dir, "**/*.md") |> String.replace("\\", "/")
+  defp search_by_tags(config, context) do
+    with {:ok, base_path} <- resolve_base_path(config) do
+      subfolder = Map.get(config, "subfolder", "symphony")
+      tags = Map.get(context, "tags", [])
+      limit = Map.get(context, "limit", @max_search_results)
+      search_dir = Path.join(base_path, subfolder)
 
-        results =
-          Path.wildcard(wildcard_pattern)
-          |> Enum.filter(fn path ->
-            filename_lower = path |> Path.basename(".md") |> String.downcase()
-            title_match = String.contains?(filename_lower, query_lower)
+      if not File.dir?(search_dir) do
+        {:ok, %{results: []}}
+      else
+        results = KBIndex.search_by_tags(search_dir, tags, limit)
+        {:ok, %{results: results}}
+      end
+    end
+  end
 
-            content_match =
-              if title_match do
-                true
-              else
-                case File.read(path) do
-                  {:ok, content} -> String.contains?(String.downcase(content), query_lower)
-                  _ -> false
-                end
-              end
+  defp search_by_metadata(config, context) do
+    with {:ok, base_path} <- resolve_base_path(config) do
+      subfolder = Map.get(config, "subfolder", "symphony")
+      filters = Map.get(context, "filters", %{})
+      limit = Map.get(context, "limit", @max_search_results)
+      search_dir = Path.join(base_path, subfolder)
 
-            title_match or content_match
-          end)
-          |> Enum.take(@max_search_results)
-          |> Enum.map(fn path ->
-            title = Path.basename(path, ".md")
-            snippet = extract_snippet(path, query_lower)
-            rel_path = Path.relative_to(path, base_path)
-            %{path: rel_path, title: title, snippet: snippet}
-          end)
-
+      if not File.dir?(search_dir) do
+        {:ok, %{results: []}}
+      else
+        results = KBIndex.search_by_metadata(search_dir, filters, limit)
         {:ok, %{results: results}}
       end
     end
@@ -281,6 +391,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
   defp append_to_note(config, context) do
     with {:ok, base_path} <- resolve_base_path(config) do
+      subfolder = Map.get(config, "subfolder", "symphony")
       note_path = Map.get(context, "note_path", "")
       new_content = Map.get(context, "content", "")
       full_path = Path.join(base_path, note_path)
@@ -297,6 +408,12 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
           timestamp = NaiveDateTime.utc_now() |> NaiveDateTime.to_string()
           separator = "\n\n---\n*Updated #{timestamp}*\n\n"
           File.write!(full_path, existing <> separator <> new_content)
+
+          # Invalidate index — key must match search_dir (base_path + subfolder)
+          search_dir = Path.join(base_path, subfolder)
+          rel = Path.relative_to(full_path, search_dir)
+          KBIndex.invalidate(search_dir, rel)
+
           {:ok, %{path: full_path}}
       end
     end
@@ -304,6 +421,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
   defp delete_note(config, context) do
     with {:ok, base_path} <- resolve_base_path(config) do
+      subfolder = Map.get(config, "subfolder", "symphony")
       note_path = Map.get(context, "note_path", "")
       full_path = Path.join(base_path, note_path)
 
@@ -316,9 +434,139 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
         true ->
           File.rm!(full_path)
+
+          # Invalidate index — key must match search_dir (base_path + subfolder)
+          search_dir = Path.join(base_path, subfolder)
+          rel = Path.relative_to(full_path, search_dir)
+          KBIndex.invalidate(search_dir, rel)
+
           {:ok, %{path: full_path, deleted: true}}
       end
     end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Versioning
+  # ---------------------------------------------------------------------------
+
+  defp list_versions(config, context) do
+    with {:ok, base_path} <- resolve_base_path(config) do
+      note_path = Map.get(context, "note_path", "")
+      full_path = Path.join(base_path, note_path)
+
+      if path_traversal?(full_path, base_path) do
+        {:error, :path_traversal}
+      else
+        dir = Path.dirname(full_path)
+        filename = Path.basename(full_path)
+        versions_dir = Path.join(dir, ".versions")
+
+        # Version files are named: {basename_without_ext}.{timestamp}.md
+        base_name = Path.basename(filename, ".md")
+
+        versions =
+          if File.dir?(versions_dir) do
+            wildcard = Path.join(versions_dir, "#{base_name}.*.md") |> String.replace("\\", "/")
+
+            Path.wildcard(wildcard)
+            |> Enum.map(fn vpath ->
+              vname = Path.basename(vpath, ".md")
+              # Extract timestamp from "basename.20260318T143022" pattern
+              timestamp = String.replace_prefix(vname, "#{base_name}.", "")
+              stat = File.stat!(vpath)
+
+              %{
+                path: Path.relative_to(vpath, base_path),
+                timestamp: timestamp,
+                size: stat.size,
+                modified: NaiveDateTime.from_erl!(stat.mtime)
+              }
+            end)
+            |> Enum.sort_by(& &1.timestamp, :desc)
+            |> Enum.take(@max_versions)
+          else
+            []
+          end
+
+        {:ok, %{versions: versions, note_path: note_path}}
+      end
+    end
+  end
+
+  defp read_version(config, context) do
+    with {:ok, base_path} <- resolve_base_path(config) do
+      version_path = Map.get(context, "version_path", "")
+      full_path = Path.join(base_path, version_path)
+
+      cond do
+        path_traversal?(full_path, base_path) ->
+          {:error, :path_traversal}
+
+        not File.exists?(full_path) ->
+          {:error, :file_not_found}
+
+        true ->
+          raw = File.read!(full_path)
+          {frontmatter, body} = parse_frontmatter(raw)
+          {:ok, %{frontmatter: frontmatter, content: body, path: full_path}}
+      end
+    end
+  end
+
+  defp restore_version(config, context) do
+    with {:ok, base_path} <- resolve_base_path(config) do
+      subfolder = Map.get(config, "subfolder", "symphony")
+      version_path = Map.get(context, "version_path", "")
+      note_path = Map.get(context, "note_path", "")
+      version_full = Path.join(base_path, version_path)
+      note_full = Path.join(base_path, note_path)
+
+      cond do
+        path_traversal?(version_full, base_path) or path_traversal?(note_full, base_path) ->
+          {:error, :path_traversal}
+
+        not File.exists?(version_full) ->
+          {:error, :file_not_found}
+
+        true ->
+          # Archive the current note before restoring
+          if File.exists?(note_full) do
+            dir = Path.dirname(note_full)
+            filename = Path.basename(note_full)
+            archive_version(dir, filename, note_full)
+          end
+
+          # Copy version content to the main note path
+          content = File.read!(version_full)
+          File.write!(note_full, content)
+
+          # Invalidate index — key must match search_dir (base_path + subfolder)
+          search_dir = Path.join(base_path, subfolder)
+          rel = Path.relative_to(note_full, search_dir)
+          KBIndex.invalidate(search_dir, rel)
+
+          {:ok, %{path: note_full, restored_from: version_path}}
+      end
+    end
+  end
+
+  defp archive_version(dir, filename, source_path) do
+    versions_dir = Path.join(dir, ".versions")
+    File.mkdir_p!(versions_dir)
+
+    base_name = Path.basename(filename, ".md")
+
+    timestamp =
+      NaiveDateTime.utc_now()
+      |> NaiveDateTime.to_iso8601()
+      |> String.replace(~r/[:\.]/, "")
+      |> String.slice(0, 15)
+
+    version_filename = "#{base_name}.#{timestamp}.md"
+    version_path = Path.join(versions_dir, version_filename)
+
+    File.cp!(source_path, version_path)
+    version_path
   end
 
   # ---------------------------------------------------------------------------
@@ -346,24 +594,6 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
     path
     |> String.replace("\\", "/")
     |> String.downcase()
-  end
-
-  defp extract_snippet(path, query_lower) do
-    case File.read(path) do
-      {:ok, content} ->
-        content
-        |> String.split("\n")
-        |> Enum.find(fn line ->
-          String.contains?(String.downcase(line), query_lower)
-        end)
-        |> case do
-          nil -> ""
-          line -> String.trim(line) |> String.slice(0, 200)
-        end
-
-      _ ->
-        ""
-    end
   end
 
   defp quote_value(value) when is_binary(value) do

@@ -71,14 +71,6 @@ defmodule SymphonyElixir.Server.BoardRouter do
     |> send_resp(302, "")
   end
 
-  get "/task-lineage" do
-    html = SymphonyElixir.Server.TechTreeUI.render()
-
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
-  end
-
   get "/issues/:id" do
     case LocalBoard.get_issue(id) do
       {:ok, issue} ->
@@ -1699,7 +1691,11 @@ defmodule SymphonyElixir.Server.BoardRouter do
       - description: 2-4 paragraphs in markdown with acceptance criteria
       - priority: 1=Urgent, 2=High, 3=Medium, 4=Low
       - labels: 1-3 relevant labels (lowercase, hyphenated). Use these special labels when appropriate:
-        * "extract-logic" — when the task is about extracting, documenting, or cataloging business rules/logic from a codebase
+        * "extract-architecture" — extracting system structure, components, data flow, tech stack
+        * "extract-business-logic" — extracting domain rules, validations, state machines, invariants
+        * "extract-constraints" — extracting performance limits, security boundaries, compatibility requirements
+        * "extract-workflows" — extracting process flows, lifecycles, multi-step operations
+        * "extract-product-overview" — extracting feature inventory, completeness status, project structure
         * "research" — when the task is about researching a topic, technology, or approach
       - skill_names: pick 0-3 from available skills that match the task
 
@@ -2395,16 +2391,42 @@ defmodule SymphonyElixir.Server.BoardRouter do
   end
 
   patch "/api/pipelines/:id" do
-    case LocalBoard.update_pipeline(id, conn.body_params) do
-      {:ok, pipeline} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(pipeline))
+    # A3: Block edits while pipeline has an active run
+    has_active_run =
+      LocalBoard.list_all_active_runs()
+      |> Enum.any?(fn run -> run.pipeline_id == id end)
 
-      {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    if has_active_run and
+         (Map.has_key?(conn.body_params, "nodes") or Map.has_key?(conn.body_params, "edges")) do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(
+        409,
+        Jason.encode!(%{
+          error: "pipeline_running",
+          message: "Cannot edit pipeline graph while a run is active. Stop the run first."
+        })
+      )
+    else
+      case LocalBoard.update_pipeline(id, conn.body_params) do
+        {:ok, pipeline} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(pipeline))
+
+        {:error, :not_found} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+        {:error, validation_error} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(
+            422,
+            Jason.encode!(%{error: "validation_failed", reason: to_string(validation_error)})
+          )
+      end
     end
   end
 
@@ -2433,6 +2455,11 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(201, Jason.encode!(run))
+
+      {:error, :already_running} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(409, Jason.encode!(%{error: "already_running"}))
 
       {:error, :not_found} ->
         conn
@@ -2480,6 +2507,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
   post "/api/pipelines/:pipeline_id/runs/:run_id/resume" do
     case LocalBoard.update_pipeline_run_status(run_id, "running") do
       {:ok, run} ->
+        # Fix D: Re-register with runner so it resumes ticking
+        SymphonyElixir.PipelineRunner.resume_run(pipeline_id, run_id)
+
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(200, Jason.encode!(run))
@@ -2509,20 +2539,143 @@ defmodule SymphonyElixir.Server.BoardRouter do
     action = Map.get(conn.body_params, "action", "approve")
     feedback = Map.get(conn.body_params, "feedback")
 
-    case LocalBoard.record_gate_decision(run_id, node_id, action, feedback) do
-      {:ok, run} ->
-        # Notify the pipeline runner about the gate decision
-        SymphonyElixir.PipelineRunner.gate_decided(run_id, node_id, action)
+    if action not in ["approve", "reject", "hold"] do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(
+        400,
+        Jason.encode!(%{
+          error: "invalid_action",
+          message: "action must be 'approve', 'reject', or 'hold'"
+        })
+      )
+    else
+      case LocalBoard.record_gate_decision(run_id, node_id, action, feedback) do
+        {:ok, run} ->
+          # Notify the pipeline runner about the gate decision
+          SymphonyElixir.PipelineRunner.gate_decided(run_id, node_id, action)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(run))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(run))
+
+        {:error, :invalid_action} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(400, Jason.encode!(%{error: "invalid_action"}))
+
+        {:error, _} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+      end
+    end
+  end
+
+  # Gap #9: Force-complete a stuck/failed node
+  post "/api/pipelines/:pipeline_id/runs/:run_id/force-complete/:node_id" do
+    SymphonyElixir.PipelineRunner.force_complete_node(run_id, node_id)
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{ok: true}))
+  end
+
+  # Gap #2: Get gate context (predecessor issues, instructions, checks, feedback history)
+  get "/api/pipelines/:pipeline_id/runs/:run_id/gate-context/:node_id" do
+    case LocalBoard.get_pipeline_run(pipeline_id, run_id) do
+      {:ok, run} ->
+        case LocalBoard.get_pipeline(pipeline_id) do
+          {:ok, pipeline} ->
+            node = Enum.find(pipeline.nodes, &(&1.id == node_id))
+
+            if node do
+              # Collect predecessor issue details
+              predecessor_issues = collect_gate_context_issues(node_id, pipeline, run)
+
+              # Get gate-specific config
+              instructions = get_in(node, [:config, "instructions"]) || ""
+              checks = get_in(node, [:config, "checks"]) || []
+
+              # Feedback history for this gate
+              feedback_history =
+                run.gate_decisions
+                |> Enum.filter(fn d -> d.node_id == node_id end)
+                |> Enum.map(fn d ->
+                  %{
+                    action: d.action,
+                    feedback: d.feedback,
+                    decided_at: d.decided_at
+                  }
+                end)
+
+              context = %{
+                node_id: node_id,
+                node_type: node.type,
+                label: node.label,
+                instructions: instructions,
+                checks: checks,
+                predecessor_issues: predecessor_issues,
+                feedback_history: feedback_history,
+                attempts: Map.get(run.node_attempts, node_id, 0)
+              }
+
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(200, Jason.encode!(context))
+            else
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(404, Jason.encode!(%{error: "node_not_found"}))
+            end
+
+          {:error, _} ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(404, Jason.encode!(%{error: "pipeline_not_found"}))
+        end
 
       {:error, _} ->
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        |> send_resp(404, Jason.encode!(%{error: "run_not_found"}))
     end
+  end
+
+  # Gap #5: List all waiting gates across active runs
+  get "/api/pipeline-runs/waiting-gates" do
+    runs = LocalBoard.list_all_active_runs()
+
+    gates =
+      Enum.flat_map(runs, fn run ->
+        case LocalBoard.get_pipeline(run.pipeline_id) do
+          {:ok, pipeline} ->
+            pipeline.nodes
+            |> Enum.filter(fn node ->
+              state = Map.get(run.node_states, node.id)
+              state in ["waiting_gate", "on_hold"]
+            end)
+            |> Enum.map(fn node ->
+              %{
+                run_id: run.id,
+                pipeline_id: run.pipeline_id,
+                pipeline_name: pipeline.name,
+                node_id: node.id,
+                node_type: node.type,
+                label: node.label,
+                state: Map.get(run.node_states, node.id),
+                attempts: Map.get(run.node_attempts, node.id, 0)
+              }
+            end)
+
+          _ ->
+            []
+        end
+      end)
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(%{gates: gates}))
   end
 
   get "/api/pipeline-runs/active" do
@@ -2556,6 +2709,33 @@ defmodule SymphonyElixir.Server.BoardRouter do
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(400, Jason.encode!(%{error: "restore_failed", reason: inspect(reason)}))
+    end
+  end
+
+  # --- Unified Integration Test ---
+
+  post "/api/integrations/:type/test" do
+    type = conn.path_params["type"]
+
+    alias SymphonyElixir.Integrations.Registry
+
+    if type in Registry.available_types() do
+      # Save current form values first so test_connection picks them up
+      case Registry.test_connection(type) do
+        {:ok, message} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(%{ok: true, message: message}))
+
+        {:error, message} ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(%{ok: false, message: to_string(message)}))
+      end
+    else
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{ok: false, message: "Unknown integration type: #{type}"}))
     end
   end
 
@@ -2645,6 +2825,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
           source = if report_files != [], do: "reports", else: "description"
 
+          # Track sync timestamp on issue
+          now = DateTime.utc_now() |> DateTime.to_iso8601()
+          LocalBoard.update_issue(issue_id, %{"kb_synced_at" => now})
+
           conn
           |> put_resp_content_type("application/json")
           |> send_resp(
@@ -2679,7 +2863,107 @@ defmodule SymphonyElixir.Server.BoardRouter do
       {:ok, %{results: results}} ->
         serialized =
           Enum.map(results, fn r ->
-            %{"path" => r.path, "title" => r.title, "snippet" => r.snippet}
+            %{
+              "path" => r[:path],
+              "title" => r[:title],
+              "tags" => r[:tags],
+              "date" => r[:date],
+              "author" => r[:author],
+              "product" => r[:product],
+              "snippet" => r[:snippet]
+            }
+          end)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{results: serialized}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  get "/api/vault/search-by-tags" do
+    tags_param = conn.query_params["tags"] || ""
+    tags = String.split(tags_param, ",", trim: true) |> Enum.map(&String.trim/1)
+    limit = parse_int_param(conn.query_params["limit"], 50)
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+
+    config = %{
+      "kb_type" => kb_type,
+      "vault_path" => vault_path,
+      "subfolder" => subfolder,
+      "action" => "search_by_tags"
+    }
+
+    context = %{"tags" => tags, "limit" => limit}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, %{results: results}} ->
+        serialized =
+          Enum.map(results, fn r ->
+            %{
+              "path" => r[:path],
+              "title" => r[:title],
+              "tags" => r[:tags],
+              "date" => r[:date],
+              "author" => r[:author],
+              "product" => r[:product],
+              "snippet" => r[:snippet]
+            }
+          end)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{results: serialized}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  get "/api/vault/search-by-metadata" do
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+    limit = parse_int_param(conn.query_params["limit"], 50)
+
+    # Build filters from query params (exclude reserved params)
+    reserved = ~w(limit)
+
+    filters =
+      conn.query_params
+      |> Enum.reject(fn {k, _} -> k in reserved end)
+      |> Map.new()
+
+    config = %{
+      "kb_type" => kb_type,
+      "vault_path" => vault_path,
+      "subfolder" => subfolder,
+      "action" => "search_by_metadata"
+    }
+
+    context = %{"filters" => filters, "limit" => limit}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, %{results: results}} ->
+        serialized =
+          Enum.map(results, fn r ->
+            %{
+              "path" => r[:path],
+              "title" => r[:title],
+              "tags" => r[:tags],
+              "date" => r[:date],
+              "author" => r[:author],
+              "product" => r[:product],
+              "snippet" => r[:snippet]
+            }
           end)
 
         conn
@@ -2708,6 +2992,269 @@ defmodule SymphonyElixir.Server.BoardRouter do
         |> send_resp(
           200,
           Jason.encode!(%{frontmatter: result.frontmatter, content: result.content})
+        )
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, :file_not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  post "/api/vault/append" do
+    note_path = conn.body_params["path"] || ""
+    content = conn.body_params["content"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path, "action" => "append_to_note"}
+    context = %{"note_path" => note_path, "content" => content}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, _result} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true}))
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, :file_not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  post "/api/vault/create" do
+    title = conn.body_params["title"] || "Untitled"
+    content = conn.body_params["content"] || ""
+    product_name = conn.body_params["product_name"]
+    tags = conn.body_params["tags"] || []
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+
+    config = %{
+      "kb_type" => kb_type,
+      "vault_path" => vault_path,
+      "subfolder" => subfolder,
+      "action" => "write_note"
+    }
+
+    context = %{
+      "title" => title,
+      "content" => content,
+      "tags" => if(is_list(tags), do: tags, else: []),
+      "product_name" => product_name
+    }
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, %{path: path}} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true, path: path}))
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  post "/api/vault/send-batch" do
+    issue_ids = conn.body_params["issue_ids"] || []
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+    subfolder = Settings.get("kb_subfolder") || "symphony"
+
+    if not is_list(issue_ids) or issue_ids == [] do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "issue_ids must be a non-empty list"}))
+    else
+      results =
+        Enum.map(issue_ids, fn issue_id ->
+          case LocalBoard.get_issue(issue_id) do
+            {:ok, issue} ->
+              product_name = resolve_product_name(issue)
+
+              config = %{
+                "kb_type" => kb_type,
+                "vault_path" => vault_path,
+                "subfolder" => subfolder,
+                "action" => "write_note"
+              }
+
+              report_files = find_issue_reports(issue)
+
+              notes =
+                if report_files != [] do
+                  Enum.flat_map(report_files, fn report_path ->
+                    title = Path.basename(report_path, ".md")
+                    content = File.read!(report_path)
+
+                    context = %{
+                      "title" => title,
+                      "content" => content,
+                      "tags" => ["symphony" | issue.labels || []],
+                      "source_issue" => issue.identifier,
+                      "product_name" => product_name
+                    }
+
+                    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+                      {:ok, %{path: path}} -> [path]
+                      _ -> []
+                    end
+                  end)
+                else
+                  title = issue.title || "Untitled"
+                  content = issue.description || issue.title || ""
+
+                  context = %{
+                    "title" => title,
+                    "content" => content,
+                    "tags" => ["symphony" | issue.labels || []],
+                    "source_issue" => issue.identifier,
+                    "product_name" => product_name
+                  }
+
+                  case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+                    {:ok, %{path: path}} -> [path]
+                    _ -> []
+                  end
+                end
+
+              # Track sync timestamp on issue
+              now = DateTime.utc_now() |> DateTime.to_iso8601()
+              LocalBoard.update_issue(issue_id, %{"kb_synced_at" => now})
+
+              %{issue_id: issue_id, identifier: issue.identifier, notes_written: notes, ok: true}
+
+            {:error, :not_found} ->
+              %{issue_id: issue_id, ok: false, error: "not_found"}
+          end
+        end)
+
+      total_notes = Enum.flat_map(results, fn r -> Map.get(r, :notes_written, []) end)
+
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(
+        200,
+        Jason.encode!(%{ok: true, results: results, total_notes_written: length(total_notes)})
+      )
+    end
+  end
+
+  get "/api/vault/versions" do
+    note_path = conn.query_params["path"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path, "action" => "list_versions"}
+    context = %{"note_path" => note_path}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, %{versions: versions}} ->
+        serialized =
+          Enum.map(versions, fn v ->
+            %{
+              "path" => v.path,
+              "timestamp" => v.timestamp,
+              "size" => v.size,
+              "modified" => NaiveDateTime.to_iso8601(v.modified)
+            }
+          end)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{versions: serialized}))
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  get "/api/vault/version" do
+    version_path = conn.query_params["path"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path, "action" => "read_version"}
+    context = %{"version_path" => version_path}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, result} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          200,
+          Jason.encode!(%{frontmatter: result.frontmatter, content: result.content})
+        )
+
+      {:error, :path_traversal} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+
+      {:error, :file_not_found} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  post "/api/vault/restore" do
+    version_path = conn.body_params["version_path"] || ""
+    note_path = conn.body_params["note_path"] || ""
+    kb_type = Settings.get("kb_type") || "local"
+    vault_path = Settings.get("kb_vault_path") || ""
+
+    config = %{"kb_type" => kb_type, "vault_path" => vault_path, "action" => "restore_version"}
+    context = %{"version_path" => version_path, "note_path" => note_path}
+
+    case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
+      {:ok, result} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          200,
+          Jason.encode!(%{ok: true, path: result.path, restored_from: result.restored_from})
         )
 
       {:error, :path_traversal} ->
@@ -2758,6 +3305,63 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end
   end
 
+  # Collect predecessor issue details for gate context
+  defp collect_gate_context_issues(gate_node_id, pipeline, run) do
+    collect_gate_context_issues(gate_node_id, pipeline, run, MapSet.new(), [])
+  end
+
+  defp collect_gate_context_issues(node_id, pipeline, run, visited, acc) do
+    if MapSet.member?(visited, node_id) do
+      acc
+    else
+      visited = MapSet.put(visited, node_id)
+      node = Enum.find(pipeline.nodes, &(&1.id == node_id))
+
+      acc =
+        if node && node.type == "issue" do
+          issue_id = node.issue_id || Map.get(run.node_issue_ids || %{}, node.id)
+
+          if issue_id do
+            case LocalBoard.get_issue(issue_id) do
+              {:ok, issue} ->
+                [
+                  %{
+                    id: issue.id,
+                    identifier: issue.identifier,
+                    title: issue.title,
+                    state: issue.state,
+                    url: "/board/issues/#{issue.id}",
+                    has_reports: has_reports?(issue),
+                    rerun_hint: issue[:rerun_hint]
+                  }
+                  | acc
+                ]
+
+              _ ->
+                acc
+            end
+          else
+            acc
+          end
+        else
+          acc
+        end
+
+      predecessors =
+        pipeline.edges
+        |> Enum.filter(fn e -> e.target_node_id == node_id end)
+        |> Enum.map(& &1.source_node_id)
+
+      Enum.reduce(predecessors, acc, fn pred_id, inner_acc ->
+        collect_gate_context_issues(pred_id, pipeline, run, visited, inner_acc)
+      end)
+    end
+  end
+
+  defp has_reports?(issue) do
+    find_issue_reports(issue) != []
+  end
+
   defp resolve_product_name(issue) do
     if issue.product_id do
       case LocalBoard.get_product(issue.product_id) do
@@ -2770,77 +3374,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   end
 
   defp find_issue_reports(issue) do
-    workspace_key = issue.identifier || issue.id
-
-    # Build candidates: configured workspace root + common fallback locations
-    workspace_root =
-      case Process.get(:symphony_workspace_root) do
-        nil ->
-          # Try to read from the default tmp-based workspace root
-          Path.join(System.tmp_dir!(), "symphony_workspaces")
-
-        root ->
-          root
-      end
-
-    # The agent's actual workspace may be the project/product path (not the
-    # symphony workspace dir) — resolve those paths too.
-    project_paths = resolve_issue_project_paths(issue)
-
-    candidates =
-      Enum.map(project_paths, fn p -> Path.join(p, "reports") end) ++
-        [
-          Path.join([workspace_root, workspace_key, "reports"]),
-          Path.join(["~/code/symphony-workspaces", workspace_key, "reports"]),
-          Path.join(["~/symphony_workspaces", workspace_key, "reports"])
-        ]
-
-    candidates
-    |> Enum.map(&Path.expand/1)
-    |> Enum.find(fn dir -> File.dir?(dir) end)
-    |> case do
-      nil -> []
-      dir -> Path.wildcard(Path.join(dir, "*.md") |> String.replace("\\", "/"))
-    end
-  end
-
-  # Resolve the project/product workspace paths an agent would have used.
-  defp resolve_issue_project_paths(issue) do
-    project_path =
-      case issue.project_id do
-        pid when is_binary(pid) and pid != "" ->
-          case LocalBoard.get_project(pid) do
-            {:ok, %{path: path}} when is_binary(path) and path != "" -> path
-            _ -> nil
-          end
-
-        _ ->
-          nil
-      end
-
-    product_paths =
-      case issue.product_id do
-        prod_id when is_binary(prod_id) and prod_id != "" ->
-          case LocalBoard.get_product(prod_id) do
-            {:ok, product} ->
-              (product.project_ids || [])
-              |> Enum.flat_map(fn pid ->
-                case LocalBoard.get_project(pid) do
-                  {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
-                  _ -> []
-                end
-              end)
-
-            _ ->
-              []
-          end
-
-        _ ->
-          []
-      end
-
-    Enum.reject([project_path | product_paths], &is_nil/1)
-    |> Enum.uniq()
+    SymphonyElixir.Workspace.find_issue_reports(issue)
   end
 
   # Build a condensed KB context string for AI draft prompts.
@@ -2941,4 +3475,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
     |> put_resp_content_type("application/json")
     |> send_resp(404, Jason.encode!(%{error: "not_found"}))
   end
+
+  defp parse_int_param(nil, default), do: default
+
+  defp parse_int_param(val, default) when is_binary(val) do
+    case Integer.parse(val) do
+      {n, _} -> n
+      :error -> default
+    end
+  end
+
+  defp parse_int_param(val, _default) when is_integer(val), do: val
+  defp parse_int_param(_, default), do: default
 end

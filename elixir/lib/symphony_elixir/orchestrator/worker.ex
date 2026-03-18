@@ -32,9 +32,19 @@ defmodule SymphonyElixir.Orchestrator.Worker do
     # Add to running
     state = State.add_running(state, issue_id, State.new_running_entry(issue, nil))
 
-    # Spawn worker task
-    Task.start(fn ->
-      result = run_worker(config, state.prompt_template, issue, orchestrator_pid)
+    # B1: Spawn worker via supervised task with concurrency limit
+    # B4: Wrap in try/catch so crashes always send worker_done
+    Task.Supervisor.start_child(SymphonyElixir.WorkerTaskSupervisor, fn ->
+      result =
+        try do
+          run_worker(config, state.prompt_template, issue, orchestrator_pid)
+        catch
+          kind, reason ->
+            Logger.error("Worker crashed for issue=#{identifier}: #{kind} #{inspect(reason)}")
+
+            {:error, {:worker_crash, kind, inspect(reason)}}
+        end
+
       send(orchestrator_pid, {:worker_done, issue_id, result})
     end)
 
@@ -44,53 +54,106 @@ defmodule SymphonyElixir.Orchestrator.Worker do
 
   @doc "Run the worker: set up workspace, render prompt, start agent session, run turn loop."
   def run_worker(config, prompt_template, issue, orchestrator_pid) do
-    with {:ok, workspace_info} <- Workspace.ensure_workspace(config, issue),
-         workspace_path = resolve_project_workspace(config, issue, workspace_info.path),
-         extra_mounts = resolve_extra_mounts(config, issue, workspace_path),
-         :ok <- run_before_run_hook(config, workspace_path),
-         {:ok, prompt} <- render_prompt(prompt_template, issue, nil),
-         :ok <- validate_cwd(workspace_path) do
-      callback = fn event ->
-        send(orchestrator_pid, {:agent_event, issue.id, event})
-        :ok
-      end
+    with {:ok, workspace_info} <- Workspace.ensure_workspace(config, issue) do
+      workspace_path = resolve_project_workspace(config, issue, workspace_info.path)
+      extra_mounts = resolve_extra_mounts(config, issue, workspace_path)
 
-      client = agent_client_module()
-
-      start_result =
-        if client == ClaudeAdapter and extra_mounts != [] do
-          ClaudeAdapter.start_session(config, workspace_path, prompt, callback,
-            extra_mounts: extra_mounts
-          )
-        else
-          client.start_session(config, workspace_path, prompt, callback)
+      with :ok <- run_before_run_hook(config, workspace_path),
+           {:ok, prompt} <- render_prompt(prompt_template, issue, nil),
+           :ok <- validate_cwd(workspace_path) do
+        callback = fn event ->
+          send(orchestrator_pid, {:agent_event, issue.id, event})
+          :ok
         end
 
-      case start_result do
-        {:ok, session} ->
-          result = run_turn_loop(config, prompt_template, issue, session, 1)
+        client = agent_client_module()
 
-          # after_run hook (failure ignored per spec)
-          Workspace.run_hook(config, :after_run, workspace_path)
+        start_result =
+          if extra_mounts != [] do
+            if client == ClaudeAdapter do
+              ClaudeAdapter.start_session(config, workspace_path, prompt, callback,
+                extra_mounts: extra_mounts
+              )
+            else
+              Logger.warning(
+                "Extra mounts (#{length(extra_mounts)}) ignored — " <>
+                  "provider #{inspect(agent_client_module())} does not support mounts"
+              )
 
-          result
+              client.start_session(config, workspace_path, prompt, callback)
+            end
+          else
+            client.start_session(config, workspace_path, prompt, callback)
+          end
 
+        case start_result do
+          {:ok, session} ->
+            result = run_turn_loop(config, prompt_template, issue, session, 1)
+
+            # after_run hook (failure ignored per spec)
+            Workspace.run_hook(config, :after_run, workspace_path)
+
+            # B3: Clean up temp artifacts on failure
+            case result do
+              {:error, _} -> cleanup_workspace_artifacts(workspace_path)
+              _ -> :ok
+            end
+
+            result
+
+          {:error, reason} ->
+            cleanup_workspace_artifacts(workspace_path)
+            {:error, {:startup_failed, reason}}
+        end
+      else
         {:error, reason} ->
-          {:error, {:startup_failed, reason}}
+          # B3: Clean up temp artifacts on hook/prompt/validation failures
+          cleanup_workspace_artifacts(workspace_path)
+          {:error, reason}
       end
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
-  @doc "Run the agent turn loop until completion, failure, or cancellation."
-  def run_turn_loop(_config, _prompt_template, _issue, session, turn_count) do
+  @doc """
+  Run the agent turn loop until completion, failure, or cancellation.
+  B2: Re-renders prompt from current issue state for continuation turns
+  so that context changes (rerun_hint, labels, etc.) are picked up.
+  """
+  def run_turn_loop(config, prompt_template, issue, session, turn_count) do
     client = agent_client_module()
 
     case client.stream_turn(session) do
       {:ok, :completed, session} ->
-        client.stop(session)
-        {:ok, {:completed_after_turns, turn_count, nil}}
+        # Check if the issue was updated with a rerun_hint while the agent ran.
+        # If so, start a continuation turn with fresh context (B2).
+        case maybe_continue(config, issue) do
+          {:continue, fresh_issue} ->
+            case render_prompt(prompt_template, fresh_issue, turn_count) do
+              {:ok, continuation_prompt} ->
+                case client.start_continuation_turn(session, continuation_prompt) do
+                  {:ok, new_session} ->
+                    run_turn_loop(
+                      config,
+                      prompt_template,
+                      fresh_issue,
+                      new_session,
+                      turn_count + 1
+                    )
+
+                  {:error, reason} ->
+                    client.stop(session)
+                    {:error, {:continuation_failed, reason, turn_count}}
+                end
+
+              {:error, reason} ->
+                client.stop(session)
+                {:error, {:prompt_render_failed, reason, turn_count}}
+            end
+
+          :done ->
+            client.stop(session)
+            {:ok, {:completed_after_turns, turn_count, nil}}
+        end
 
       {:ok, :failed, session} ->
         client.stop(session)
@@ -222,6 +285,27 @@ defmodule SymphonyElixir.Orchestrator.Worker do
     end
   end
 
+  # Check if the issue was updated with a rerun_hint during the turn.
+  # Returns {:continue, fresh_issue} or :done.
+  defp maybe_continue(%Config{tracker_kind: "local"}, issue) do
+    case SymphonyElixir.LocalBoard.get_issue(issue.id) do
+      {:ok, fresh} ->
+        hint = Map.get(fresh, :rerun_hint)
+
+        if is_binary(hint) and hint != "" do
+          Logger.info("Issue #{issue.identifier} has rerun_hint, continuing with new turn")
+          {:continue, fresh}
+        else
+          :done
+        end
+
+      _ ->
+        :done
+    end
+  end
+
+  defp maybe_continue(_config, _issue), do: :done
+
   defp render_prompt(template, issue, attempt) do
     case Prompt.render(template, issue, attempt) do
       {:ok, rendered} -> {:ok, rendered}
@@ -235,5 +319,30 @@ defmodule SymphonyElixir.Orchestrator.Worker do
     else
       {:error, :invalid_workspace_cwd}
     end
+  end
+
+  # B3: Clean up temporary artifacts left by failed agent runs
+  defp cleanup_workspace_artifacts(workspace_path) do
+    patterns = [
+      Path.join(workspace_path, ".symphony_prompt_*"),
+      Path.join(workspace_path, ".symphony_session_*"),
+      Path.join(workspace_path, ".claude_tmp_*")
+    ]
+
+    Enum.each(patterns, fn pattern ->
+      pattern
+      |> Path.wildcard()
+      |> Enum.each(fn file ->
+        case File.rm(file) do
+          :ok ->
+            Logger.debug("Cleaned up temp artifact: #{file}")
+
+          {:error, reason} ->
+            Logger.warning("Failed to clean up #{file}: #{inspect(reason)}")
+        end
+      end)
+    end)
+  rescue
+    _ -> :ok
   end
 end

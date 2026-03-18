@@ -158,23 +158,6 @@ test.describe("Settings Screenshots", () => {
   });
 });
 
-test.describe("Task Lineage Screenshots", () => {
-  test.beforeEach(async ({ request }) => { await cleanupAll(request); });
-
-  test("12 - Task lineage - empty", async ({ page }) => {
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: join(SCREENSHOTS_DIR, "12-task-lineage-empty.png"), fullPage: true });
-  });
-
-  test("13 - Task lineage - with issues", async ({ page, request }) => {
-    await seedIssues(request);
-    await page.goto("/board/task-lineage");
-    await page.waitForTimeout(1500);
-    await page.screenshot({ path: join(SCREENSHOTS_DIR, "13-task-lineage-with-issues.png"), fullPage: true });
-  });
-});
-
 test.describe("Product Hub Screenshots", () => {
   test.beforeEach(async ({ request }) => { await cleanupAll(request); });
 
@@ -202,19 +185,3 @@ test.describe("Product Hub Screenshots", () => {
   });
 });
 
-test.describe("Dashboard Screenshots", () => {
-  test.beforeEach(async ({ request }) => { await cleanupAll(request); });
-
-  test("16 - Orchestrator dashboard", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: join(SCREENSHOTS_DIR, "16-dashboard.png"), fullPage: true });
-  });
-
-  test("17 - Dashboard - mobile", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto("/");
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: join(SCREENSHOTS_DIR, "17-dashboard-mobile.png"), fullPage: true });
-  });
-});

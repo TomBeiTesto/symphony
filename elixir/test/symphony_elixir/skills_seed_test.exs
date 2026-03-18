@@ -21,7 +21,12 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "content-hierarchy",
     "user-journey-first",
     "cognitive-load-budget",
-    "spatial-consistency"
+    "spatial-consistency",
+    "extract-architecture",
+    "extract-business-logic",
+    "extract-constraints",
+    "extract-workflows",
+    "extract-product-overview"
   ]
 
   @expected_group_names [
@@ -29,7 +34,8 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "Full Discipline",
     "Research & Analysis",
     "UI & Design",
-    "Documentation"
+    "Documentation",
+    "Knowledge Extraction"
   ]
 
   setup do

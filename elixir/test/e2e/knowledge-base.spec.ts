@@ -93,7 +93,7 @@ test.describe("Knowledge Base — Vault API", () => {
     const notePath = body.notes_written[0];
     expect(fs.existsSync(notePath)).toBe(true);
     const content = fs.readFileSync(notePath, "utf-8");
-    expect(content).toContain("KB Test Issue");
+    expect(content).toContain("This is the issue body for KB testing.");
     expect(content).toContain("---"); // frontmatter
   });
 
@@ -191,7 +191,7 @@ test.describe("Knowledge Base — Vault API", () => {
 test.describe("Knowledge Base — Settings", () => {
   test("Settings page has Knowledge Base section", async ({ page }) => {
     await page.goto("/board/settings");
-    await expect(page.locator("text=Knowledge Base")).toBeVisible();
+    await expect(page.locator("h2").filter({ hasText: "Knowledge Base" })).toBeVisible();
     await expect(page.locator("#kb_type")).toBeVisible();
     await expect(page.locator("#kb_vault_path")).toBeVisible();
     await expect(page.locator("#kb_subfolder")).toBeVisible();

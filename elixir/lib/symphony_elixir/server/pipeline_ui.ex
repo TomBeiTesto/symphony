@@ -29,6 +29,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         <h2>Pipelines</h2>
         <button class="btn btn-primary" onclick="createPipeline()">+ New Pipeline</button>
       </div>
+      <div id="gates-panel-container"></div>
       <div class="pipeline-grid" id="pipeline-grid"></div>
       <script>
     #{UIHelpers.esc_js()}
@@ -92,6 +93,16 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .pipeline-card-actions {
         display: flex; gap: 6px; margin-top: 12px;
       }
+      .run-badge {
+        display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600;
+        padding: 4px 10px; border-radius: 4px; margin-bottom: 8px;
+      }
+      .run-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+      .run-detail { font-weight: 400; color: var(--text-muted); margin-left: auto; }
+      .run-badge-running { background: rgba(88,166,255,0.12); color: var(--accent); }
+      .run-badge-running .run-dot { background: var(--accent); animation: pulse 2s infinite; }
+      .run-badge-paused { background: rgba(210,153,34,0.12); color: var(--yellow); }
+      .run-badge-paused .run-dot { background: var(--yellow); }
 
       .mini-preview {
         height: 48px; margin-bottom: 12px;
@@ -106,18 +117,74 @@ defmodule SymphonyElixir.Server.PipelineUI do
         color: var(--text-muted);
       }
       .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text-secondary); }
+
+      /* Waiting gates panel */
+      .gates-panel {
+        margin: 0 24px; padding: 16px;
+        background: var(--bg-secondary); border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .gates-panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .gates-panel-header h3 { font-size: 0.95rem; font-weight: 600; }
+      .gates-panel-header .gate-count {
+        background: var(--yellow); color: #000; font-size: 0.75rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px;
+      }
+      .gate-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      .gate-table th {
+        text-align: left; padding: 6px 8px; color: var(--text-muted);
+        font-weight: 500; border-bottom: 1px solid var(--border);
+      }
+      .gate-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+      .gate-table tr:hover { background: var(--bg-hover); }
+      .gate-check { width: 20px; }
+      .gate-state-badge {
+        font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+      }
+      .gate-state-waiting { background: rgba(210,153,34,0.15); color: var(--yellow); }
+      .gate-state-on_hold { background: rgba(249,117,131,0.15); color: #f97583; }
+      .batch-bar {
+        display: flex; align-items: center; gap: 8px; margin-top: 10px;
+        padding: 8px 0; border-top: 1px solid var(--border);
+      }
+      .batch-bar .selected-count { font-size: 0.8rem; color: var(--text-muted); margin-right: auto; }
       """
   end
 
   defp list_js do
     ~S"""
     let pipelines = [];
+    let activeRuns = {};
 
     async function loadPipelines() {
-      const res = await fetch('/board/api/pipelines');
-      const data = await res.json();
-      pipelines = data.pipelines || [];
+      const [pRes, rRes] = await Promise.all([
+        fetch('/board/api/pipelines'),
+        fetch('/board/api/pipeline-runs/active')
+      ]);
+      const pData = await pRes.json();
+      const rData = await rRes.json();
+      pipelines = pData.pipelines || [];
+      activeRuns = {};
+      (rData.runs || []).forEach(function(r) { activeRuns[r.pipeline_id] = r; });
       renderGrid();
+    }
+
+    function runStatusBadge(pipelineId) {
+      var run = activeRuns[pipelineId];
+      if (!run) return '';
+      var cls = 'run-badge-' + run.status;
+      var label = run.status === 'running' ? 'Running' : run.status.charAt(0).toUpperCase() + run.status.slice(1);
+      // Count completed vs total nodes
+      var states = run.node_states || {};
+      var total = Object.keys(states).length;
+      var done = Object.values(states).filter(function(s) { return s === 'completed'; }).length;
+      var waiting = Object.values(states).filter(function(s) { return s === 'waiting_gate'; }).length;
+      var detail = done + '/' + total + ' nodes';
+      if (waiting > 0) detail += ', ' + waiting + ' waiting';
+      return '<div class="run-badge ' + cls + '" title="' + detail + '"><span class="run-dot"></span> ' + label + ' <span class="run-detail">' + detail + '</span></div>';
     }
 
     function renderGrid() {
@@ -136,6 +203,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         const desc = p.description ? esc(p.description) : 'No description';
         return `
           <div class="pipeline-card" onclick="openPipeline('${p.id}')">
+            ${runStatusBadge(p.id)}
             <div class="mini-preview">${renderMiniSvg(p)}</div>
             <div class="pipeline-card-name">${esc(p.name)}</div>
             <div class="pipeline-card-desc">${desc}</div>
@@ -240,6 +308,92 @@ defmodule SymphonyElixir.Server.PipelineUI do
     }
 
     loadPipelines();
+    loadWaitingGates();
+    setInterval(loadWaitingGates, 5000);
+
+    let waitingGates = [];
+
+    async function loadWaitingGates() {
+      try {
+        const res = await fetch('/board/api/pipeline-runs/waiting-gates');
+        const data = await res.json();
+        waitingGates = data.gates || [];
+        renderGatesPanel();
+      } catch(e) { /* ignore polling errors */ }
+    }
+
+    function renderGatesPanel() {
+      const container = document.getElementById('gates-panel-container');
+      if (waitingGates.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      const typeLabels = { human_gate: 'Human', quality_gate: 'Quality', kb_sync: 'KB Sync' };
+      const rows = waitingGates.map(function(g, i) {
+        const stateClass = 'gate-state-' + g.state.replace('_', '_');
+        const stateLabel = g.state === 'waiting_gate' ? 'Waiting' : 'On Hold';
+        return '<tr>' +
+          '<td class="gate-check"><input type="checkbox" class="gate-cb" data-idx="' + i + '"></td>' +
+          '<td>' + esc(g.pipeline_name) + '</td>' +
+          '<td>' + esc(g.label || g.node_type) + '</td>' +
+          '<td>' + (typeLabels[g.node_type] || g.node_type) + '</td>' +
+          '<td><span class="gate-state-badge ' + stateClass + '">' + stateLabel + '</span></td>' +
+          '<td>' + g.attempts + '</td>' +
+          '<td><a href="/pipeline/' + g.pipeline_id + '" style="color:var(--accent);text-decoration:none">Open</a></td>' +
+          '</tr>';
+      }).join('');
+
+      container.innerHTML = '<div class="gates-panel">' +
+        '<div class="gates-panel-header"><h3>Waiting Gates</h3><span class="gate-count">' + waitingGates.length + '</span></div>' +
+        '<table class="gate-table">' +
+        '<tr><th class="gate-check"><input type="checkbox" id="gate-select-all" onchange="toggleAllGates(this.checked)"></th>' +
+        '<th>Pipeline</th><th>Gate</th><th>Type</th><th>State</th><th>Attempts</th><th></th></tr>' +
+        rows + '</table>' +
+        '<div class="batch-bar">' +
+        '<span class="selected-count" id="gate-selected-count">0 selected</span>' +
+        '<textarea id="batch-gate-feedback" rows="1" placeholder="Feedback (optional)" style="flex:1;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:6px;font-size:0.8rem;resize:none"></textarea>' +
+        '<button class="btn btn-sm" style="background:var(--green);color:#fff" onclick="batchGateAction(\'approve\')">Approve</button>' +
+        '<button class="btn btn-sm" style="background:var(--red);color:#fff" onclick="batchGateAction(\'reject\')">Reject</button>' +
+        '<button class="btn btn-sm btn-ghost" onclick="batchGateAction(\'hold\')">Hold</button>' +
+        '</div></div>';
+
+      document.querySelectorAll('.gate-cb').forEach(function(cb) {
+        cb.addEventListener('change', updateGateSelectedCount);
+      });
+    }
+
+    function toggleAllGates(checked) {
+      document.querySelectorAll('.gate-cb').forEach(function(cb) { cb.checked = checked; });
+      updateGateSelectedCount();
+    }
+
+    function updateGateSelectedCount() {
+      const count = document.querySelectorAll('.gate-cb:checked').length;
+      const el = document.getElementById('gate-selected-count');
+      if (el) el.textContent = count + ' selected';
+    }
+
+    async function batchGateAction(action) {
+      const checked = document.querySelectorAll('.gate-cb:checked');
+      if (checked.length === 0) { showToast('Select at least one gate', { type: 'warning' }); return; }
+      const feedback = (document.getElementById('batch-gate-feedback') || {}).value || '';
+      let ok = 0, fail = 0;
+      for (const cb of checked) {
+        const g = waitingGates[parseInt(cb.dataset.idx)];
+        if (!g) continue;
+        try {
+          const res = await fetch('/board/api/pipelines/' + g.pipeline_id + '/runs/' + g.run_id + '/gate/' + g.node_id, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action, feedback: feedback })
+          });
+          if (res.ok) ok++; else fail++;
+        } catch(e) { fail++; }
+      }
+      showToast(ok + ' gate(s) ' + action + 'd' + (fail > 0 ? ', ' + fail + ' failed' : ''), { type: fail > 0 ? 'warning' : 'success' });
+      loadWaitingGates();
+      loadPipelines();
+    }
     """
   end
 
@@ -315,8 +469,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
       <!-- Floating actions bottom-right -->
       <div class="canvas-actions">
+        <button class="btn btn-sm btn-ghost" onclick="toggleRunHistory()" id="history-btn" title="Run History">&#128337; History</button>
         <button class="btn btn-sm btn-ghost" onclick="toggleExecution()" id="run-btn">&#9654; Run</button>
         <button class="btn btn-sm btn-primary" onclick="savePipeline()">Save</button>
+      </div>
+
+      <!-- Run history panel -->
+      <div id="run-history-panel" class="run-history-panel" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h3 style="font-size:0.95rem;font-weight:600">Run History</h3>
+          <button class="btn btn-sm btn-ghost" onclick="toggleRunHistory()" title="Close">&times;</button>
+        </div>
+        <div id="run-history-list"></div>
       </div>
 
       <!-- Pipeline name / breadcrumb top-left below topbar -->
@@ -325,6 +489,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
         <input id="pipeline-name" class="pipeline-name-input" value="#{UIHelpers.esc(pipeline.name)}" onchange="markDirty()">
         <span style="color:var(--border);font-size:0.9rem">/</span>
         <input id="pipeline-desc" class="pipeline-desc-input" placeholder="Add description..." value="#{UIHelpers.esc(pipeline.description || "")}" onchange="markDirty()">
+        <span style="color:var(--border);font-size:0.9rem">/</span>
+        <select id="pipeline-product" class="pipeline-product-select" onchange="markDirty()">
+          <option value="">No product</option>
+        </select>
         <button class="btn btn-ghost btn-sm" onclick="toggleHelpModal()" title="Keyboard shortcuts" style="margin-left:auto">?</button>
       </div>
 
@@ -396,6 +564,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       UIHelpers.toast_css() <>
       UIHelpers.ai_draft_css() <>
       UIHelpers.skill_picker_css() <>
+      UIHelpers.integration_help_css() <>
       ~S"""
 
       body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
@@ -540,12 +709,22 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       .pipeline-desc-input:hover { border-color: var(--border); }
       .pipeline-desc-input:focus { border-color: var(--accent); outline: none; color: var(--text-primary); }
+      .pipeline-product-select {
+        background: transparent; border: 1px solid transparent;
+        color: var(--text-muted); font-size: 0.78rem;
+        padding: 3px 6px; border-radius: 6px; cursor: pointer;
+        transition: border-color var(--transition);
+      }
+      .pipeline-product-select:hover { border-color: var(--border); }
+      .pipeline-product-select:focus { border-color: var(--accent); outline: none; color: var(--text-primary); }
 
       /* Execution overlay styles */
       .p-node.exec-completed { border-color: var(--green); box-shadow: 0 0 8px rgba(63,185,80,0.3); }
       .p-node.exec-running { border-color: var(--accent); animation: pulse-node 2s infinite; }
       .p-node.exec-waiting { border-color: var(--yellow); animation: pulse-gate 2s infinite; }
       .p-node.exec-failed { border-color: var(--red); box-shadow: 0 0 8px rgba(248,81,73,0.3); }
+      .p-node.exec-on-hold { border-color: #f97583; animation: pulse-hold 2.5s infinite; }
+      .p-node.exec-skipped { border-color: var(--text-muted); opacity: 0.5; }
       .p-node-terminal.exec-completed { box-shadow: 0 0 8px rgba(63,185,80,0.5); }
 
       @keyframes pulse-node {
@@ -555,6 +734,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
       @keyframes pulse-gate {
         0%, 100% { box-shadow: 0 0 0 0 rgba(210,153,34,0.4); }
         50% { box-shadow: 0 0 0 8px rgba(210,153,34,0); }
+      }
+      @keyframes pulse-hold {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(249,117,131,0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(249,117,131,0); }
       }
 
       /* Execution sidebar */
@@ -596,16 +779,58 @@ defmodule SymphonyElixir.Server.PipelineUI do
         from { stroke-dashoffset: 20; }
         to { stroke-dashoffset: 0; }
       }
+
+      /* Run history panel */
+      .run-history-panel {
+        position: fixed; top: 48px; right: 0; bottom: 0; width: 340px;
+        background: rgba(22,27,34,0.97); border-left: 1px solid var(--border);
+        z-index: 115; overflow-y: auto; padding: 16px;
+      }
+      .rh-item {
+        padding: 10px 12px; border: 1px solid var(--border);
+        border-radius: 6px; margin-bottom: 8px; cursor: default;
+        background: var(--bg-secondary);
+      }
+      .rh-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+      .rh-status {
+        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+      }
+      .rh-status-completed { background: rgba(63,185,80,0.15); color: var(--green); }
+      .rh-status-failed { background: rgba(248,81,73,0.15); color: var(--red); }
+      .rh-status-cancelled { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+      .rh-status-running { background: rgba(88,166,255,0.12); color: var(--accent); }
+      .rh-status-paused { background: rgba(210,153,34,0.12); color: var(--yellow); }
+      .rh-time { font-size: 0.75rem; color: var(--text-muted); }
+      .rh-nodes { font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px; }
+      .rh-gates { margin-top: 6px; }
+      .rh-gate {
+        font-size: 0.72rem; padding: 4px 8px;
+        background: var(--bg-tertiary); border-radius: 4px; margin-top: 3px;
+        color: var(--text-secondary);
+      }
+      .rh-empty { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem; }
       """
   end
 
   defp designer_js do
-    designer_js_part1() <>
+    state_js() <>
+      render_js() <>
+      pan_zoom_js() <>
+      node_interaction_js() <>
+      palette_js() <>
+      config_modal_js() <>
       UIHelpers.create_issue_modal_js("ci") <>
-      UIHelpers.skill_picker_js() <> UIHelpers.load_skills_js() <> designer_js_part2()
+      UIHelpers.skill_picker_js() <>
+      UIHelpers.load_skills_js() <>
+      modal_utils_js() <>
+      save_js() <>
+      execution_js() <>
+      help_and_utils_js() <>
+      product_and_history_js() <>
+      init_js()
   end
 
-  defp designer_js_part1 do
+  defp state_js do
     ~S"""
     // ═══════════════════════════════════════════════════════════════
     // State
@@ -673,6 +898,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
     const edgeLayer = document.getElementById('edge-layer');
     const nodeLayer = document.getElementById('node-layer');
 
+    """
+  end
+
+  defp render_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Render
     // ═══════════════════════════════════════════════════════════════
@@ -720,6 +950,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           let meta = '';
           if (n.type === 'issue' && n.issue_id) meta = '<div class="p-node-meta">Linked issue</div>';
           if (n.type === 'loop') meta = '<div class="p-node-meta">Max retries: ' + (n.loop_max_retries || '∞') + '</div>';
+          if (n.type === 'integration') meta = '<div class="p-node-meta">' + integrationNodeMeta(n) + '</div>';
 
           el.innerHTML = `
             <div class="p-node-top" style="background:${color}"></div>
@@ -756,6 +987,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
       else if (state === 'running') el.classList.add('exec-running');
       else if (state === 'waiting_gate') el.classList.add('exec-waiting');
       else if (state === 'failed') el.classList.add('exec-failed');
+      else if (state === 'on_hold') el.classList.add('exec-on-hold');
+      else if (state === 'skipped') el.classList.add('exec-skipped');
     }
 
     function renderEdges() {
@@ -844,6 +1077,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       });
     }
 
+    """
+  end
+
+  defp pan_zoom_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Pan & Zoom
     // ═══════════════════════════════════════════════════════════════
@@ -943,6 +1181,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       renderEdges();
     }
 
+    """
+  end
+
+  defp node_interaction_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Node interaction (drag, select, connect)
     // ═══════════════════════════════════════════════════════════════
@@ -1072,6 +1315,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (tempLine) { tempLine.remove(); tempLine = null; }
     }
 
+    """
+  end
+
+  defp palette_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Palette drag-and-drop
     // ═══════════════════════════════════════════════════════════════
@@ -1183,6 +1431,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       render();
     }
 
+    """
+  end
+
+  defp config_modal_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Configuration modal
     // ═══════════════════════════════════════════════════════════════
@@ -1202,11 +1455,29 @@ defmodule SymphonyElixir.Server.PipelineUI do
         </div>`;
 
       if (node.type === 'issue') {
+        var cfg = node.config || {};
         html += `
           <div class="form-group">
-            <label>Linked Issue ID</label>
+            <label>Linked Issue ID <span style="font-weight:400;color:var(--text-muted)">(leave empty for template mode)</span></label>
             <input id="cfg-issue-id" value="${esc(node.issue_id || '')}" placeholder="Select or enter issue ID">
             <div id="issue-picker" style="margin-top:4px"></div>
+          </div>
+          <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:8px">
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">
+              <strong>Template mode:</strong> If no issue is linked, the pipeline auto-creates one from this template at runtime — scoped to the pipeline's product.
+            </div>
+            <div class="form-group">
+              <label>Template Title</label>
+              <input id="cfg-tpl-title" value="${esc(cfg.title || '')}" placeholder="e.g., Extract Domain Rules">
+            </div>
+            <div class="form-group">
+              <label>Template Description</label>
+              <textarea id="cfg-tpl-desc" rows="3" placeholder="Task description for the agent...">${esc(cfg.description || '')}</textarea>
+            </div>
+            <div class="form-group">
+              <label>Template Labels <span style="font-weight:400;color:var(--text-muted)">(comma-separated)</span></label>
+              <input id="cfg-tpl-labels" value="${esc((cfg.labels || []).join(', '))}" placeholder="e.g., extract-logic, research">
+            </div>
           </div>
           <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
             <button class="btn btn-ghost" type="button" onclick="openCreateIssueModal()" style="width:100%">+ Create new issue</button>
@@ -1226,19 +1497,61 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
 
       if (node.type === 'human_gate') {
+        const autoTimeout = (node.config || {}).auto_approve_timeout_ms || '';
+        const autoCond = (node.config || {}).auto_approve_condition || '';
+        const webhookUrl = (node.config || {}).auto_approve_webhook_url || '';
         html += `
           <div class="form-group">
             <label>Review Instructions</label>
             <textarea id="cfg-instructions" rows="3">${esc((node.config || {}).instructions || '')}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Auto-approve Timeout (ms, blank = manual only)</label>
+            <input id="cfg-auto-timeout" type="number" value="${autoTimeout}" min="0" step="1000" placeholder="e.g. 300000 = 5 min">
+          </div>
+          <div class="form-group">
+            <label>Auto-approve Condition</label>
+            <select id="cfg-auto-cond">
+              <option value="" ${autoCond === '' ? 'selected' : ''}>(None — manual only)</option>
+              <option value="all_predecessors_completed" ${autoCond === 'all_predecessors_completed' ? 'selected' : ''}>All predecessors completed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Webhook URL (POST, 2xx = approve)</label>
+            <input id="cfg-webhook-url" value="${esc(webhookUrl)}" placeholder="https://...">
           </div>`;
       }
 
       if (node.type === 'quality_gate') {
         const checks = (node.config || {}).checks || ['tests', 'lint', 'types'];
+        const checkCmds = (node.config || {}).check_commands || {};
+        const checkCmdsStr = Object.entries(checkCmds).map(([k, v]) => k + ':' + v).join('\n');
+        const autoTimeout = (node.config || {}).auto_approve_timeout_ms || '';
+        const autoCond = (node.config || {}).auto_approve_condition || '';
+        const webhookUrl = (node.config || {}).auto_approve_webhook_url || '';
         html += `
           <div class="form-group">
             <label>Quality Checks (comma-separated)</label>
             <input id="cfg-checks" value="${checks.join(', ')}">
+          </div>
+          <div class="form-group">
+            <label>Check Commands (one per line: name:command)</label>
+            <textarea id="cfg-check-cmds" rows="3" placeholder="tests:mix test\nlint:mix credo">${esc(checkCmdsStr)}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Auto-approve Timeout (ms, blank = manual only)</label>
+            <input id="cfg-qg-auto-timeout" type="number" value="${autoTimeout}" min="0" step="1000" placeholder="e.g. 300000 = 5 min">
+          </div>
+          <div class="form-group">
+            <label>Auto-approve Condition</label>
+            <select id="cfg-qg-auto-cond">
+              <option value="" ${autoCond === '' ? 'selected' : ''}>(None — manual only)</option>
+              <option value="all_predecessors_completed" ${autoCond === 'all_predecessors_completed' ? 'selected' : ''}>All predecessors completed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Webhook URL (POST, 2xx = approve)</label>
+            <input id="cfg-qg-webhook-url" value="${esc(webhookUrl)}" placeholder="https://...">
           </div>`;
       }
 
@@ -1268,19 +1581,26 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
       if (node.type === 'integration') {
         const intType = (node.config || {}).integration_type || 'jira';
+        const intAction = (node.config || {}).action || '';
+        const ac = (node.config || {}).action_config || {};
+        const maxRetries = (node.config || {}).max_retries || 3;
         html += `
           <div class="form-group">
             <label>Integration Type</label>
-            <select id="cfg-int-type">
+            <select id="cfg-int-type" onchange="updateIntegrationFields()">
               <option value="jira" ${intType === 'jira' ? 'selected' : ''}>Jira</option>
-              <option value="gitlab" ${intType === 'gitlab' ? 'selected' : ''}>GitLab CI</option>
+              <option value="gitlab_ci" ${intType === 'gitlab_ci' ? 'selected' : ''}>GitLab CI</option>
               <option value="confluence" ${intType === 'confluence' ? 'selected' : ''}>Confluence</option>
             </select>
           </div>
+          <div id="cfg-int-help"></div>
+          <div id="cfg-int-fields"></div>
           <div class="form-group">
-            <label>Configuration (JSON)</label>
-            <textarea id="cfg-int-config" rows="4">${esc(JSON.stringify((node.config || {}).integration_config || {}, null, 2))}</textarea>
+            <label>Max Retries on Failure</label>
+            <input id="cfg-int-retries" type="number" value="${maxRetries}" min="0" max="20">
           </div>`;
+        // Defer field rendering until modal is in DOM
+        setTimeout(function() { updateIntegrationFields(esc(intAction), ac); }, 0);
       }
 
       body.innerHTML = html;
@@ -1301,6 +1621,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
       if (node.type === 'issue') {
         node.issue_id = document.getElementById('cfg-issue-id').value || null;
+        var tplTitle = document.getElementById('cfg-tpl-title').value.trim();
+        if (tplTitle) {
+          node.config = node.config || {};
+          node.config.title = tplTitle;
+          node.config.description = document.getElementById('cfg-tpl-desc').value.trim();
+          node.config.labels = document.getElementById('cfg-tpl-labels').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        } else {
+          if (node.config) { delete node.config.title; delete node.config.description; delete node.config.labels; }
+        }
       }
       if (node.type === 'loop') {
         node.loop_max_retries = parseInt(document.getElementById('cfg-max-retries').value) || 5;
@@ -1309,10 +1638,28 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (node.type === 'human_gate') {
         node.config = node.config || {};
         node.config.instructions = document.getElementById('cfg-instructions').value;
+        var hgTimeout = document.getElementById('cfg-auto-timeout').value;
+        node.config.auto_approve_timeout_ms = hgTimeout ? parseInt(hgTimeout) : null;
+        node.config.auto_approve_condition = document.getElementById('cfg-auto-cond').value || null;
+        node.config.auto_approve_webhook_url = document.getElementById('cfg-webhook-url').value || null;
       }
       if (node.type === 'quality_gate') {
         node.config = node.config || {};
         node.config.checks = document.getElementById('cfg-checks').value.split(',').map(s => s.trim()).filter(Boolean);
+        // Parse check_commands from "name:command" lines
+        var cmdsText = document.getElementById('cfg-check-cmds').value.trim();
+        var checkCmds = {};
+        if (cmdsText) {
+          cmdsText.split('\n').forEach(function(line) {
+            var idx = line.indexOf(':');
+            if (idx > 0) checkCmds[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+          });
+        }
+        node.config.check_commands = checkCmds;
+        var qgTimeout = document.getElementById('cfg-qg-auto-timeout').value;
+        node.config.auto_approve_timeout_ms = qgTimeout ? parseInt(qgTimeout) : null;
+        node.config.auto_approve_condition = document.getElementById('cfg-qg-auto-cond').value || null;
+        node.config.auto_approve_webhook_url = document.getElementById('cfg-qg-webhook-url').value || null;
       }
       if (node.type === 'kb_sync') {
         node.config = node.config || {};
@@ -1324,9 +1671,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (node.type === 'integration') {
         node.config = node.config || {};
         node.config.integration_type = document.getElementById('cfg-int-type').value;
-        try {
-          node.config.integration_config = JSON.parse(document.getElementById('cfg-int-config').value);
-        } catch(e) {}
+        node.config.action = readIntegrationAction();
+        node.config.action_config = readIntegrationActionConfig();
+        node.config.max_retries = parseInt(document.getElementById('cfg-int-retries').value) || 3;
       }
 
       markDirty();
@@ -1348,10 +1695,163 @@ defmodule SymphonyElixir.Server.PipelineUI do
         return `<button class="btn btn-sm btn-ghost" style="margin:2px;${active}" onclick="document.getElementById('cfg-issue-id').value='${i.id}'; document.querySelectorAll('#issue-picker .btn').forEach(b=>b.style.borderColor=''); this.style.borderColor='var(--accent)'">${esc(i.identifier)}: ${esc(i.title).substring(0,40)}</button>`;
       }).join('');
     }
+
+    // --- Integration node canvas metadata ---
+    function integrationNodeMeta(n) {
+      var cfg = n.config || {};
+      var type = cfg.integration_type || 'jira';
+      var action = cfg.action || '';
+      var typeLabels = { jira: 'Jira', gitlab_ci: 'GitLab CI', confluence: 'Confluence' };
+      var label = typeLabels[type] || type;
+      if (!action) return label;
+      var actionLabels = {
+        create: 'Create', update: 'Update', transition: 'Transition', sync_status: 'Sync',
+        trigger: 'Trigger', poll: 'Poll', get_status: 'Status',
+        create_page: 'Create', update_page: 'Update', get_page: 'Read'
+      };
+      var detail = actionLabels[action] || action;
+      var extra = '';
+      var ac = cfg.action_config || {};
+      if (type === 'jira' && (action === 'create' || action === 'update')) extra = ac.issue_type || '';
+      if (type === 'gitlab_ci' && action === 'trigger') extra = ac.ref || '';
+      return label + ' · ' + detail + (extra ? ' → ' + esc(extra) : '');
+    }
+
+    // --- Integration node dynamic config forms ---
+
+    const INTEGRATION_META = {
+      jira: {
+        help: 'Creates, updates, or transitions Jira issues. Credentials are configured in <a href="/board/settings">Settings</a>.',
+        actions: ['create', 'update', 'transition', 'sync_status'],
+        actionLabels: { create: 'Create Issue', update: 'Update Issue', transition: 'Transition Issue', sync_status: 'Sync Status' },
+        fields: function(action, ac) {
+          var h = '';
+          if (action === 'create' || action === 'update') {
+            h += '<div class="form-group"><label>Issue Type</label><select id="cfg-int-issue-type">' +
+              ['Task','Story','Bug','Epic'].map(function(t) { return '<option value="' + t + '"' + ((ac.issue_type||'Task')===t?' selected':'') + '>' + t + '</option>'; }).join('') +
+              '</select></div>';
+            h += '<div class="form-group"><label>Field Mapping (JSON)</label><textarea id="cfg-int-field-mapping" rows="3" placeholder=\'{"summary":"title","description":"description"}\'>' + esc(JSON.stringify(ac.field_mapping||{},null,2)) + '</textarea><small style="color:var(--text-muted);font-size:0.72rem">Maps Symphony fields to Jira fields.</small></div>';
+          }
+          if (action === 'transition') {
+            h += '<div class="form-group"><label>Jira Key</label><input id="cfg-int-jira-key" value="' + esc(ac.jira_key||'') + '" placeholder="PROJ-123 or leave blank for auto"></div>';
+            h += '<div class="form-group"><label>Transition ID</label><input id="cfg-int-transition-id" value="' + esc(ac.transition_id||'') + '" placeholder="e.g. 31"></div>';
+          }
+          if (action === 'sync_status') {
+            h += '<div class="form-group"><label>Jira Key</label><input id="cfg-int-jira-key" value="' + esc(ac.jira_key||'') + '" placeholder="PROJ-123"></div>';
+          }
+          return h;
+        },
+        read: function(action) {
+          var c = {};
+          if (action === 'create' || action === 'update') {
+            c.issue_type = (document.getElementById('cfg-int-issue-type')||{}).value || 'Task';
+            try { c.field_mapping = JSON.parse((document.getElementById('cfg-int-field-mapping')||{}).value||'{}'); } catch(e) { c.field_mapping = {}; }
+          }
+          if (action === 'transition') {
+            c.jira_key = (document.getElementById('cfg-int-jira-key')||{}).value||'';
+            c.transition_id = (document.getElementById('cfg-int-transition-id')||{}).value||'';
+          }
+          if (action === 'sync_status') {
+            c.jira_key = (document.getElementById('cfg-int-jira-key')||{}).value||'';
+          }
+          return c;
+        }
+      },
+      gitlab_ci: {
+        help: 'Triggers a GitLab CI pipeline and waits for completion. Use as a quality gate. Credentials are configured in <a href="/board/settings">Settings</a>.',
+        actions: ['trigger', 'poll', 'get_status'],
+        actionLabels: { trigger: 'Trigger & Poll', poll: 'Poll Status', get_status: 'Get Status' },
+        fields: function(action, ac) {
+          var h = '';
+          h += '<div class="form-group"><label>Branch / Ref</label><input id="cfg-int-ref" value="' + esc(ac.ref||'') + '" placeholder="main (uses Settings default if blank)"></div>';
+          if (action === 'trigger') {
+            h += '<div class="form-group"><label>Pipeline Variables (JSON)</label><textarea id="cfg-int-variables" rows="3" placeholder=\'{"DEPLOY_ENV":"staging"}\'>' + esc(JSON.stringify(ac.variables||{},null,2)) + '</textarea><small style="color:var(--text-muted);font-size:0.72rem">Key-value pairs passed to the CI pipeline.</small></div>';
+          }
+          if (action === 'poll' || action === 'get_status') {
+            h += '<div class="form-group"><label>Pipeline ID</label><input id="cfg-int-pipeline-id" value="' + esc(ac.pipeline_id||'') + '" placeholder="Auto from trigger, or enter manually"></div>';
+          }
+          return h;
+        },
+        read: function(action) {
+          var c = {};
+          c.ref = (document.getElementById('cfg-int-ref')||{}).value||'';
+          if (action === 'trigger') {
+            try { c.variables = JSON.parse((document.getElementById('cfg-int-variables')||{}).value||'{}'); } catch(e) { c.variables = {}; }
+          }
+          if (action === 'poll' || action === 'get_status') {
+            c.pipeline_id = (document.getElementById('cfg-int-pipeline-id')||{}).value||'';
+          }
+          return c;
+        }
+      },
+      confluence: {
+        help: 'Creates or updates Confluence pages for documentation. Credentials are configured in <a href="/board/settings">Settings</a>.',
+        actions: ['create_page', 'update_page', 'get_page'],
+        actionLabels: { create_page: 'Create Page', update_page: 'Update Page', get_page: 'Get Page' },
+        fields: function(action, ac) {
+          var h = '';
+          if (action === 'create_page') {
+            h += '<div class="form-group"><label>Parent Page ID</label><input id="cfg-int-parent-page" value="' + esc(ac.parent_page_id||'') + '" placeholder="Blank = Settings default"></div>';
+          }
+          if (action === 'update_page' || action === 'get_page') {
+            h += '<div class="form-group"><label>Page ID</label><input id="cfg-int-page-id" value="' + esc(ac.page_id||'') + '" placeholder="Confluence page ID"></div>';
+          }
+          return h;
+        },
+        read: function(action) {
+          var c = {};
+          if (action === 'create_page') {
+            c.parent_page_id = (document.getElementById('cfg-int-parent-page')||{}).value||'';
+          }
+          if (action === 'update_page' || action === 'get_page') {
+            c.page_id = (document.getElementById('cfg-int-page-id')||{}).value||'';
+          }
+          return c;
+        }
+      }
+    };
+
+    function updateIntegrationFields(savedAction, savedConfig) {
+      var type = document.getElementById('cfg-int-type').value;
+      var meta = INTEGRATION_META[type];
+      if (!meta) return;
+
+      var helpEl = document.getElementById('cfg-int-help');
+      var fieldsEl = document.getElementById('cfg-int-fields');
+
+      // Help box
+      helpEl.innerHTML = '<div class="integration-help">' + meta.help + '</div>';
+
+      // Action dropdown + action-specific fields
+      var ac = savedConfig || {};
+      var currentAction = savedAction || meta.actions[0];
+      var h = '<div class="form-group"><label>Action</label><select id="cfg-int-action" onchange="updateIntegrationFields()">';
+      meta.actions.forEach(function(a) {
+        h += '<option value="' + a + '"' + (currentAction === a ? ' selected' : '') + '>' + (meta.actionLabels[a]||a) + '</option>';
+      });
+      h += '</select></div>';
+
+      var selectedAction = currentAction;
+      h += meta.fields(selectedAction, ac);
+
+      fieldsEl.innerHTML = h;
+    }
+
+    function readIntegrationAction() {
+      var el = document.getElementById('cfg-int-action');
+      return el ? el.value : '';
+    }
+
+    function readIntegrationActionConfig() {
+      var type = document.getElementById('cfg-int-type').value;
+      var action = readIntegrationAction();
+      var meta = INTEGRATION_META[type];
+      return meta ? meta.read(action) : {};
+    }
     """
   end
 
-  defp designer_js_part2 do
+  defp modal_utils_js do
     ~S"""
     loadAllSkills();
 
@@ -1414,6 +1914,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       await loadIssuePicker();
     }
 
+    """
+  end
+
+  defp save_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Save
     // ═══════════════════════════════════════════════════════════════
@@ -1426,17 +1931,23 @@ defmodule SymphonyElixir.Server.PipelineUI do
     async function savePipeline() {
       const name = document.getElementById('pipeline-name').value;
       const description = document.getElementById('pipeline-desc').value;
+      const product_id = document.getElementById('pipeline-product').value || null;
       const res = await fetch('/board/api/pipelines/' + pipeline.id, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, nodes, edges, settings: pipeline.settings })
+        body: JSON.stringify({ name, description, product_id, nodes, edges, settings: pipeline.settings })
       });
       if (res.ok) {
         dirty = false;
         document.title = name + ' — Symphony Pipeline';
         showToast('Pipeline saved', { type: 'success' });
       } else {
-        showToast('Failed to save pipeline', { type: 'error' });
+        const err = await res.json().catch(() => ({}));
+        if (err.error === 'pipeline_running') {
+          showToast('Cannot edit graph while pipeline is running', { type: 'error' });
+        } else {
+          showToast('Failed to save pipeline', { type: 'error' });
+        }
       }
     }
 
@@ -1471,6 +1982,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
     });
 
+    """
+  end
+
+  defp execution_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Execution mode
     // ═══════════════════════════════════════════════════════════════
@@ -1558,29 +2074,140 @@ defmodule SymphonyElixir.Server.PipelineUI do
           Attempts: ${attempts}
         </div>`;
 
-      if (state === 'waiting_gate' && (node.type === 'human_gate' || node.type === 'quality_gate')) {
-        html += `
-          <div class="gate-action">
-            <button class="btn btn-sm btn-primary" onclick="gateDecision('${nodeId}', 'approve')">Approve</button>
-            <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="gateDecision('${nodeId}', 'reject')">Reject</button>
-          </div>
-          <textarea class="gate-feedback" id="gate-feedback" placeholder="Feedback (optional)" rows="3"></textarea>`;
+      // Gate actions: Approve/Reject/Hold
+      if ((state === 'waiting_gate' || state === 'on_hold') && (node.type === 'human_gate' || node.type === 'quality_gate')) {
+        html += '<div class="gate-action">';
+        if (state === 'on_hold') {
+          html += '<button class="btn btn-sm btn-primary" onclick="gateDecision(\'' + nodeId + '\', \'approve\')">Resume & Approve</button>';
+          html += '<button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="gateDecision(\'' + nodeId + '\', \'reject\')">Resume & Reject</button>';
+          html += '<div style="margin-top:6px;font-size:0.75rem;color:var(--yellow)">Gate is on hold</div>';
+        } else {
+          html += '<button class="btn btn-sm btn-primary" onclick="gateDecision(\'' + nodeId + '\', \'approve\')">Approve</button>';
+          html += '<button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="gateDecision(\'' + nodeId + '\', \'reject\')">Reject</button>';
+          html += '<button class="btn btn-sm btn-ghost" style="color:var(--yellow)" onclick="gateDecision(\'' + nodeId + '\', \'hold\')">Hold</button>';
+        }
+        html += '</div>';
+        html += '<textarea class="gate-feedback" id="gate-feedback" placeholder="Feedback (will be injected into issue on reject)" rows="3"></textarea>';
       }
 
       if (state === 'waiting_gate' && node.type === 'kb_sync') {
-        html += `
-          <div class="gate-action">
-            <button class="btn btn-sm btn-primary" onclick="kbSyncSendAndApprove('${nodeId}')">Send to KB</button>
-            <button class="btn btn-sm btn-ghost" onclick="gateDecision('${nodeId}', 'approve')">Skip</button>
-          </div>
-          <div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">Send predecessor issue reports to Knowledge Base, or skip to continue.</div>`;
+        html += '<div class="gate-action">';
+        html += '<button class="btn btn-sm btn-primary" onclick="kbSyncSendAndApprove(\'' + nodeId + '\')">Send to KB</button>';
+        html += '<button class="btn btn-sm btn-ghost" onclick="gateDecision(\'' + nodeId + '\', \'approve\')">Skip</button>';
+        html += '</div>';
+        html += '<div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">Send predecessor issue reports to Knowledge Base, or skip to continue.</div>';
       }
 
-      if (node.type === 'issue' && node.issue_id && state === 'running') {
-        html += '<div style="margin-top:12px;font-size:0.8rem;color:var(--text-muted)">Issue dispatched to orchestrator. Waiting for completion...</div>';
+      // Issue node — link to issue
+      if (node.type === 'issue') {
+        var issueId = node.issue_id || ((activeRun.node_issue_ids || {})[nodeId]);
+        if (issueId) {
+          html += '<div style="margin-top:12px"><a href="/board/issues/' + issueId + '" class="btn btn-sm btn-ghost" target="_blank" style="text-decoration:none">View Issue</a></div>';
+          if (state === 'running') {
+            html += '<div style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">Issue dispatched. Waiting for completion...</div>';
+          }
+        }
       }
 
+      // Force-complete button for stuck/failed nodes
+      if (state === 'failed' || state === 'running' || state === 'on_hold') {
+        html += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">';
+        html += '<button class="btn btn-sm btn-ghost" style="color:var(--yellow)" onclick="forceCompleteNode(\'' + nodeId + '\')">Force Complete</button>';
+        html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Skip this node and advance the pipeline.</div>';
+        html += '</div>';
+      }
+
+      // Load gate context asynchronously for gate nodes
       sidebar.innerHTML = html;
+      if ((node.type === 'human_gate' || node.type === 'quality_gate') && (state === 'waiting_gate' || state === 'on_hold')) {
+        loadGateContext(nodeId);
+      }
+    }
+
+    async function loadGateContext(nodeId) {
+      try {
+        var res = await fetch('/board/api/pipelines/' + pipeline.id + '/runs/' + activeRun.id + '/gate-context/' + nodeId);
+        if (!res.ok) return;
+        var ctx = await res.json();
+        var sidebar = document.getElementById('exec-sidebar');
+        if (!sidebar) return;
+
+        var contextHtml = '';
+
+        // Instructions
+        if (ctx.instructions) {
+          contextHtml += '<div style="margin-top:12px;padding:8px;background:var(--bg-tertiary);border-radius:6px;font-size:0.82rem">';
+          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Review Instructions</strong>';
+          contextHtml += esc(ctx.instructions);
+          contextHtml += '</div>';
+        }
+
+        // Quality checks
+        if (ctx.checks && ctx.checks.length > 0) {
+          contextHtml += '<div style="margin-top:8px;font-size:0.82rem">';
+          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Quality Checks</strong>';
+          ctx.checks.forEach(function(c) {
+            contextHtml += '<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;font-size:0.75rem">' + esc(c) + '</span>';
+          });
+          contextHtml += '</div>';
+        }
+
+        // Predecessor issues
+        if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
+          contextHtml += '<div style="margin-top:10px">';
+          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Predecessor Issues</strong>';
+          ctx.predecessor_issues.forEach(function(issue) {
+            var stateColor = issue.state === 'Done' ? 'var(--green)' : issue.state === 'Review' ? 'var(--yellow)' : 'var(--text-muted)';
+            contextHtml += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
+            contextHtml += '<a href="' + issue.url + '" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500">' + esc(issue.identifier) + '</a> ';
+            contextHtml += esc(issue.title);
+            contextHtml += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
+            if (issue.has_reports) contextHtml += ' <span style="font-size:0.65rem;color:var(--green)" title="Has agent reports">reports</span>';
+            contextHtml += '</div>';
+          });
+          contextHtml += '</div>';
+        }
+
+        // Feedback history thread
+        if (ctx.feedback_history && ctx.feedback_history.length > 0) {
+          contextHtml += '<div style="margin-top:10px">';
+          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Decision History (' + ctx.feedback_history.length + ')</strong>';
+          ctx.feedback_history.forEach(function(d) {
+            var actionColor = d.action === 'approve' ? 'var(--green)' : d.action === 'reject' ? 'var(--red)' : 'var(--yellow)';
+            contextHtml += '<div style="padding:4px 8px;border-left:2px solid ' + actionColor + ';margin-bottom:4px;font-size:0.78rem">';
+            contextHtml += '<span style="color:' + actionColor + ';font-weight:500">' + esc(d.action) + '</span>';
+            if (d.decided_at) contextHtml += ' <span style="font-size:0.68rem;color:var(--text-muted)">' + new Date(d.decided_at).toLocaleString() + '</span>';
+            if (d.feedback) contextHtml += '<div style="margin-top:2px;color:var(--text-secondary)">' + esc(d.feedback) + '</div>';
+            contextHtml += '</div>';
+          });
+          contextHtml += '</div>';
+        }
+
+        if (contextHtml) {
+          var contextDiv = document.createElement('div');
+          contextDiv.innerHTML = contextHtml;
+          sidebar.appendChild(contextDiv);
+        }
+      } catch(e) {}
+    }
+
+    async function forceCompleteNode(nodeId) {
+      if (!activeRun) return;
+      if (!confirm('Force-complete this node? The current state will be overridden.')) return;
+      try {
+        var res = await fetch('/board/api/pipelines/' + pipeline.id + '/runs/' + activeRun.id + '/force-complete/' + nodeId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+          showToast('Node force-completed', { type: 'success' });
+          pollRunStatus();
+        } else {
+          showToast('Force-complete failed', { type: 'error' });
+        }
+      } catch(e) {
+        showToast('Force-complete failed: ' + e.message, { type: 'error' });
+      }
     }
 
     async function gateDecision(nodeId, action) {
@@ -1664,6 +2291,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       gateDecision(nodeId, 'approve');
     }
 
+    """
+  end
+
+  defp help_and_utils_js do
+    ~S"""
     // ═══════════════════════════════════════════════════════════════
     // Help modal
     // ═══════════════════════════════════════════════════════════════
@@ -1756,11 +2388,129 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
     }
 
+    """
+  end
+
+  defp product_and_history_js do
+    ~S"""
+    // Load products for the product selector
+    async function loadProductSelector() {
+      try {
+        var res = await fetch('/board/api/products');
+        var data = await res.json();
+        var sel = document.getElementById('pipeline-product');
+        (data.products || []).forEach(function(p) {
+          var opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          if (p.id === pipeline.product_id) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch(e) {}
+    }
+
+    // Resume execution mode if there's an active run for this pipeline
+    async function resumeActiveRun() {
+      try {
+        var res = await fetch('/board/api/pipelines/' + pipeline.id + '/runs');
+        if (!res.ok) return;
+        var data = await res.json();
+        var runs = data.runs || [];
+        // Find the most recent active run
+        var active = runs.filter(function(r) { return r.status === 'running' || r.status === 'paused'; });
+        if (active.length === 0) return;
+        activeRun = active[active.length - 1];
+
+        // Enter exec mode
+        if (!document.getElementById('exec-sidebar')) {
+          var sidebar = document.createElement('div');
+          sidebar.className = 'exec-sidebar';
+          sidebar.id = 'exec-sidebar';
+          document.body.appendChild(sidebar);
+        }
+
+        execMode = true;
+        document.getElementById('run-btn').innerHTML = '&#9632; Stop';
+        document.getElementById('palette').style.display = 'none';
+        render();
+        pollTimer = setInterval(pollRunStatus, 2000);
+      } catch(e) {}
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Run History (Fix R)
+    // ═══════════════════════════════════════════════════════════════
+    var runHistoryOpen = false;
+
+    function toggleRunHistory() {
+      var panel = document.getElementById('run-history-panel');
+      runHistoryOpen = !runHistoryOpen;
+      panel.style.display = runHistoryOpen ? 'block' : 'none';
+      if (runHistoryOpen) loadRunHistory();
+    }
+
+    async function loadRunHistory() {
+      var list = document.getElementById('run-history-list');
+      list.innerHTML = '<div class="rh-empty">Loading...</div>';
+      try {
+        var res = await fetch('/board/api/pipelines/' + pipeline.id + '/runs');
+        var data = await res.json();
+        var runs = data.runs || [];
+        if (runs.length === 0) {
+          list.innerHTML = '<div class="rh-empty">No runs yet</div>';
+          return;
+        }
+        list.innerHTML = runs.map(function(r) {
+          var states = r.node_states || {};
+          var total = Object.keys(states).length;
+          var done = Object.values(states).filter(function(s) { return s === 'completed'; }).length;
+          var failed = Object.values(states).filter(function(s) { return s === 'failed'; }).length;
+          var waiting = Object.values(states).filter(function(s) { return s === 'waiting_gate'; }).length;
+
+          var started = r.started_at ? new Date(r.started_at).toLocaleString() : '-';
+          var ended = r.completed_at ? new Date(r.completed_at).toLocaleString() : '-';
+
+          var gatesHtml = '';
+          if (r.gate_decisions && r.gate_decisions.length > 0) {
+            gatesHtml = '<div class="rh-gates"><strong style="font-size:0.72rem">Gate decisions:</strong>';
+            r.gate_decisions.forEach(function(g) {
+              var color = g.action === 'approve' ? 'var(--green)' : 'var(--red)';
+              var fb = g.feedback ? ' — ' + esc(g.feedback) : '';
+              gatesHtml += '<div class="rh-gate"><span style="color:' + color + '">' + g.action + '</span> on ' + g.node_id + fb + '</div>';
+            });
+            gatesHtml += '</div>';
+          }
+
+          return '<div class="rh-item">' +
+            '<div class="rh-item-header">' +
+              '<span class="rh-status rh-status-' + r.status + '">' + r.status + '</span>' +
+              '<span class="rh-time">' + started + '</span>' +
+            '</div>' +
+            '<div class="rh-nodes">' + done + '/' + total + ' completed' +
+              (failed > 0 ? ', ' + failed + ' failed' : '') +
+              (waiting > 0 ? ', ' + waiting + ' waiting' : '') +
+            '</div>' +
+            (r.completed_at ? '<div class="rh-time" style="margin-top:2px">Ended: ' + ended + '</div>' : '') +
+            gatesHtml +
+          '</div>';
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div class="rh-empty">Failed to load history</div>';
+      }
+    }
+
+    """
+  end
+
+  defp init_js do
+    ~S"""
     // Init
     // ═══════════════════════════════════════════════════════════════
     render();
     if (nodes.length > 0) zoomFit();
     renderMinimap();
+    loadProductSelector();
+    resumeActiveRun();
     """
   end
 end

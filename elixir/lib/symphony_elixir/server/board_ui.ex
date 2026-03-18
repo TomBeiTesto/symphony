@@ -176,6 +176,7 @@ defmodule SymphonyElixir.Server.BoardUI do
     #{SymphonyElixir.Server.UIHelpers.esc_js()}
     #{SymphonyElixir.Server.UIHelpers.toast_js()}
     #{SymphonyElixir.Server.UIHelpers.color_maps_js()}
+    #{SymphonyElixir.Server.UIHelpers.kanban_drag_drop_js()}
     #{javascript()}
       </script>
     </body>
@@ -195,6 +196,8 @@ defmodule SymphonyElixir.Server.BoardUI do
       UIHelpers.badge_css() <>
       UIHelpers.toast_css() <>
       UIHelpers.skeleton_css() <>
+      UIHelpers.page_actions_css() <>
+      UIHelpers.dropdown_css() <>
       ~S"""
 
       body {
@@ -203,7 +206,6 @@ defmodule SymphonyElixir.Server.BoardUI do
         flex-direction: column;
         overflow: hidden;
       }
-      #{UIHelpers.page_actions_css()}
       .page-actions-bar { padding: 8px 20px; }
 
       /* --- Metrics Bar (#6) --- */
@@ -410,8 +412,6 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .project-select:focus { border-color: var(--accent); }
 
-      /* --- Dropdown --- */
-      #{UIHelpers.dropdown_css()}
       /* --- Project List --- */
       .project-filter { width: 100%; padding: 6px 10px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
       .project-filter:focus { outline: none; border-color: var(--accent); }
@@ -488,6 +488,20 @@ defmodule SymphonyElixir.Server.BoardUI do
     let draggedCard = null;
     let currentProjectFilter = '';
     let segregateByProject = false;
+
+    // Configure shared kanban drag-drop helpers
+    window._kanbanOpts = {
+      cardSelector: '.card',
+      bodySelector: '.column-body',
+      getQuickAddExtras: function() {
+        var extras = {};
+        if (currentProjectFilter) extras.project_id = currentProjectFilter;
+        return extras;
+      }
+    };
+    _kCardSel = '.card';
+    _kBodySel = '.column-body';
+    async function kanbanAfterMutation() { await loadBoard(); }
     let loadPending = false;
     let lastLoadTime = 0;
     let allSkillsCache = [];
@@ -783,98 +797,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       renderBoard();
     }
 
-    // --- Drag & Drop ---
-    function handleDragStart(e) {
-      draggedCard = e.target.closest('.card');
-      draggedCard.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', draggedCard.dataset.id);
-    }
-
-    function handleDragEnd(e) {
-      if (draggedCard) draggedCard.classList.remove('dragging');
-      draggedCard = null;
-      document.querySelectorAll('.column-body').forEach(el => el.classList.remove('drag-over'));
-    }
-
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      e.currentTarget.classList.add('drag-over');
-    }
-
-    function handleDragLeave(e) {
-      e.currentTarget.classList.remove('drag-over');
-    }
-
-    async function handleDrop(e) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('drag-over');
-
-      const issueId = e.dataTransfer.getData('text/plain');
-      const newState = e.currentTarget.dataset.state;
-
-      if (!issueId || !newState) return;
-      if (_apiLock) return;
-
-      // Confirm high-consequence moves (#32)
-      if (['Cancelled', 'Archived'].includes(newState)) {
-        if (!confirm('Move issue to ' + newState + '?')) return;
-      }
-
-      _apiLock = true;
-      try {
-        const res = await fetch(`${API}/issues/${issueId}/move`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state: newState })
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          showToast('Move failed: ' + esc(data.error || 'unknown error'), { type: 'error' });
-        }
-        await loadBoard();
-      } catch (err) {
-        console.error('Move failed:', err);
-        showToast('Move failed: ' + esc(err.message || 'network error'), { type: 'error' });
-      } finally {
-        _apiLock = false;
-      }
-    }
-
-    // --- Quick Add ---
-    async function handleQuickAdd(e) {
-      if (e.key !== 'Enter') return;
-      const input = e.target;
-      const title = input.value.trim();
-      if (!title) return;
-      if (_apiLock) return;
-
-      const state = input.dataset.state;
-      input.value = '';
-
-      const body = { title, state };
-      if (currentProjectFilter) body.project_id = currentProjectFilter;
-
-      _apiLock = true;
-      try {
-        const res = await fetch(`${API}/issues`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          showToast('Quick add failed: ' + esc(data.error || 'unknown error'), { type: 'error' });
-        }
-        await loadBoard();
-      } catch (err) {
-        console.error('Quick add failed:', err);
-        showToast('Quick add failed: ' + esc(err.message || 'network error'), { type: 'error' });
-      } finally {
-        _apiLock = false;
-      }
-    }
+    // Drag & Drop and Quick Add — provided by shared kanban_drag_drop_js()
 
     // --- Create/Edit Modal ---
     function openCreateModal(defaultState) {

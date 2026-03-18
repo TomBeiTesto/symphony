@@ -54,8 +54,7 @@ escript symphony_elixir --workflow ../Workflow.local.md --port 4545
 ```
 
 Then open:
-- **http://localhost:4545/board** — Kanban board
-- **http://localhost:4545** — Orchestrator dashboard
+- **http://localhost:4545/board** — Kanban board & Hub
 
 **With GitLab** — set your API key and point to your workflow:
 
@@ -103,7 +102,6 @@ A full-featured issue board with no external dependencies.
 | Priority & labels | 5 priority levels (colour-coded), free-form label tags |
 | Projects | Group issues by project, optional repo cloning |
 | Products | Group projects into products, feature completeness matrix |
-| Task Lineage | Visual tree of issue lineage (parent → follow-up chains) |
 | Inline issue editing | Edit issues directly on the detail page (title, state, priority, labels, project, description) |
 | Agent integration | Issues dispatched to AI agents, follow-ups proposed and reviewed |
 | Token exhaustion detection | Automatically stops dispatching when LLM reports token budget exhaustion, moves in-progress issues to Backlog |
@@ -127,18 +125,42 @@ Backlog → Todo → In Progress → Review → Done → Archived
 | **Done** | Completed (auto-archives after 1 day) |
 | **Cancelled** | Manually cancelled |
 
-### Product Review
+### Product Hub
 
-Products group multiple projects into a single deliverable (e.g. "B2C API" = data-api + frontend + docs). The review matrix shows:
+Products group multiple projects into a single deliverable (e.g. "B2C API" = data-api + frontend + docs). The Hub is the default landing page and provides:
 
-- Feature completeness across all projects (colour-coded cells)
+- **Spec Sheet** — feature completeness matrix across all projects (colour-coded cells)
 - Per-feature and per-project completion scores
 - AI-assisted feature generation and gap analysis
 - One-click agent dispatch to verify implementation
+- **Issues tab** — kanban board filtered to the selected product
+- **Activity tab** — recent issue activity for the product
+- **Knowledge Base tab** — search and browse KB notes scoped to the product
 
-### Orchestrator Dashboard
+### Knowledge Base
 
-Real-time view of running agents, retry queues, and aggregate token usage. Auto-refreshes via meta tag.
+Integrated knowledge base for storing and searching structured notes (business rules, architecture docs, research reports). Supports three backends:
+
+- **Local Storage** — filesystem-backed, works out of the box
+- **Obsidian** — writes to a configured Obsidian vault path
+- **Confluence** — delegates to Confluence REST API
+
+Features: full-text search (ETS-indexed), tag-based search, metadata filters, note versioning, YAML frontmatter, "Send to KB" from completed issues.
+
+### Skills Library
+
+21 built-in agent skills organized by category (Quality, Workflow, Debugging, Planning, System, Custom). Skills are injected into agent prompts to enforce engineering discipline. Includes skill groups for bundling related skills.
+
+### Pipelines
+
+Visual pipeline designer for multi-step agent workflows. Nodes represent stages (issue creation, agent runs, KB sync, gates). Pipelines can be created, edited, and executed from the UI.
+
+### Integrations
+
+- **Jira** — create/update issues, sync states
+- **GitLab CI** — trigger pipelines, check status
+- **Confluence** — create/update pages (also used as KB backend)
+- **Knowledge Base** — unified KB interface with local/obsidian/confluence backends
 
 ---
 
@@ -236,7 +258,7 @@ symphony_elixir [options]
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/` | HTML dashboard |
+| `GET` | `/` | Redirects to `/board` |
 | `GET` | `/api/v1/state` | JSON snapshot of orchestrator state |
 | `POST` | `/api/v1/refresh` | Trigger immediate poll (202) |
 
@@ -270,7 +292,6 @@ symphony_elixir [options]
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/board/review` | Product review matrix UI |
 | `GET` | `/board/api/products` | List products |
 | `POST` | `/board/api/products` | Create product |
 | `GET` | `/board/api/products/:id` | Get product |
@@ -285,17 +306,53 @@ symphony_elixir [options]
 | `POST` | `/board/api/products/:id/analyze-gaps` | Analyze gaps |
 | `POST` | `/board/api/products/:id/create-gap-issues` | Create gap issues |
 
-### Board — Other
+### Board — Skills
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/board/task-lineage` | Task lineage visualization |
-| `GET` | `/board/api/templates` | List issue templates |
-| `GET` | `/board/api/templates/:id` | Get template |
+| `GET` | `/board/skills` | Skills library UI |
+| `GET` | `/board/api/skills` | List all skills |
+| `POST` | `/board/api/skills` | Create skill |
+| `PATCH` | `/board/api/skills/:id` | Update skill |
+| `DELETE` | `/board/api/skills/:id` | Delete skill |
+| `GET` | `/board/api/skill-groups` | List skill groups |
+| `POST` | `/board/api/skill-groups` | Create skill group |
+| `PATCH` | `/board/api/skill-groups/:id` | Update skill group |
+| `DELETE` | `/board/api/skill-groups/:id` | Delete skill group |
+
+### Board — Pipelines
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/board/pipeline` | Pipeline designer UI |
+| `GET` | `/board/api/pipelines` | List pipelines |
+| `POST` | `/board/api/pipelines` | Create pipeline |
+| `GET` | `/board/api/pipelines/:id` | Get pipeline |
+| `PATCH` | `/board/api/pipelines/:id` | Update pipeline |
+| `DELETE` | `/board/api/pipelines/:id` | Delete pipeline |
+| `POST` | `/board/api/pipelines/:id/run` | Execute pipeline |
+
+### Board — Knowledge Base (Vault)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/board/api/vault/test` | Test vault connection |
+| `POST` | `/board/api/vault/send` | Send issue reports to vault |
+| `GET` | `/board/api/vault/search` | Search vault notes |
+| `GET` | `/board/api/vault/search-by-tags` | Search by tags |
+| `GET` | `/board/api/vault/search-by-metadata` | Search by metadata |
+| `GET` | `/board/api/vault/note` | Read a specific note |
+
+### Board — Settings & Other
+
+| Method | Path | Description |
+|---|---|---|
 | `GET` | `/board/settings` | Settings page |
 | `GET` | `/board/api/settings` | Get settings |
 | `PATCH` | `/board/api/settings` | Update settings |
 | `POST` | `/board/api/settings/reset` | Reset to defaults |
+| `GET` | `/board/api/templates` | List issue templates |
+| `GET` | `/board/api/templates/:id` | Get template |
 
 ### Examples
 
@@ -319,7 +376,7 @@ curl -X POST http://localhost:4545/board/api/issues \
 ### Testing
 
 ```bash
-mix test                           # Unit & integration (333+ tests)
+mix test                           # Unit & integration (540+ tests)
 mix test --cover                   # With coverage report
 mix test test/path/to_test.exs     # Single file
 ```
@@ -353,12 +410,19 @@ Workflow.md ──► Config ──► Orchestrator (GenServer)
        Tracker Client    WorkflowWatcher     HTTP Server
        (GitLab or        (file_system)        (Plug + Bandit)
         Local Board)                             │
-              │                              ┌──────┴──────┐
-              ▼                              ▼             ▼
-        Reconciliation                  Dashboard    Board + Review
-        ├─ Dispatch (spawn agent)       /            /board
-        ├─ Retry (backoff)             /api/v1/*    /board/api/*
-        └─ State (in-memory)
+              │                            ┌─────┴─────┐
+              ▼                            ▼           ▼
+        Reconciliation               /api/v1/*    /board/*
+        ├─ Dispatch (spawn agent)                 ├─ Hub + Kanban
+        ├─ Worker (turn loop)                     ├─ Skills
+        ├─ Retry (backoff)                        ├─ Pipelines
+        └─ State (in-memory)                      ├─ Settings
+                                                  └─ Knowledge Base
+              Integrations
+              ├─ Jira
+              ├─ GitLab CI
+              ├─ Confluence
+              └─ Knowledge Base (local/obsidian/confluence)
 ```
 
 <details>
@@ -373,23 +437,47 @@ Workflow.md ──► Config ──► Orchestrator (GenServer)
 | `Orchestrator.State` | In-memory running/completed tracking |
 | `Orchestrator.Reconciliation` | Diffing tracker vs running agents |
 | `Orchestrator.Dispatch` | Spawning agent processes |
+| `Orchestrator.Worker` | Agent session management, turn loop, workspace resolution |
 | `Orchestrator.Retry` | Exponential backoff |
+| `Orchestrator.Events` | Event broadcasting |
+| `Orchestrator.Lifecycle` | Issue state transitions |
+| `Orchestrator.Maintenance` | Auto-archive, cleanup |
+| `Orchestrator.Snapshot` | Snapshot generation |
 | `GitLab.Client` | GitLab REST/GraphQL HTTP client |
 | `AppServer.Client` | Agent app-server communication |
 | `AppServer.Protocol` | Wire protocol definitions |
 | `AppServer.ClaudeAdapter` | Claude Code CLI adapter |
+| `AppServer.Events` | Agent event types |
 | `WorkflowWatcher` | File-system watcher for live reload |
 | `Workspace` | Per-issue directory management |
 | `Prompt` | Liquid template rendering |
 | `Settings` | Runtime settings (JSON persistence) |
 | `LocalBoard` | In-memory board + JSON persistence |
 | `LocalBoard.Client` | Board ↔ Behaviour adapter |
-| `Server.Router` | Plug HTTP router |
-| `Server.Dashboard` | HTML dashboard |
-| `Server.BoardRouter` | Board REST API |
-| `Server.BoardUI` | Board web UI |
-| `Server.TechTreeUI` | Task lineage visualization |
-| `Server.ReviewUI` | Product review matrix |
+| `LocalBoard.Issues` | Issue CRUD operations |
+| `LocalBoard.Projects` | Project CRUD operations |
+| `LocalBoard.Products` | Product & feature management |
+| `LocalBoard.Pipelines` | Pipeline CRUD and execution |
+| `LocalBoard.Skills` | Skills & skill groups management |
+| `LocalBoard.Persistence` | JSON file persistence |
+| `LocalBoard.Helpers` | Shared board utilities |
+| `PipelineRunner` | Pipeline execution engine |
+| `SkillsSeed` | Built-in skills seeding on startup |
+| `ProjectScanner` | Git repository scanning |
+| `DateTimeUtils` | Date/time formatting helpers |
+| `ShellUtils` | Safe shell command execution |
+| `Integrations.Registry` | Integration type dispatcher |
+| `Integrations.Jira` | Jira REST API client |
+| `Integrations.GitlabCI` | GitLab CI trigger/status |
+| `Integrations.Confluence` | Confluence REST API client |
+| `Integrations.KnowledgeBase` | Unified KB (local/obsidian/confluence) |
+| `Integrations.KBIndex` | ETS-backed KB search index (GenServer) |
+| `Server.Router` | Orchestrator API router |
+| `Server.BoardRouter` | Board REST API + UI routes |
+| `Server.BoardUI` | Kanban board web UI |
+| `Server.ProductHubUI` | Product hub (default landing page) |
+| `Server.PipelineUI` | Pipeline designer & execution UI |
+| `Server.SkillsUI` | Skills library UI |
 | `Server.IssueDetailUI` | Issue detail page |
 | `Server.SettingsUI` | Settings page |
 | `Server.UIHelpers` | Shared CSS theme & escaping |
@@ -408,35 +496,61 @@ elixir/
 │       ├── application.ex
 │       ├── cli.ex
 │       ├── config.ex
+│       ├── datetime_utils.ex
 │       ├── issue.ex
 │       ├── orchestrator.ex
 │       ├── orchestrator/
 │       │   ├── dispatch.ex
+│       │   ├── events.ex
+│       │   ├── lifecycle.ex
+│       │   ├── maintenance.ex
 │       │   ├── reconciliation.ex
 │       │   ├── retry.ex
-│       │   └── state.ex
+│       │   ├── snapshot.ex
+│       │   ├── state.ex
+│       │   └── worker.ex
 │       ├── tracker/
 │       │   └── behaviour.ex
 │       ├── gitlab/
 │       │   └── client.ex
 │       ├── app_server/
+│       │   ├── claude_adapter.ex
 │       │   ├── client.ex
+│       │   ├── events.ex
 │       │   └── protocol.ex
+│       ├── integrations/
+│       │   ├── registry.ex
+│       │   ├── jira.ex
+│       │   ├── gitlab_ci.ex
+│       │   ├── confluence.ex
+│       │   ├── knowledge_base.ex
+│       │   └── kb_index.ex
 │       ├── server/
 │       │   ├── router.ex
-│       │   ├── dashboard.ex
 │       │   ├── board_router.ex
 │       │   ├── board_ui.ex
-│       │   ├── tech_tree_ui.ex
-│       │   ├── review_ui.ex
+│       │   ├── product_hub_ui.ex
+│       │   ├── pipeline_ui.ex
+│       │   ├── skills_ui.ex
 │       │   ├── issue_detail_ui.ex
 │       │   ├── settings_ui.ex
 │       │   ├── ui_helpers.ex
 │       │   └── combined_router.ex
 │       ├── local_board.ex
 │       ├── local_board/
-│       │   └── client.ex
+│       │   ├── client.ex
+│       │   ├── helpers.ex
+│       │   ├── issues.ex
+│       │   ├── projects.ex
+│       │   ├── products.ex
+│       │   ├── pipelines.ex
+│       │   ├── skills.ex
+│       │   └── persistence.ex
+│       ├── pipeline_runner.ex
+│       ├── project_scanner.ex
 │       ├── settings.ex
+│       ├── shell_utils.ex
+│       ├── skills_seed.ex
 │       ├── prompt.ex
 │       ├── workflow.ex
 │       ├── workflow_watcher.ex
@@ -444,7 +558,7 @@ elixir/
 ├── config/
 ├── test/
 │   ├── symphony_elixir/              # ExUnit tests
-│   └── e2e/                          # Playwright tests
+│   └── e2e/                          # Playwright E2E tests
 ├── mix.exs
 ├── Makefile
 └── Workflow.local.md
