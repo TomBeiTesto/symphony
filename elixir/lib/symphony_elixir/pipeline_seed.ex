@@ -58,25 +58,21 @@ defmodule SymphonyElixir.PipelineSeed do
   ]
 
   @doc """
-  Seed the Extract Product Knowledge pipeline for each product that doesn't have one.
+  Seed the Extract Product Knowledge pipeline template (once, not per product).
+  Product is selected when starting a run.
   Call this after LocalBoard and SkillsSeed have run.
   """
   @spec seed() :: :ok
   def seed do
-    products = LocalBoard.list_products()
     existing_pipelines = LocalBoard.list_pipelines()
     skill_id_map = build_skill_id_map()
 
-    Enum.each(products, fn product ->
-      already_exists? =
-        Enum.any?(existing_pipelines, fn p ->
-          p.name == @pipeline_name and p.product_id == product.id
-        end)
+    already_exists? =
+      Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
 
-      unless already_exists? do
-        create_extraction_pipeline(product, skill_id_map)
-      end
-    end)
+    unless already_exists? do
+      create_extraction_pipeline(skill_id_map)
+    end
 
     :ok
   end
@@ -88,7 +84,7 @@ defmodule SymphonyElixir.PipelineSeed do
     |> Map.new()
   end
 
-  defp create_extraction_pipeline(product, skill_id_map) do
+  defp create_extraction_pipeline(skill_id_map) do
     # Node IDs
     start_id = "start"
     end_id = "end"
@@ -181,7 +177,6 @@ defmodule SymphonyElixir.PipelineSeed do
       "description" =>
         "Runs 5 parallel knowledge extraction agents against the product's codebase, " <>
           "then syncs all reports to the Knowledge Base.",
-      "product_id" => product.id,
       "nodes" => nodes,
       "edges" => edges,
       "settings" => %{}
@@ -189,14 +184,10 @@ defmodule SymphonyElixir.PipelineSeed do
 
     case LocalBoard.create_pipeline(attrs) do
       {:ok, pipeline} ->
-        Logger.info(
-          "Seeded pipeline '#{@pipeline_name}' for product '#{product.name}' (#{pipeline.id})"
-        )
+        Logger.info("Seeded pipeline template '#{@pipeline_name}' (#{pipeline.id})")
 
       {:error, reason} ->
-        Logger.warning(
-          "Failed to seed pipeline for product '#{product.name}': #{inspect(reason)}"
-        )
+        Logger.warning("Failed to seed extraction pipeline template: #{inspect(reason)}")
     end
   end
 end

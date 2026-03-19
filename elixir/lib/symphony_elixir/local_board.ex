@@ -363,8 +363,8 @@ defmodule SymphonyElixir.LocalBoard do
 
   # --- Pipeline Run API ---
 
-  def create_pipeline_run(pipeline_id) do
-    GenServer.call(__MODULE__, {:create_pipeline_run, pipeline_id})
+  def create_pipeline_run(pipeline_id, opts \\ %{}) do
+    GenServer.call(__MODULE__, {:create_pipeline_run, pipeline_id, opts})
   end
 
   def get_pipeline_run(pipeline_id, run_id) do
@@ -395,8 +395,8 @@ defmodule SymphonyElixir.LocalBoard do
     GenServer.call(__MODULE__, {:get_predecessor_outputs, run_id, node_id})
   end
 
-  def record_gate_decision(run_id, node_id, action, feedback \\ nil) do
-    GenServer.call(__MODULE__, {:record_gate_decision, run_id, node_id, action, feedback})
+  def record_gate_decision(run_id, node_id, action, feedback \\ nil, findings_decisions \\ nil) do
+    GenServer.call(__MODULE__, {:record_gate_decision, run_id, node_id, action, feedback, findings_decisions})
   end
 
   def list_pipeline_runs(pipeline_id) do
@@ -586,8 +586,8 @@ defmodule SymphonyElixir.LocalBoard do
 
   # --- Pipeline Run Callbacks ---
 
-  def handle_call({:create_pipeline_run, pipeline_id}, _from, board),
-    do: Pipelines.create_pipeline_run(board, pipeline_id)
+  def handle_call({:create_pipeline_run, pipeline_id, opts}, _from, board),
+    do: Pipelines.create_pipeline_run(board, pipeline_id, opts)
 
   def handle_call({:get_pipeline_run, pipeline_id, run_id}, _from, board),
     do: Pipelines.get_pipeline_run(board, pipeline_id, run_id)
@@ -610,8 +610,8 @@ defmodule SymphonyElixir.LocalBoard do
   def handle_call({:get_predecessor_outputs, run_id, node_id}, _from, board),
     do: Pipelines.get_predecessor_outputs(board, run_id, node_id)
 
-  def handle_call({:record_gate_decision, run_id, node_id, action, feedback}, _from, board),
-    do: Pipelines.record_gate_decision(board, run_id, node_id, action, feedback)
+  def handle_call({:record_gate_decision, run_id, node_id, action, feedback, findings_decisions}, _from, board),
+    do: Pipelines.record_gate_decision(board, run_id, node_id, action, feedback, findings_decisions)
 
   def handle_call({:list_pipeline_runs, pipeline_id}, _from, board),
     do: Pipelines.list_pipeline_runs(board, pipeline_id)

@@ -597,12 +597,17 @@ defmodule SymphonyElixir.PipelineRunner do
         {:ok, issue} ->
           if MapSet.member?(terminal_states(), String.downcase(issue.state)) do
             # A6: Store issue result as node output
-            LocalBoard.set_node_output(run_id, node.id, %{
+            base_output = %{
               "issue_id" => issue_id,
               "identifier" => issue.identifier,
               "state" => issue.state,
               "title" => issue.title
-            })
+            }
+
+            # Try to read FINDINGS.json from workspace (written by scan agents)
+            output = maybe_read_findings(issue, base_output)
+
+            LocalBoard.set_node_output(run_id, node.id, output)
 
             LocalBoard.update_node_state(run_id, node.id, "completed")
             advance_from_node(pipeline_id, run_id, node.id, pipeline)
@@ -745,13 +750,23 @@ defmodule SymphonyElixir.PipelineRunner do
       run_suffix = " [#{String.slice(run_id, 0, 6)}]"
       scoped_title = title <> run_suffix
 
+      # Use run-level product_id/project_id (set at run start), fall back to pipeline default
+      {product_id, project_id} =
+        case LocalBoard.get_pipeline_run(pipeline.id, run_id) do
+          {:ok, run} ->
+            {run[:product_id] || pipeline.product_id, run[:project_id]}
+          _ ->
+            {pipeline.product_id, nil}
+        end
+
       attrs = %{
         "title" => scoped_title,
         "description" => config["description"] || config[:description] || "",
         "labels" => config["labels"] || config[:labels] || [],
         "priority" => config["priority"] || config[:priority] || 3,
         "skill_ids" => config["skill_ids"] || config[:skill_ids] || [],
-        "product_id" => pipeline.product_id,
+        "product_id" => product_id,
+        "project_id" => project_id,
         "state" => "Backlog",
         "propose_followups" => false
       }
@@ -829,7 +844,7 @@ defmodule SymphonyElixir.PipelineRunner do
       Logger.info("KB sync node #{node.id}: no predecessor issues found, skipping")
       :ok
     else
-      product_name = resolve_pipeline_product_name(pipeline)
+      product_name = resolve_run_product_name(pipeline, run_id)
       Logger.info("KB sync node #{node.id}: product_name = #{inspect(product_name)}")
 
       kb_config =
@@ -917,9 +932,16 @@ defmodule SymphonyElixir.PipelineRunner do
     end
   end
 
-  defp resolve_pipeline_product_name(pipeline) do
-    if pipeline.product_id do
-      case LocalBoard.get_product(pipeline.product_id) do
+  defp resolve_run_product_name(pipeline, run_id) do
+    # Prefer run-level product_id, fall back to pipeline default
+    product_id =
+      case LocalBoard.get_pipeline_run(pipeline.id, run_id) do
+        {:ok, run} -> run[:product_id] || pipeline.product_id
+        _ -> pipeline.product_id
+      end
+
+    if product_id do
+      case LocalBoard.get_product(product_id) do
         {:ok, product} -> product.name || "unknown"
         _ -> nil
       end
@@ -1227,5 +1249,62 @@ defmodule SymphonyElixir.PipelineRunner do
   defp terminal_states do
     # States considered "done" for issue nodes. Uses lowercased matching.
     MapSet.new(["done", "review", "archived", "cancelled"])
+  end
+
+  # Try to read FINDINGS.json from the issue's workspace directory.
+  # Scan agents write structured findings here for downstream gate review.
+  defp maybe_read_findings(issue, base_output) do
+    workspace_key = issue.identifier || issue.id
+    project_paths = resolve_issue_project_paths(issue)
+
+    workspace_root =
+      case Process.get(:symphony_workspace_root) do
+        nil -> Path.join(System.tmp_dir!(), "symphony_workspaces")
+        root -> root
+      end
+
+    # Check workspace dir, project paths, and common locations
+    candidates =
+      Enum.map(project_paths, fn p -> Path.join(p, "FINDINGS.json") end) ++
+        [Path.join([workspace_root, workspace_key, "FINDINGS.json"])]
+
+    case Enum.find(candidates, &File.exists?/1) do
+      nil ->
+        base_output
+
+      findings_path ->
+        case File.read(findings_path) do
+          {:ok, json} ->
+            case Jason.decode(json) do
+              {:ok, findings} when is_list(findings) ->
+                Map.put(base_output, "findings", findings)
+
+              _ ->
+                Logger.debug("FINDINGS.json is not valid JSON array: #{findings_path}")
+                base_output
+            end
+
+          {:error, _} ->
+            base_output
+        end
+    end
+  end
+
+  defp resolve_issue_project_paths(issue) do
+    # Try to resolve workspace paths from issue's project
+    project_id = issue.project_id
+
+    if project_id do
+      case LocalBoard.get_project(project_id) do
+        {:ok, project} ->
+          path = project.path || project.clone_path
+          if path, do: [path], else: []
+
+        _ ->
+          []
+      end
+    else
+      []
+    end
   end
 end

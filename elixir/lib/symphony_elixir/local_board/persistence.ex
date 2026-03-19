@@ -501,6 +501,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
     %{
       "id" => run.id,
       "pipeline_id" => run.pipeline_id,
+      "product_id" => run[:product_id],
+      "project_id" => run[:project_id],
       "status" => run.status,
       "node_states" => run.node_states,
       "node_attempts" => run.node_attempts,
@@ -512,6 +514,7 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
             "node_id" => d.node_id,
             "action" => d.action,
             "feedback" => d[:feedback],
+            "findings_decisions" => d[:findings_decisions],
             "decided_at" => d.decided_at
           }
         end),
@@ -524,6 +527,8 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
     %{
       id: raw["id"],
       pipeline_id: raw["pipeline_id"],
+      product_id: raw["product_id"],
+      project_id: raw["project_id"],
       status: raw["status"] || "running",
       node_states: atomize_map_values(raw["node_states"] || %{}),
       node_attempts: raw["node_attempts"] || %{},
@@ -535,6 +540,7 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
             node_id: d["node_id"],
             action: d["action"],
             feedback: d["feedback"],
+            findings_decisions: d["findings_decisions"],
             decided_at: d["decided_at"]
           }
         end),

@@ -2447,7 +2447,11 @@ defmodule SymphonyElixir.Server.BoardRouter do
   # --- Pipeline Run API ---
 
   post "/api/pipelines/:id/run" do
-    case LocalBoard.create_pipeline_run(id) do
+    opts = %{}
+    opts = if conn.body_params["product_id"], do: Map.put(opts, "product_id", conn.body_params["product_id"]), else: opts
+    opts = if conn.body_params["project_id"], do: Map.put(opts, "project_id", conn.body_params["project_id"]), else: opts
+
+    case LocalBoard.create_pipeline_run(id, opts) do
       {:ok, run} ->
         # Start the pipeline runner
         SymphonyElixir.PipelineRunner.start_run(id, run.id)
@@ -2538,6 +2542,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   post "/api/pipelines/:pipeline_id/runs/:run_id/gate/:node_id" do
     action = Map.get(conn.body_params, "action", "approve")
     feedback = Map.get(conn.body_params, "feedback")
+    findings_decisions = Map.get(conn.body_params, "findings_decisions")
 
     if action not in ["approve", "reject", "hold"] do
       conn
@@ -2550,7 +2555,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         })
       )
     else
-      case LocalBoard.record_gate_decision(run_id, node_id, action, feedback) do
+      case LocalBoard.record_gate_decision(run_id, node_id, action, feedback, findings_decisions) do
         {:ok, run} ->
           # Notify the pipeline runner about the gate decision
           SymphonyElixir.PipelineRunner.gate_decided(run_id, node_id, action)
@@ -2609,6 +2614,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
                   }
                 end)
 
+              # Collect predecessor node outputs (includes structured findings)
+              predecessor_outputs = collect_predecessor_outputs(node_id, pipeline, run)
+
               context = %{
                 node_id: node_id,
                 node_type: node.type,
@@ -2616,6 +2624,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
                 instructions: instructions,
                 checks: checks,
                 predecessor_issues: predecessor_issues,
+                predecessor_outputs: predecessor_outputs,
                 feedback_history: feedback_history,
                 attempts: Map.get(run.node_attempts, node_id, 0)
               }
@@ -3356,6 +3365,21 @@ defmodule SymphonyElixir.Server.BoardRouter do
         collect_gate_context_issues(pred_id, pipeline, run, visited, inner_acc)
       end)
     end
+  end
+
+  # Collect node_outputs from direct predecessors (for structured findings in gates)
+  defp collect_predecessor_outputs(node_id, pipeline, run) do
+    pred_ids =
+      pipeline.edges
+      |> Enum.filter(fn e -> e.target_node_id == node_id && e.source_port == "output" end)
+      |> Enum.map(& &1.source_node_id)
+
+    Enum.reduce(pred_ids, %{}, fn pid, acc ->
+      case Map.get(run.node_outputs || %{}, pid) do
+        nil -> acc
+        output -> Map.put(acc, pid, output)
+      end
+    end)
   end
 
   defp has_reports?(issue) do

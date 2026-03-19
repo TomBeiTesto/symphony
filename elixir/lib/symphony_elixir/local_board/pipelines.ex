@@ -119,7 +119,7 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
 
   # --- Pipeline Run CRUD ---
 
-  def create_pipeline_run(board, pipeline_id) do
+  def create_pipeline_run(board, pipeline_id, opts \\ %{}) do
     case Map.get(board.pipelines, pipeline_id) do
       nil ->
         {:reply, {:error, :not_found}, board}
@@ -147,9 +147,15 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
 
           node_attempts = Map.new(pipeline.nodes, fn node -> {node.id, 0} end)
 
+          # product_id / project_id: run-level override > pipeline default
+          run_product_id = Map.get(opts, "product_id") || pipeline.product_id
+          run_project_id = Map.get(opts, "project_id")
+
           run = %{
             id: id,
             pipeline_id: pipeline_id,
+            product_id: run_product_id,
+            project_id: run_project_id,
             status: "running",
             node_states: node_states,
             node_attempts: node_attempts,
@@ -304,7 +310,7 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
   end
 
   # Fix N: Validate gate action + A8: Validate node is actually a gate
-  def record_gate_decision(board, run_id, node_id, action, feedback) do
+  def record_gate_decision(board, run_id, node_id, action, feedback, findings_decisions \\ nil) do
     if action not in @valid_gate_actions do
       {:reply, {:error, :invalid_action}, board}
     else
@@ -331,7 +337,8 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
                 node_id: node_id,
                 action: action,
                 feedback: feedback,
-                decided_at: now
+                decided_at: now,
+                findings_decisions: findings_decisions
               }
 
               # On approve → completed, reject → pending (runner resets downstream),
@@ -345,10 +352,27 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
 
               node_states = Map.put(run.node_states, node_id, new_state)
 
+              # Store accepted findings as node output so downstream apply nodes can read them
+              node_outputs =
+                if findings_decisions && action == "approve" do
+                  accepted =
+                    findings_decisions
+                    |> Enum.filter(fn fd -> fd["accepted"] == true end)
+                    |> Enum.map(fn fd -> fd["id"] end)
+
+                  Map.put(run.node_outputs || %{}, node_id, %{
+                    "accepted_finding_ids" => accepted,
+                    "findings_decisions" => findings_decisions
+                  })
+                else
+                  run.node_outputs || %{}
+                end
+
               updated = %{
                 run
                 | gate_decisions: run.gate_decisions ++ [decision],
-                  node_states: node_states
+                  node_states: node_states,
+                  node_outputs: node_outputs
               }
 
               board = %{board | pipeline_runs: Map.put(board.pipeline_runs, run_id, updated)}

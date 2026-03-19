@@ -2006,11 +2006,107 @@ defmodule SymphonyElixir.Server.PipelineUI do
       // Save first
       if (dirty) await savePipeline();
 
-      // Start a run
-      const res = await fetch('/board/api/pipelines/' + pipeline.id + '/run', { method: 'POST' });
-      if (!res.ok) { showToast('Failed to start run', { type: 'error' }); return; }
+      // Show product picker dialog
+      showRunProductPicker();
+    }
+
+    async function showRunProductPicker() {
+      // Fetch products and projects in parallel
+      var [productsRes, projectsRes] = await Promise.all([
+        fetch('/board/api/products'),
+        fetch('/board/api/projects')
+      ]);
+      var productsData = productsRes.ok ? await productsRes.json() : {};
+      var products = productsData.products || [];
+      var projectsData = projectsRes.ok ? await projectsRes.json() : {};
+      var projects = projectsData.projects || [];
+
+      // If pipeline has a default product, pre-select it
+      var defaultProductId = pipeline.product_id || '';
+
+      // If nothing to pick from, start without scope
+      if (products.length === 0 && projects.length === 0) {
+        startRunWithScope(null, null);
+        return;
+      }
+
+      // Build modal
+      var overlay = document.createElement('div');
+      overlay.id = 'run-product-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+      var selectStyle = 'width:100%;padding:8px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:0.9rem;margin-bottom:16px';
+
+      var productOpts = '<option value="">(No product — select a project instead)</option>' +
+        products.map(function(p) {
+          var sel = p.id === defaultProductId ? ' selected' : '';
+          return '<option value="' + p.id + '"' + sel + '>' + esc(p.name) + '</option>';
+        }).join('');
+
+      var projectOpts = '<option value="">(No project — generic run)</option>' +
+        projects.map(function(p) {
+          return '<option value="' + p.id + '">' + esc(p.name) + (p.path ? ' — ' + esc(p.path) : '') + '</option>';
+        }).join('');
+
+      overlay.innerHTML = '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:360px;max-width:500px">' +
+        '<h3 style="margin:0 0 12px 0;color:var(--text-primary);font-size:1rem">Start Pipeline Run</h3>' +
+        '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">Product</label>' +
+        '<select id="run-product-select" style="' + selectStyle + '" onchange="window._onRunProductChange()">' + productOpts + '</select>' +
+        '<div id="run-project-row">' +
+        '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">Project</label>' +
+        '<select id="run-project-select" style="' + selectStyle + '">' + projectOpts + '</select>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button class="btn btn-sm btn-ghost" onclick="document.getElementById(\'run-product-overlay\').remove()">Cancel</button>' +
+        '<button class="btn btn-sm btn-primary" onclick="confirmRunStart()">Start Run</button>' +
+        '</div></div>';
+
+      document.body.appendChild(overlay);
+
+      // Toggle project row visibility based on product selection
+      window._onRunProductChange = function() {
+        var productSel = document.getElementById('run-product-select');
+        var projectRow = document.getElementById('run-project-row');
+        if (productSel.value) {
+          projectRow.style.display = 'none';
+        } else {
+          projectRow.style.display = 'block';
+        }
+      };
+      // Set initial visibility
+      window._onRunProductChange();
+
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    }
+
+    async function confirmRunStart() {
+      var productSelect = document.getElementById('run-product-select');
+      var projectSelect = document.getElementById('run-project-select');
+      var productId = productSelect ? productSelect.value : null;
+      var projectId = (!productId && projectSelect) ? projectSelect.value : null;
+      var overlay = document.getElementById('run-product-overlay');
+      if (overlay) overlay.remove();
+      startRunWithScope(productId || null, projectId || null);
+    }
+
+    async function startRunWithScope(productId, projectId) {
+      var body = {};
+      if (productId) body.product_id = productId;
+      if (projectId) body.project_id = projectId;
+
+      const res = await fetch('/board/api/pipelines/' + pipeline.id + '/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        var err = await res.json().catch(function() { return {}; });
+        showToast(err.error === 'already_running' ? 'Pipeline already has an active run' : 'Failed to start run', { type: 'error' });
+        return;
+      }
       activeRun = await res.json();
-      showToast('Pipeline run started', { type: 'success' });
+      var scope = productId ? '' : (projectId ? ' (project)' : ' (no scope)');
+      showToast('Pipeline run started' + scope, { type: 'success' });
 
       // Create exec sidebar BEFORE entering exec mode
       if (!document.getElementById('exec-sidebar')) {
@@ -2168,6 +2264,36 @@ defmodule SymphonyElixir.Server.PipelineUI do
           contextHtml += '</div>';
         }
 
+        // Per-finding checkboxes from predecessor scan outputs
+        if (ctx.predecessor_outputs) {
+          var allFindings = [];
+          Object.keys(ctx.predecessor_outputs).forEach(function(predId) {
+            var output = ctx.predecessor_outputs[predId];
+            if (output && output.findings && Array.isArray(output.findings)) {
+              output.findings.forEach(function(f) { allFindings.push(f); });
+            }
+          });
+          if (allFindings.length > 0) {
+            contextHtml += '<div style="margin-top:12px">';
+            contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:6px">Findings (' + allFindings.length + ') — check to accept</strong>';
+            contextHtml += '<div style="margin-bottom:4px"><button class="btn btn-sm btn-ghost" style="font-size:0.7rem" onclick="toggleAllFindings(true)">Select All</button> <button class="btn btn-sm btn-ghost" style="font-size:0.7rem" onclick="toggleAllFindings(false)">Deselect All</button></div>';
+            allFindings.forEach(function(f, i) {
+              var sevColor = f.severity === 'critical' ? 'var(--red)' : f.severity === 'high' ? '#f0883e' : f.severity === 'medium' ? 'var(--yellow)' : 'var(--text-muted)';
+              contextHtml += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
+              contextHtml += '<label style="display:flex;align-items:flex-start;gap:6px;cursor:pointer">';
+              contextHtml += '<input type="checkbox" class="finding-cb" data-finding-id="' + esc(f.id) + '" checked style="margin-top:3px">';
+              contextHtml += '<div>';
+              contextHtml += '<span style="color:' + sevColor + ';font-weight:500;font-size:0.7rem;text-transform:uppercase">' + esc(f.severity || 'info') + '</span> ';
+              contextHtml += '<span style="font-weight:500">' + esc(f.title) + '</span>';
+              if (f.description) contextHtml += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px">' + esc(f.description) + '</div>';
+              if (f.files && f.files.length > 0) contextHtml += '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">' + f.files.map(esc).join(', ') + '</div>';
+              if (f.fix_hint) contextHtml += '<div style="font-size:0.68rem;color:var(--green);margin-top:2px">Fix: ' + esc(f.fix_hint) + '</div>';
+              contextHtml += '</div></label></div>';
+            });
+            contextHtml += '</div>';
+          }
+        }
+
         // Feedback history thread
         if (ctx.feedback_history && ctx.feedback_history.length > 0) {
           contextHtml += '<div style="margin-top:10px">';
@@ -2210,16 +2336,37 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
     }
 
+    function toggleAllFindings(checked) {
+      document.querySelectorAll('.finding-cb').forEach(function(cb) { cb.checked = checked; });
+    }
+
     async function gateDecision(nodeId, action) {
       if (!activeRun) return;
       const feedback = document.getElementById('gate-feedback')?.value || '';
+
+      // Collect per-finding decisions if any finding checkboxes exist
+      var findingsCbs = document.querySelectorAll('.finding-cb');
+      var findingsDecisions = null;
+      if (findingsCbs.length > 0) {
+        findingsDecisions = [];
+        findingsCbs.forEach(function(cb) {
+          findingsDecisions.push({ id: cb.dataset.findingId, accepted: cb.checked });
+        });
+      }
+
+      var body = { action: action, feedback: feedback };
+      if (findingsDecisions) body.findings_decisions = findingsDecisions;
+
       const res = await fetch(`/board/api/pipelines/${pipeline.id}/runs/${activeRun.id}/gate/${nodeId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, feedback })
+        body: JSON.stringify(body)
       });
       if (res.ok) {
-        showToast('Gate ' + action + 'ed', { type: action === 'approve' ? 'success' : '' });
+        var accepted = findingsDecisions ? findingsDecisions.filter(function(f) { return f.accepted; }).length : 0;
+        var total = findingsDecisions ? findingsDecisions.length : 0;
+        var msg = findingsDecisions ? 'Gate ' + action + 'ed (' + accepted + '/' + total + ' findings accepted)' : 'Gate ' + action + 'ed';
+        showToast(msg, { type: action === 'approve' ? 'success' : '' });
       } else {
         showToast('Gate decision failed', { type: 'error' });
       }

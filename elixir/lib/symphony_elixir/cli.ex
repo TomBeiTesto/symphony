@@ -72,6 +72,7 @@ defmodule SymphonyElixir.CLI do
           if Config.local_board?(config) do
             SymphonyElixir.SkillsSeed.seed()
             SymphonyElixir.PipelineSeed.seed()
+            SymphonyElixir.HardeningSeed.seed()
           end
 
           {:ok, pid}

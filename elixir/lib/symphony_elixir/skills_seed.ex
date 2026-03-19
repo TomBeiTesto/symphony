@@ -10,33 +10,36 @@ defmodule SymphonyElixir.SkillsSeed do
 
   @built_in_skills [
     %{
-      "name" => "verification-before-completion",
+      "name" => "verification",
       "description" =>
-        "Use when the agent is about to claim a task is done. Ensures completion claims are backed by evidence.",
+        "Use when making changes or claiming completion. Ensures every change is verified incrementally and completion claims are backed by fresh evidence.",
       "category" => "quality",
-      "tags" => "gate,completion,verification",
+      "tags" => "verification,completion,incremental,evidence",
       "built_in" => true,
       "content" => """
-      # Verification Before Completion
+      # Verification
 
       ## Iron Law
-      **No completion claims without fresh verification evidence.**
+      **Verify after every logical change. No completion claims without fresh evidence.**
 
-      You MUST NOT claim that work is "done", "complete", "passing", or "working" unless you have:
+      ## Incremental Verification
+      After each logical unit of change (one function, one file, one integration point):
+      1. Save and compile — confirm no syntax errors
+      2. Run the most relevant test or check
+      3. If it fails, fix it NOW before moving on
+      4. Only proceed to the next change after green
+
+      Do NOT batch changes and "test everything at the end."
+
+      ## Completion Verification
+      You MUST NOT claim work is "done" or "passing" unless you have:
       1. Run the actual verification command (test, build, lint) in the current turn
-      2. Read and shown the output
-      3. Confirmed the output demonstrates success
+      2. Read the output
+      3. Confirmed success
 
-      ## What counts as verification
-      - Running `mix test` and seeing "0 failures"
-      - Running the build command and seeing it exit 0
-      - Running the linter and seeing no errors
-      - Executing the code path and observing correct output
-
-      ## What does NOT count
+      ### What does NOT count as verification
       - "I believe the tests pass" (without running them)
       - "This should work" (without executing)
-      - "Based on my changes, everything should be fine"
       - Referencing test output from a previous turn
 
       ## Rationalization Prevention
@@ -44,8 +47,8 @@ defmodule SymphonyElixir.SkillsSeed do
       |--------|----------|
       | "The change is trivial" | Trivial changes cause production outages. Verify. |
       | "I already verified earlier" | State may have changed. Verify again. |
-      | "Tests take too long" | Run the relevant subset. Never skip entirely. |
-      | "The build system isn't available" | Then you cannot claim completion. Report the blocker. |
+      | "Verifying each step is slow" | Debugging a pile of untested changes is slower. |
+      | "I'll just do one more thing first" | That's how five unverified changes become ten. Stop. |
       """
     },
     %{
@@ -132,84 +135,56 @@ defmodule SymphonyElixir.SkillsSeed do
       """
     },
     %{
-      "name" => "design-before-code",
+      "name" => "plan-and-execute",
       "description" =>
-        "Use when starting a new feature or significant change. Ensures design thinking before implementation.",
+        "Use when starting a new feature or multi-step change. Ensures design thinking before implementation and disciplined step-by-step execution.",
       "category" => "planning",
-      "tags" => "design,planning,architecture",
+      "tags" => "design,planning,execution,checkpoints",
       "built_in" => true,
       "content" => """
-      # Design Before Code
+      # Plan and Execute
 
       ## Iron Law
-      **No code without a design outline first.**
+      **No code without a plan. No skipping steps once you have one.**
 
-      ## Process
+      ## Phase 1: Design
 
-      ### 1. Clarify Requirements
-      - What exactly is being asked for?
-      - What are the acceptance criteria?
-      - What edge cases exist?
-      - What constraints apply (performance, compatibility, etc.)?
+      ### Clarify Requirements
+      - What exactly is being asked for? What are the acceptance criteria?
+      - What edge cases and constraints exist?
 
-      ### 2. Explore the Existing Code
+      ### Explore Existing Code
       - Read the relevant modules before proposing changes
-      - Understand the existing patterns and conventions
+      - Understand existing patterns and conventions
       - Identify what can be reused vs. what needs to be built
 
-      ### 3. Outline the Approach
-      Before writing any implementation code, document:
+      ### Outline the Approach
+      Before writing implementation code, document:
       - Which files will be modified or created
-      - What the key data structures will look like
-      - How the components will interact
+      - Key data structures and component interactions
       - What tests will verify the behavior
+      - At least one alternative considered and why this approach wins
 
-      ### 4. Consider Alternatives
-      - Is there a simpler way to achieve this?
-      - What are the trade-offs of this approach?
-      - Will this be maintainable?
+      ## Phase 2: Execute
 
-      ### 5. Then Implement
-      Only after steps 1-4 are complete, begin writing code.
-      Follow the plan. If you discover the plan needs to change,
-      update the plan first, then change the code.
-      """
-    },
-    %{
-      "name" => "executing-plans",
-      "description" =>
-        "Use when following a multi-step implementation plan. Ensures step-by-step execution with checkpoints.",
-      "category" => "workflow",
-      "tags" => "execution,plan,checkpoints",
-      "built_in" => true,
-      "content" => """
-      # Executing Plans
-
-      ## Process
-
-      ### Step-by-Step Execution
+      ### Step-by-Step
       - Work through the plan one step at a time
       - Complete each step fully before moving to the next
       - Run tests/verification after each step
-      - Do not skip ahead or combine steps
 
       ### Checkpoint After Each Step
-      After completing each step, verify:
       1. The step's specific tests pass
       2. No existing tests were broken
       3. The code compiles without warnings
 
       ### Handling Blockers
-      If a step cannot be completed as planned:
       - STOP — do not guess or improvise
-      - Document what the blocker is
-      - Explain what was attempted
-      - Suggest how to unblock
+      - Document the blocker and what was attempted
+      - If the plan needs to change, update the plan first, then change the code
 
-      ### Do Not
+      ## Do NOT
       - Skip steps because they "seem unnecessary"
       - Combine multiple steps into one
-      - Reorder steps without clear justification
       - Claim a step is done without verifying
       """
     },
@@ -254,175 +229,6 @@ defmodule SymphonyElixir.SkillsSeed do
       """
     },
     %{
-      "name" => "source-verification",
-      "description" =>
-        "Use when gathering information from external sources. Ensures claims are backed by citations and multiple sources are cross-referenced.",
-      "category" => "research",
-      "tags" => "research,citations,sources,verification",
-      "built_in" => true,
-      "content" => """
-      # Source Verification
-
-      ## Iron Law
-      **No claims without citations. No conclusions from a single source.**
-
-      ## Requirements
-
-      ### Every factual claim must have a source
-      - Link to the original documentation, article, or code
-      - If you cannot find a source, say "I could not verify this" — do not assert it as fact
-      - Distinguish clearly between what a source says vs. your inference from it
-
-      ### Cross-reference multiple sources
-      - Do not rely on a single source for important claims
-      - When sources conflict, report the conflict explicitly — do not silently pick one
-      - Prefer primary sources (official docs, RFCs, source code) over secondary (blog posts, tutorials)
-
-      ### Flag uncertainty
-      - Use explicit confidence markers: "confirmed", "likely", "uncertain", "conflicting sources"
-      - Never present speculation as established fact
-      - If a topic lacks reliable sources, say so rather than filling the gap with guesses
-
-      ## Anti-Patterns
-      - "According to best practices..." (which best practices? whose? citation needed)
-      - Presenting a single blog post as definitive
-      - Mixing your opinion with sourced facts without clear separation
-      """
-    },
-    %{
-      "name" => "structured-reporting",
-      "description" =>
-        "Use when producing written deliverables. Enforces clear structure with summary, evidence, and actionable conclusions.",
-      "category" => "research",
-      "tags" => "research,writing,reports,structure",
-      "built_in" => true,
-      "content" => """
-      # Structured Reporting
-
-      ## Iron Law
-      **Executive summary first. Evidence second. "So what?" last.**
-
-      ## Required Structure
-
-      ### 1. Summary (2-3 sentences max)
-      - What was investigated
-      - What was found
-      - What should be done about it
-
-      ### 2. Key Findings (bulleted, scannable)
-      - Each finding is a standalone statement backed by evidence
-      - Ordered by importance, not by discovery sequence
-      - No finding without supporting evidence in the details section
-
-      ### 3. Detailed Analysis
-      - Organized by topic, not chronologically
-      - Each section has a clear heading that communicates the conclusion
-      - Evidence presented with sources (links, data, code references)
-
-      ### 4. Recommendations (actionable)
-      - Each recommendation is concrete and actionable
-      - Includes effort estimate or complexity signal
-      - Distinguishes "must do" from "should consider"
-
-      ## Anti-Patterns
-      - Stream-of-consciousness writing ("First I looked at X, then I tried Y...")
-      - Burying the conclusion at the end
-      - Recommendations without supporting evidence
-      - Vague advice ("consider improving performance")
-      """
-    },
-    %{
-      "name" => "audience-aware-writing",
-      "description" =>
-        "Use when writing documentation or technical content. Ensures content is tailored to its intended audience and context.",
-      "category" => "documentation",
-      "tags" => "documentation,writing,audience,clarity",
-      "built_in" => true,
-      "content" => """
-      # Audience-Aware Writing
-
-      ## Iron Law
-      **Identify who will read this before writing a single line.**
-
-      ## Process
-
-      ### 1. Identify the Reader
-      Before writing, answer:
-      - Who is the primary audience? (developer, operator, end-user, reviewer)
-      - What do they already know? (don't explain what's obvious to them)
-      - What are they trying to do? (task-oriented, not feature-oriented)
-
-      ### 2. Match the Level
-      - For developers: include code examples, API signatures, edge cases
-      - For operators: include commands, config options, troubleshooting
-      - For end-users: include step-by-step instructions, screenshots, expected outcomes
-      - For reviewers: include rationale, trade-offs, alternatives considered
-
-      ### 3. Structure for Scanning
-      - Lead with what the reader needs most
-      - Use headings that answer questions ("How to X" not "Section 3.2")
-      - Include prerequisites upfront — never assume unstated context
-      - Every code example must be complete enough to actually run or copy
-
-      ### 4. Verify
-      - Would someone with the stated background understand this without asking questions?
-      - Are all terms either common knowledge for the audience or defined?
-      - Is every example tested and working?
-
-      ## Anti-Patterns
-      - Writing for yourself instead of the reader
-      - Assuming context that isn't stated
-      - Code snippets that don't work when copied
-      - "See also: [link]" as a substitute for explanation
-      """
-    },
-    %{
-      "name" => "incremental-verification",
-      "description" =>
-        "Use when making changes across multiple files or systems. Ensures each change is verified before moving to the next.",
-      "category" => "workflow",
-      "tags" => "verification,incremental,multi-file,safety",
-      "built_in" => true,
-      "content" => """
-      # Incremental Verification
-
-      ## Iron Law
-      **Verify after every logical change. Never batch all changes then hope.**
-
-      ## Process
-
-      ### After each logical unit of change:
-      1. Save and compile — confirm no syntax errors
-      2. Run the most relevant test or check for that change
-      3. If it fails, fix it NOW before moving on
-      4. Only proceed to the next change after green
-
-      ### What counts as a "logical unit"
-      - One function added or modified
-      - One file's changes completed
-      - One integration point connected
-      - One config change applied
-
-      ### What does NOT count
-      - "I'll test everything at the end" — this is the anti-pattern this skill exists to prevent
-      - "These changes are all related so I'll verify them together" — verify each one
-      - "It's just a rename" — renames break things. Verify.
-
-      ## Escalation
-      If verification reveals a problem:
-      - Fix it before making any more changes
-      - If the fix requires rethinking the approach, stop and reassess
-      - Do not stack more changes on top of a broken foundation
-
-      ## Rationalization Prevention
-      | Excuse | Rebuttal |
-      |--------|----------|
-      | "Verifying each step is slow" | Debugging a pile of untested changes is slower. |
-      | "These are trivial changes" | Then verifying them is trivial too. Do it. |
-      | "I'll just do one more thing first" | That's how five unverified changes become ten. Stop. |
-      """
-    },
-    %{
       "name" => "scope-discipline",
       "description" =>
         "Use when working on any task with defined boundaries. Prevents scope creep and keeps work focused on the stated objective.",
@@ -447,17 +253,12 @@ defmodule SymphonyElixir.SkillsSeed do
       - Add features that weren't requested, even if they seem useful
       - Fix style/formatting issues in code you didn't change
       - Upgrade dependencies unless the task requires it
-      - Add error handling for scenarios that aren't part of the task
       - "Improve" things you weren't asked to improve
 
       ### When you discover something out of scope
       - Note it as a potential follow-up issue
       - Do NOT fix it in the current task
       - If it blocks your current task, document the blocker — don't expand scope to fix it
-
-      ### The test
-      Every change in your diff should trace directly to a requirement in the issue.
-      If you can't point to which requirement a change serves, remove it.
 
       ## Rationalization Prevention
       | Excuse | Rebuttal |
@@ -468,225 +269,161 @@ defmodule SymphonyElixir.SkillsSeed do
       """
     },
     %{
-      "name" => "evidence-based-decisions",
+      "name" => "evidence-based-work",
       "description" =>
-        "Use when choosing between approaches or making technical recommendations. Requires concrete evidence before recommending a path.",
-      "category" => "planning",
-      "tags" => "decisions,evidence,trade-offs,analysis",
+        "Use when making claims, gathering information, or choosing between approaches. Requires citations, multiple sources, and concrete evidence.",
+      "category" => "research",
+      "tags" => "research,evidence,citations,decisions,sources",
       "built_in" => true,
       "content" => """
-      # Evidence-Based Decisions
+      # Evidence-Based Work
 
       ## Iron Law
-      **No recommendations without evidence. No evidence without data.**
+      **No claims without citations. No recommendations without evidence. No conclusions from a single source.**
 
-      ## Process
+      ## For Factual Claims
+      - Link to the original documentation, article, or code
+      - If you cannot find a source, say "I could not verify this" — do not assert it as fact
+      - Cross-reference multiple sources for important claims
+      - When sources conflict, report the conflict explicitly
+      - Prefer primary sources (official docs, RFCs, source code) over secondary (blog posts)
 
-      ### When recommending an approach:
-      1. State at least two alternatives you considered
-      2. For each alternative, provide concrete evidence (benchmarks, code examples, documentation)
+      ## For Technical Decisions
+      1. State at least two alternatives considered
+      2. For each, provide concrete evidence (benchmarks, code examples, documentation)
       3. Identify the trade-offs explicitly — nothing is free
       4. State which trade-offs matter most for THIS context and why
 
-      ### What counts as evidence
-      - Benchmark results (with methodology described)
-      - Code examples demonstrating the difference
-      - Official documentation or specifications
-      - Production data or metrics from comparable systems
-      - Concrete examples of the approach working (or failing) elsewhere
-
-      ### What does NOT count
-      - "Best practice" (whose? in what context? citation needed)
-      - "Industry standard" (which industry? which standard?)
-      - "It's generally considered..." (by whom?)
-      - Personal preference presented as technical necessity
-      - Premature performance claims without measurement
+      ## Flag Uncertainty
+      - Use explicit markers: "confirmed", "likely", "uncertain", "conflicting sources"
+      - Never present speculation as established fact
 
       ## Anti-Patterns
-      - Recommending the first approach that comes to mind without exploring alternatives
-      - Using authority ("Google does it this way") instead of technical reasoning
-      - Optimizing for the wrong dimension (performance when correctness is the concern)
+      - "According to best practices..." (whose? citation needed)
+      - "Industry standard" (which standard?)
+      - Recommending the first approach without exploring alternatives
+      - Premature performance claims without measurement
       """
     },
     %{
-      "name" => "content-hierarchy",
+      "name" => "structured-reporting",
       "description" =>
-        "Use when organizing information, navigation, or page structure. Ensures content is structured by user mental models, not system internals.",
-      "category" => "information-architecture",
-      "tags" => "ia,hierarchy,navigation,organization",
+        "Use when producing written deliverables, documentation, or reports. Enforces clear structure tailored to the audience.",
+      "category" => "research",
+      "tags" => "research,writing,reports,structure,audience",
       "built_in" => true,
       "content" => """
-      # Content Hierarchy
+      # Structured Reporting
 
       ## Iron Law
-      **Organize by what users look for, not by how the system stores it.**
+      **Know your reader. Executive summary first. Evidence second. "So what?" last.**
 
-      ## Principles
+      ## Before Writing
+      - Who is the primary audience? (developer, operator, end-user, reviewer)
+      - What do they already know?
+      - What are they trying to do?
 
-      ### Structure follows user intent
-      - Group content by what users are trying to accomplish, not by database tables or API endpoints
-      - Navigation labels should use the user's language, not internal jargon
-      - The most common tasks should be the easiest to find — measure by clicks/taps to goal
+      ## Required Structure
 
-      ### Progressive disclosure
-      - Show summary first, details on demand
-      - Each level of depth should serve a smaller, more specific audience
-      - Never force all users through information only some users need
+      ### 1. Summary (2-3 sentences max)
+      - What was investigated / what was found / what should be done
 
-      ### Every piece of content has a "home"
-      - If users would look for it in two places, it should be findable from both (but live in one)
-      - Cross-references and shortcuts are fine; duplication is not
-      - Orphaned content (reachable only by direct URL) is a bug
+      ### 2. Key Findings (bulleted, scannable)
+      - Each finding is a standalone statement backed by evidence
+      - Ordered by importance, not by discovery sequence
 
-      ### Hierarchy signals meaning
-      - Visual weight (size, color, position) must match actual importance
-      - Primary actions are visually dominant; secondary actions are subdued
-      - Related items are visually grouped; unrelated items are visually separated
+      ### 3. Detailed Analysis
+      - Organized by topic, not chronologically
+      - Evidence presented with sources (links, data, code references)
+      - Match the depth to the audience (developers get code, operators get commands)
+
+      ### 4. Recommendations (actionable)
+      - Concrete and actionable, not vague
+      - Includes effort/complexity signal
+      - Distinguishes "must do" from "should consider"
+
+      ## Anti-Patterns
+      - Stream-of-consciousness writing ("First I looked at X, then I tried Y...")
+      - Burying the conclusion at the end
+      - Writing for yourself instead of the reader
+      - Code snippets that don't work when copied
+      """
+    },
+    %{
+      "name" => "information-design",
+      "description" =>
+        "Use when organizing information, navigation, or page structure. Ensures content is structured by user mental models with manageable cognitive load.",
+      "category" => "information-architecture",
+      "tags" => "ia,hierarchy,navigation,cognitive-load,organization",
+      "built_in" => true,
+      "content" => """
+      # Information Design
+
+      ## Iron Law
+      **Organize by what users look for. Never ask them to hold more than they can process.**
+
+      ## Content Hierarchy
+      - Group content by what users are trying to accomplish, not by system internals
+      - Navigation labels use the user's language, not jargon
+      - Most common tasks are easiest to find
+      - Show summary first, details on demand (progressive disclosure)
+      - Every piece of content has a "home" — orphaned content is a bug
+
+      ## Cognitive Load Management
+      - No more than 5-9 items in any ungrouped list (7±2 rule)
+      - Group larger lists into labeled categories
+      - Every form field has a sensible default when possible
+      - Show available options rather than requiring recall
+      - One primary action per view — secondary actions are visually subdued
+
+      ## Visual Hierarchy
+      - Visual weight (size, color, position) matches actual importance
+      - Related items are visually grouped; unrelated items are separated
+      - Destructive actions require deliberate effort (not one accidental click)
 
       ## Anti-Patterns
       - Flat lists of 20+ items with no grouping
       - Navigation that mirrors the codebase folder structure
-      - Hiding critical actions behind menus while decorative elements are prominent
+      - Showing all settings/options at once ("the cockpit problem")
       - Equal visual weight for everything (means nothing is important)
       """
     },
     %{
-      "name" => "user-journey-first",
+      "name" => "ui-design",
       "description" =>
-        "Use when designing flows, modals, forms, or multi-step interactions. Ensures every UI decision is grounded in what the user is trying to accomplish.",
+        "Use when designing flows, forms, layouts, or visual components. Ensures user-goal-driven design with consistent spatial language.",
       "category" => "ux",
-      "tags" => "ux,user-journey,flows,interactions",
+      "tags" => "ux,user-journey,flows,layout,spacing,css",
       "built_in" => true,
       "content" => """
-      # User Journey First
+      # UI Design
 
       ## Iron Law
-      **State the user's goal before choosing any layout, component, or interaction.**
+      **State the user's goal before choosing any layout. No magic numbers in spacing.**
 
-      ## Process
+      ## User Journey
+      - Before designing, write: "The user wants to [verb] [object] so that [outcome]."
+      - Map the happy path — minimum steps to goal
+      - Handle real paths: empty states, error states, loading states, edge cases (0 items, 1000 items)
+      - Every click/tap/keystroke is a cost — minimize friction
+      - Prefer smart defaults, inline editing, progressive disclosure
 
-      ### 1. Articulate the goal
-      Before designing any UI, write one sentence:
-      "The user wants to [verb] [object] so that [outcome]."
-      If you can't fill this in, you don't understand the requirement yet.
+      ## Spatial Consistency
+      - Use the project's spacing scale (4px, 8px, 12px, 16px, 24px) — no arbitrary values
+      - Elements with the same role align to the same grid
+      - Navigation always in the same position; primary actions always in the same place
+      - Whitespace is intentional: more between groups, less within groups
+      - Consistent padding within component types
 
-      ### 2. Map the happy path
-      - What is the minimum number of steps to reach the goal?
-      - Each step should have one clear action and one clear outcome
-      - If a step doesn't move the user toward the goal, remove it
-
-      ### 3. Handle the real paths
-      - Empty states: what does the user see before any data exists?
-      - Error states: what happens when something goes wrong? Can the user recover?
-      - Loading states: what does the user see while waiting?
-      - Edge cases: what if there are 0 items? 1,000 items? Very long text?
-
-      ### 4. Reduce friction
-      - Every click/tap/keystroke is a cost. Minimize them.
-      - Prefer smart defaults over blank forms
-      - Prefer inline editing over navigate-to-edit-page
-      - Prefer progressive disclosure over front-loading all options
-
-      ## Anti-Patterns
-      - Designing the UI around available API fields instead of user goals
-      - Adding a feature to the UI because the backend supports it, not because users need it
-      - Ignoring empty/error/loading states (they ARE the user's first experience)
-      - Requiring confirmation for low-risk, easily reversible actions
-      """
-    },
-    %{
-      "name" => "cognitive-load-budget",
-      "description" =>
-        "Use when designing interfaces or information displays. Ensures the user is never asked to hold more than they can process.",
-      "category" => "ux",
-      "tags" => "ux,cognitive-load,psychology,simplicity",
-      "built_in" => true,
-      "content" => """
-      # Cognitive Load Budget
-
-      ## Iron Law
-      **If the user has to think about the interface instead of their task, the design failed.**
-
-      ## Principles
-
-      ### Chunk information (7±2 rule)
-      - No more than 5-9 items in any ungrouped list, menu, or set of options
-      - If you have more, group them into logical categories
-      - Each group gets a descriptive label that aids scanning
-
-      ### Defaults over decisions
-      - Every form field should have a sensible default when possible
-      - The most common choice should be pre-selected
-      - Advanced options should be hidden until needed, not presented upfront
-
-      ### Recognition over recall
-      - Show available options rather than requiring the user to remember them
-      - Use consistent patterns — the same action should look and work the same everywhere
-      - Inline context (tooltips, descriptions) over "refer to documentation"
-
-      ### Visual grouping reduces cognitive work
-      - Related controls are physically close together
-      - Unrelated controls are visually separated (whitespace, dividers, cards)
-      - Alignment creates implicit relationships — misalignment creates confusion
-
-      ### One primary action per view
-      - Every screen/modal/panel should have ONE obvious thing to do next
-      - Secondary actions are visually subdued
-      - Destructive actions require deliberate effort (not one accidental click)
-
-      ## Anti-Patterns
-      - Showing all settings/options at once ("the cockpit problem")
-      - Using jargon or internal terminology in user-facing labels
-      - Requiring the user to cross-reference information across multiple views
-      - Modal dialogs that contain more modals
-      """
-    },
-    %{
-      "name" => "spatial-consistency",
-      "description" =>
-        "Use when creating or modifying visual layouts, spacing, or component arrangements. Ensures a coherent spatial language across the interface.",
-      "category" => "design",
-      "tags" => "design,layout,spacing,consistency,css",
-      "built_in" => true,
-      "content" => """
-      # Spatial Consistency
-
-      ## Iron Law
-      **No magic numbers. Every spacing, size, and position decision follows the system.**
-
-      ## Rules
-
-      ### Use the existing spacing scale
-      - Identify the project's spacing tokens/variables (4px, 8px, 12px, 16px, 24px, etc.)
-      - Never use arbitrary pixel values — always map to the nearest scale step
-      - If no scale exists, establish one and use it consistently
-
-      ### Consistent alignment
-      - Elements that serve the same role align to the same grid
-      - Left edges align. Baseline text aligns. Icon centers align.
-      - If two things look like they should be aligned but aren't, that's a bug
-
-      ### Predictable component placement
-      - Navigation: always in the same position (typically left or top)
-      - Primary actions: always in the same position (typically bottom-right of their container)
-      - Destructive actions: visually separated from constructive actions
-      - Consistent ordering: if lists have a sort order, it's the same everywhere
-
-      ### Whitespace is intentional
-      - Whitespace groups related items and separates unrelated ones
-      - More space between groups, less space within groups
-      - Consistent padding within component types (all cards have the same internal spacing)
-      - Empty space is not wasted space — it's a design element
-
-      ### Responsive behavior
+      ## Responsive Behavior
       - Components reflow predictably at breakpoints
       - Nothing overflows, overlaps, or disappears unexpectedly
       - Touch targets are at least 44x44px on mobile
 
       ## Anti-Patterns
+      - Designing around API fields instead of user goals
+      - Ignoring empty/error/loading states
       - `margin-top: 13px` (why 13? use the scale)
-      - Different padding on every card variant
-      - Centering something vertically with a magic pixel offset
       - Layout that works at exactly one screen size
       """
     },
@@ -1008,6 +745,694 @@ defmodule SymphonyElixir.SkillsSeed do
       - Detailed code walkthroughs (link to files)
       - Subjective quality judgments — report facts (has tests / no tests, not "poorly tested")
       """
+    },
+    # ── Product Hardening Skills (scan + apply pairs) ──────────────────────
+    #
+    # Each hardening step has two skills:
+    #   *-scan: Analyze only, output structured findings as JSON. No code changes.
+    #   *-apply: Read accepted findings, apply only those. Make code changes.
+    #
+    # Findings JSON format (written to FINDINGS.json in workspace):
+    # [{"id": "F1", "title": "...", "severity": "high|medium|low",
+    #   "description": "...", "files": ["path/to/file.ex:42"], "fix_hint": "..."}]
+
+    # ── Lint & Format ──
+    %{
+      "name" => "hardening-lint-format-scan",
+      "description" => "SCAN: Detect lint and format violations across all subprojects. No code changes — output structured findings.",
+      "category" => "hardening",
+      "tags" => "hardening,lint,format,scan",
+      "built_in" => true,
+      "content" => """
+      # Lint & Format — Scan
+
+      ## Mode: SCAN ONLY
+      You MUST NOT make any code changes. Your job is to analyze and report findings.
+
+      ## Goal
+      Detect all lint and format violations across every subproject. Output structured findings for human review.
+
+      ## Process
+
+      ### 1. Detect the tech stack for EACH subproject
+      Walk the product's project directories. For each one, identify:
+      - **Elixir**: `mix.exs` → run `mix format --check-formatted`, `mix credo --strict`
+      - **Python**: `pyproject.toml`/`setup.py` → run `ruff check` (no --fix), `ruff format --check`
+      - **TypeScript/JavaScript**: `package.json` → run `eslint` (no --fix), `prettier --check`
+      - **Go**: `go.mod` → run `gofmt -l`, `golangci-lint run`
+      - **Rust**: `Cargo.toml` → run `cargo fmt --check`, `cargo clippy`
+      - **Ruby**: `Gemfile` → run `rubocop --format json`
+
+      ### 2. Collect violations
+      For each violation, record: file, line, rule, message, severity, auto-fixable or manual.
+
+      ### 3. Skip subprojects with no linter config — note them in the report.
+
+      ## Output
+      Write `FINDINGS.json` to the workspace root with this format:
+      ```json
+      [
+        {"id": "F1", "title": "ruff: unused import os (main.py:3)", "severity": "low",
+         "description": "Unused import `os` in main.py line 3.", "files": ["main.py:3"],
+         "fix_hint": "Remove `import os`", "category": "lint", "auto_fixable": true},
+        ...
+      ]
+      ```
+      Each finding = one violation or a small group of related violations in the same file.
+      """
+    },
+    %{
+      "name" => "hardening-lint-format-apply",
+      "description" => "APPLY: Fix accepted lint and format violations. Only apply findings approved in the gate.",
+      "category" => "hardening",
+      "tags" => "hardening,lint,format,apply",
+      "built_in" => true,
+      "content" => """
+      # Lint & Format — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      Read the accepted findings from the gate decision. Apply ONLY those fixes. Do NOT fix anything that was not accepted.
+
+      ## Process
+      1. Read the accepted finding IDs from the pipeline context
+      2. For each accepted finding, apply the fix (run formatter/linter with --fix on specific files, or fix manually)
+      3. Verify: re-run linters on affected files, run test suite
+      4. Write a brief report of what was applied
+
+      ## Rules
+      - Do NOT fix findings that were rejected/discarded
+      - Do NOT change logic or behavior — style/format only
+      - Do NOT add new linter dependencies
+      """
+    },
+
+    # ── Dead Code ──
+    %{
+      "name" => "hardening-dead-code-scan",
+      "description" => "SCAN: Find dead code, unused imports, unreachable branches across all subprojects. No removals — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,dead-code,unused,scan",
+      "built_in" => true,
+      "content" => """
+      # Dead Code Removal — Scan
+
+      ## Mode: SCAN ONLY
+      You MUST NOT delete or modify any code. Analyze and report findings only.
+
+      ## Goal
+      Find all unused code across every subproject: unused functions, modules, imports, variables, unreachable branches, stale files.
+
+      ## Process
+      ### 1. Detect and scan each subproject
+      - **Elixir**: `mix xref graph --format stats`, check for unused functions/modules, stale `alias`/`import`/`require`
+      - **Python**: `vulture`, `ruff` unused import rules, `autoflake --check`
+      - **TypeScript/JavaScript**: `ts-prune`, `eslint` no-unused-vars/imports, `knip`
+      - **Go**: `deadcode`, compiler unused var/import errors
+      - **Rust**: compiler dead_code warnings
+      - **Ruby**: `debride`, unused method detection
+
+      ### 2. For each item found, assess:
+      - Is it truly unused or called via dynamic dispatch/reflection/macros?
+      - Is it a public API that may be called externally?
+      - Is it a callback implementation (GenServer, Plug, etc.)?
+      - Confidence level: high (definitely dead) vs. medium (probably dead) vs. low (uncertain)
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Unused function: MyModule.old_helper/2", "severity": "medium",
+         "description": "Private function never called. Last modified 6 months ago.", "files": ["lib/my_module.ex:42"],
+         "fix_hint": "Delete function definition (lines 42-55)", "category": "dead-code", "confidence": "high"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-dead-code-apply",
+      "description" => "APPLY: Remove accepted dead code findings. Only remove items approved in the gate.",
+      "category" => "hardening",
+      "tags" => "hardening,dead-code,unused,apply",
+      "built_in" => true,
+      "content" => """
+      # Dead Code Removal — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Remove ONLY the dead code items that were accepted
+      3. Run the full test suite to verify nothing broke
+      4. Confirm compilation succeeds with no new warnings
+      """
+    },
+
+    # ── Dependency Audit ──
+    %{
+      "name" => "hardening-dependency-audit-scan",
+      "description" => "SCAN: Audit dependencies for vulnerabilities, outdated versions, unused packages. No changes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,dependencies,audit,scan",
+      "built_in" => true,
+      "content" => """
+      # Dependency Audit — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT update, remove, or modify any dependencies. Analyze and report only.
+
+      ## Process
+      ### 1. For each subproject, detect and audit
+      - **Elixir**: `mix hex.audit`, `mix deps.unlock --check-unused`, `mix hex.outdated`
+      - **Python**: `pip-audit`, `safety check`, `pip list --outdated`
+      - **Node/TS/JS**: `npm audit`, `npm outdated`, `depcheck`
+      - **Go**: `govulncheck`, `go list -m -u all`
+      - **Rust**: `cargo audit`, `cargo outdated`
+      - **Ruby**: `bundle audit`, `bundle outdated`
+
+      ### 2. Categorize each finding
+      - **Vulnerability**: CVE ID, severity, affected version, patched version
+      - **Unused**: declared but never imported/used
+      - **Outdated**: current vs latest, breaking changes in changelog
+      - **Major update**: flag separately — requires manual review
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "CVE-2024-1234 in requests 2.28.0", "severity": "high",
+         "description": "Remote code execution via crafted URL. Fix: upgrade to 2.31.0+",
+         "files": ["requirements.txt"], "fix_hint": "Update requests to >=2.31.0", "category": "vulnerability"},
+        {"id": "F2", "title": "Unused dep: left-pad", "severity": "low",
+         "description": "Declared in package.json but never imported.", "files": ["package.json"],
+         "fix_hint": "Remove from dependencies", "category": "unused-dep"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-dependency-audit-apply",
+      "description" => "APPLY: Fix accepted dependency findings. Only update/remove deps approved in the gate.",
+      "category" => "hardening",
+      "tags" => "hardening,dependencies,audit,apply",
+      "built_in" => true,
+      "content" => """
+      # Dependency Audit — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. For each accepted finding: update vulnerable dep, remove unused dep, or bump outdated dep
+      3. Do NOT auto-upgrade major versions unless the finding was specifically accepted
+      4. Run full test suite after all changes
+      5. Re-run audit tools to confirm clean state
+      """
+    },
+
+    # ── Security Scan ──
+    %{
+      "name" => "hardening-security-scan-scan",
+      "description" => "SCAN: Find security vulnerabilities (OWASP top 10, secrets, injection) across all subprojects. No fixes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,security,owasp,scan",
+      "built_in" => true,
+      "content" => """
+      # Security Scan — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT fix any issues. Analyze and report findings only.
+
+      ## Process
+      ### 1. Run security tools per subproject
+      - **Elixir**: `sobelow --config`, raw SQL queries, path traversal
+      - **Python**: `bandit`, `semgrep --config=p/owasp-top-ten`
+      - **TypeScript/JavaScript**: `eslint-plugin-security`, `semgrep`, XSS in templates
+      - **Go**: `gosec`, `semgrep`
+      - **General**: `gitleaks` / `trufflehog` for hardcoded secrets
+
+      ### 2. Manual code review for
+      - Injection (SQL, command, template), path traversal, auth/authz gaps
+      - XSS, CSRF, secrets in code, insecure defaults, mass assignment
+
+      ### 3. Rate each finding: critical / high / medium / low
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "SQL injection in user search", "severity": "critical",
+         "description": "User input concatenated into SQL query without parameterization.",
+         "files": ["lib/search.ex:28"], "fix_hint": "Use parameterized query with $1 placeholder",
+         "category": "injection"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-security-scan-apply",
+      "description" => "APPLY: Fix accepted security findings. Only fix vulnerabilities approved in the gate.",
+      "category" => "hardening",
+      "tags" => "hardening,security,owasp,apply",
+      "built_in" => true,
+      "content" => """
+      # Security Scan — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Fix ONLY accepted security issues: add sanitization, replace secrets, add auth checks, escape output
+      3. Do NOT suppress warnings — fix the underlying issue
+      4. Re-run security scanners on affected files
+      5. Run the test suite
+      """
+    },
+
+    # ── DRY Analysis ──
+    %{
+      "name" => "hardening-dry-analysis-scan",
+      "description" => "SCAN: Find duplicated code and patterns across all subprojects. No refactoring — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,dry,duplication,scan",
+      "built_in" => true,
+      "content" => """
+      # DRY Analysis — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT refactor or extract code. Analyze and report duplication findings only.
+
+      ## Process
+      - Find repeated code blocks (3+ similar lines in multiple places)
+      - Find copy-pasted functions with minor variations
+      - Find repeated test setup/teardown logic
+      - Find duplicated constants and magic numbers
+      - Check across subprojects for shared logic candidates
+      - Only flag 3+ occurrences OR likely-to-grow duplication
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Duplicated HTTP client setup (4 occurrences)", "severity": "medium",
+         "description": "Same 12-line HTTP client initialization in 4 modules.",
+         "files": ["lib/api_a.ex:10", "lib/api_b.ex:15", "lib/api_c.ex:8", "lib/api_d.ex:12"],
+         "fix_hint": "Extract into shared HttpClient module", "category": "duplication", "occurrences": 4}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-dry-analysis-apply",
+      "description" => "APPLY: Extract and refactor accepted duplication findings. Only fix approved items.",
+      "category" => "hardening",
+      "tags" => "hardening,dry,duplication,apply",
+      "built_in" => true,
+      "content" => """
+      # DRY Analysis — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. For each accepted finding: extract shared function/module, update all callers
+      3. Name extracted functions by WHAT they do, not WHERE they came from
+      4. Run the full test suite after each extraction
+      """
+    },
+
+    # ── Error Handling ──
+    %{
+      "name" => "hardening-error-handling-scan",
+      "description" => "SCAN: Find error handling issues (bare rescues, swallowed errors) across all subprojects. No fixes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,errors,handling,scan",
+      "built_in" => true,
+      "content" => """
+      # Error Handling Audit — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT fix any error handling. Analyze and report findings only.
+
+      ## Process
+      Audit per tech stack:
+      - **Elixir**: bare `rescue`, `try/catch` returning `:ok` on failure, missing `{:error, _}` in `with` chains
+      - **Python**: bare `except:` or `except Exception:` that pass, missing error logging
+      - **TypeScript/JavaScript**: empty `catch {}`, `.catch(() => {})`, unhandled promise rejections
+      - **Go**: `_ = err` or unchecked error returns
+      - **Rust**: `.unwrap()` in library code
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Bare rescue in DataLoader.fetch/1", "severity": "high",
+         "description": "Bare rescue catches all errors and returns :ok, hiding failures.",
+         "files": ["lib/data_loader.ex:45"], "fix_hint": "Pattern match on specific error types, log unexpected errors",
+         "category": "swallowed-error"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-error-handling-apply",
+      "description" => "APPLY: Fix accepted error handling findings. Only fix approved items.",
+      "category" => "hardening",
+      "tags" => "hardening,errors,handling,apply",
+      "built_in" => true,
+      "content" => """
+      # Error Handling Audit — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Fix ONLY accepted issues: replace bare rescues, add error logging, add missing error clauses
+      3. Do NOT add error handling for impossible cases
+      4. Do NOT change the error handling strategy (exceptions vs result tuples)
+      5. Run the test suite
+      """
+    },
+
+    # ── Type Safety ──
+    %{
+      "name" => "hardening-type-safety-scan",
+      "description" => "SCAN: Find missing type annotations and type errors across all subprojects. No changes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,types,typespecs,scan",
+      "built_in" => true,
+      "content" => """
+      # Type Safety Audit — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT add or modify types. Analyze and report findings only.
+
+      ## Process per tech stack
+      - **Elixir**: find public functions without `@spec`, run `dialyzer` if configured
+      - **Python**: run `mypy` / `pyright`, find functions without type hints
+      - **TypeScript**: check for `any` types, missing return types, strict mode violations
+      - **Go**: find `interface{}` / `any` that could be tightened
+      - **Rust**: find unnecessary `.unwrap()`, loose generic bounds
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Missing @spec for MyModule.process/2", "severity": "low",
+         "description": "Public function without typespec. Takes a map and string, returns {:ok, map} | {:error, term}.",
+         "files": ["lib/my_module.ex:30"], "fix_hint": "@spec process(map(), String.t()) :: {:ok, map()} | {:error, term()}",
+         "category": "missing-type"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-type-safety-apply",
+      "description" => "APPLY: Add accepted type annotations and fix accepted type errors. Only apply approved items.",
+      "category" => "hardening",
+      "tags" => "hardening,types,typespecs,apply",
+      "built_in" => true,
+      "content" => """
+      # Type Safety Audit — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Add specs/annotations or fix type errors for ONLY accepted findings
+      3. Do NOT change runtime behavior to satisfy the type checker
+      4. Run the type checker and test suite
+      """
+    },
+
+    # ── Test Style ──
+    %{
+      "name" => "hardening-test-style-scan",
+      "description" => "SCAN: Find test style inconsistencies across all subprojects. No changes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,tests,style,scan",
+      "built_in" => true,
+      "content" => """
+      # Test Style & Consistency — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT modify any test files. Analyze and report findings only.
+
+      ## Process
+      - Naming: test names describe behavior or implementation?
+      - Setup: consistent use of setup/teardown patterns?
+      - Assertions: consistent assertion style?
+      - Organization: tests grouped by module/feature?
+      - Fixtures: consistent data creation or ad-hoc?
+      - Flaky patterns: shared state, time-dependent, order-dependent?
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Inconsistent test naming in test/api_test.exs", "severity": "low",
+         "description": "5 tests use 'test X' style, rest use 'describe/it' style.",
+         "files": ["test/api_test.exs:12", "test/api_test.exs:28"],
+         "fix_hint": "Rename to match project convention: describe + test blocks", "category": "naming"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-test-style-apply",
+      "description" => "APPLY: Fix accepted test style findings. Only fix approved items.",
+      "category" => "hardening",
+      "tags" => "hardening,tests,style,apply",
+      "built_in" => true,
+      "content" => """
+      # Test Style & Consistency — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Fix ONLY accepted style issues: rename tests, extract setup, standardize assertions
+      3. Do NOT change what tests verify — only style and organization
+      4. Do NOT delete tests
+      5. Run the full test suite — all tests must still pass
+      """
+    },
+
+    # ── Infrastructure ──
+    %{
+      "name" => "hardening-infrastructure-scan",
+      "description" => "SCAN: Find infrastructure issues (CI/CD, Docker, config, .gitignore) across all subprojects. No changes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,infrastructure,ci,docker,scan",
+      "built_in" => true,
+      "content" => """
+      # Infrastructure Review — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT modify any infrastructure files. Analyze and report findings only.
+
+      ## Process
+      - **CI/CD**: deprecated actions, missing caching, redundant steps, missing test stages
+      - **Docker**: missing multi-stage builds, secrets in layers, `.dockerignore` gaps
+      - **Build scripts**: dead targets, missing help text, inconsistent conventions
+      - **Config**: hardcoded env values, missing sensible defaults
+      - **Git**: `.gitignore` gaps (build artifacts, secrets, IDE files)
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "No dependency caching in CI pipeline", "severity": "medium",
+         "description": ".gitlab-ci.yml runs pip install on every job without caching.",
+         "files": [".gitlab-ci.yml:15"], "fix_hint": "Add pip cache key based on requirements.txt hash",
+         "category": "ci-performance"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-infrastructure-apply",
+      "description" => "APPLY: Fix accepted infrastructure findings. Only fix approved items.",
+      "category" => "hardening",
+      "tags" => "hardening,infrastructure,ci,docker,apply",
+      "built_in" => true,
+      "content" => """
+      # Infrastructure Review — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Fix ONLY accepted issues in CI/CD, Docker, build scripts, config, .gitignore
+      3. Do NOT change deployment targets, secrets, or branch policies
+      4. Verify build/CI scripts still work (dry-run if possible)
+      5. Run the test suite
+      """
+    },
+
+    # ── Playwright E2E ──
+    %{
+      "name" => "hardening-playwright-e2e-scan",
+      "description" => "SCAN: Find broken/missing Playwright E2E tests. Mark N/A if no frontend. No fixes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,playwright,e2e,scan",
+      "built_in" => true,
+      "content" => """
+      # Frontend E2E (Playwright) — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT fix or add tests. Analyze and report findings only.
+
+      ## Applicability Check
+      First, determine if the product has a frontend:
+      - Look for Playwright config, test directories, `@playwright/test` in deps
+      - Look for HTML templates, React/Vue/Svelte/Angular components
+      - If NO frontend: write `FINDINGS.json` with a single entry: `{"id": "F0", "title": "N/A — no frontend detected", "severity": "info", "description": "No frontend or E2E tests found.", "files": [], "category": "not-applicable"}`
+
+      ## Process (if applicable)
+      1. Run `npx playwright test` — collect all failures
+      2. List all user-facing pages/flows, map existing tests to flows
+      3. Identify untested critical paths
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Broken test: login flow (timeout on submit)", "severity": "high",
+         "description": "test/e2e/login.spec.ts:15 — times out clicking submit button.",
+         "files": ["test/e2e/login.spec.ts:15"], "fix_hint": "Update selector from #login-btn to [data-testid=login-submit]",
+         "category": "broken-test"},
+        {"id": "F2", "title": "Missing E2E: user settings page", "severity": "medium",
+         "description": "No tests cover the /settings page (CRUD operations).",
+         "files": [], "fix_hint": "Add settings.spec.ts covering view/edit/save flow", "category": "missing-coverage"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-playwright-e2e-apply",
+      "description" => "APPLY: Fix/add accepted Playwright E2E tests. Only apply approved findings.",
+      "category" => "hardening",
+      "tags" => "hardening,playwright,e2e,apply",
+      "built_in" => true,
+      "content" => """
+      # Frontend E2E (Playwright) — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. Fix broken tests and add missing tests ONLY for accepted findings
+      3. Follow existing test patterns and conventions
+      4. Each test must be independent (no shared state)
+      5. Run the full E2E suite — all tests must pass
+      6. Tests must be stable (run twice, same result)
+      """
+    },
+
+    # ── Test Coverage ──
+    %{
+      "name" => "hardening-test-coverage-scan",
+      "description" => "SCAN: Measure test coverage, find gaps and duplicates across all subprojects. No changes — output findings.",
+      "category" => "hardening",
+      "tags" => "hardening,coverage,testing,scan",
+      "built_in" => true,
+      "content" => """
+      # Test Coverage Audit — Scan
+
+      ## Mode: SCAN ONLY
+      Do NOT add, remove, or modify tests. Analyze and report findings only.
+      This runs LAST because prior phases may have changed code and tests.
+
+      ## Process
+      ### 1. Measure coverage per subproject
+      - **Elixir**: `mix test --cover`, **Python**: `pytest --cov`, **TS/JS**: `jest --coverage`
+      - **Go**: `go test -coverprofile`, **Rust**: `cargo tarpaulin`
+
+      ### 2. Identify gaps
+      - Modules/files with < 80% line coverage
+      - Critical paths with zero coverage (business logic, error handling, state transitions)
+      - Focus on behavioral coverage, not line count
+
+      ### 3. Identify duplicates
+      - Tests verifying exact same behavior (same setup, same assertion)
+      - Integration tests duplicating unit test coverage
+
+      ## Output
+      Write `FINDINGS.json`:
+      ```json
+      [
+        {"id": "F1", "title": "Zero coverage: PaymentProcessor.refund/2", "severity": "high",
+         "description": "Critical business logic with no tests. Handles refund calculation and validation.",
+         "files": ["lib/payment_processor.ex:80-120"], "fix_hint": "Add unit tests for happy path, partial refund, and error cases",
+         "category": "coverage-gap"},
+        {"id": "F2", "title": "Duplicate tests: user creation (3 identical)", "severity": "low",
+         "description": "test/user_test.exs:10, test/integration/user_test.exs:5, test/api/user_test.exs:20 all test the same create path.",
+         "files": ["test/user_test.exs:10", "test/integration/user_test.exs:5"],
+         "fix_hint": "Keep test/user_test.exs:10 (most focused), remove others", "category": "duplicate-test"}
+      ]
+      ```
+      """
+    },
+    %{
+      "name" => "hardening-test-coverage-apply",
+      "description" => "APPLY: Add missing tests and remove duplicates for accepted findings. Only apply approved items.",
+      "category" => "hardening",
+      "tags" => "hardening,coverage,testing,apply",
+      "built_in" => true,
+      "content" => """
+      # Test Coverage Audit — Apply
+
+      ## Mode: APPLY ACCEPTED FINDINGS ONLY
+      1. Read accepted finding IDs from pipeline context
+      2. For coverage gaps: add unit tests following existing patterns
+      3. For duplicates: remove the less-focused duplicate, keep the more precise one
+      4. Do NOT remove tests that look similar but test different edge cases
+      5. Run full test suite — zero failures
+      6. Re-measure coverage — report before/after
+      """
+    },
+
+    # ── Pipeline Summary (unchanged — single skill, no scan/apply split) ──
+    %{
+      "name" => "hardening-pipeline-summary",
+      "description" =>
+        "Summarize the entire Product Health & Hardening pipeline run: what was done, what was accepted/rejected, final state.",
+      "category" => "hardening",
+      "tags" => "hardening,summary,report,overview",
+      "built_in" => true,
+      "content" => """
+      # Pipeline Summary Report
+
+      ## Goal
+      Produce a comprehensive summary of everything done during the Product Health & Hardening pipeline run.
+
+      ## Process
+
+      ### 1. Gather results from all predecessor phases
+      Read the workspace for each completed issue in this pipeline run. Look for:
+      - Reports and FINDINGS.json from each scan agent
+      - Gate decisions showing which findings were accepted/rejected
+      - Git diffs or commit logs from apply agents
+      - Test results before and after
+
+      ### 2. Write the summary with these sections
+
+      #### Executive Summary
+      - One paragraph: what was the overall health of the product, what was improved
+
+      #### Phase Results Table
+      | Phase | Findings | Accepted | Rejected | Applied | Notes |
+      |-------|----------|----------|----------|---------|-------|
+      For each of the 11 hardening steps, report counts and key metrics.
+
+      #### Key Metrics
+      - Total lint violations fixed
+      - Dead code items removed
+      - Dependencies updated / vulnerabilities patched
+      - Security issues resolved
+      - Duplications extracted
+      - Error handling issues fixed
+      - Type annotations added
+      - Test inconsistencies fixed
+      - Infrastructure issues fixed
+      - E2E tests fixed / added
+      - Test coverage before → after
+
+      #### Remaining Items
+      - Findings that were rejected with reasons
+      - Issues flagged for manual review
+      - Major dependency updates deferred
+
+      ### 3. Do NOT
+      - Re-do any work from prior phases
+      - Make code changes — this is a reporting-only task
+      - Editorialize about code quality — report facts
+
+      ## Output
+      Write the summary as a markdown file in the workspace root: `HARDENING_REPORT.md`
+      """
     }
   ]
 
@@ -1015,17 +1440,16 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "Quality Essentials",
       "description" => "Core skills for ensuring agent work meets quality standards",
-      "skill_names" => ["verification-before-completion", "code-review"]
+      "skill_names" => ["verification", "code-review"]
     },
     %{
       "name" => "Full Discipline",
       "description" => "Complete set of engineering discipline skills",
       "skill_names" => [
-        "verification-before-completion",
+        "verification",
         "systematic-debugging",
         "test-driven-development",
-        "design-before-code",
-        "executing-plans",
+        "plan-and-execute",
         "code-review"
       ]
     },
@@ -1033,9 +1457,8 @@ defmodule SymphonyElixir.SkillsSeed do
       "name" => "Research & Analysis",
       "description" => "Skills for investigation, evidence gathering, and written deliverables",
       "skill_names" => [
-        "source-verification",
+        "evidence-based-work",
         "structured-reporting",
-        "evidence-based-decisions",
         "scope-discipline"
       ]
     },
@@ -1043,19 +1466,16 @@ defmodule SymphonyElixir.SkillsSeed do
       "name" => "UI & Design",
       "description" => "Skills for user-facing interface design and layout consistency",
       "skill_names" => [
-        "content-hierarchy",
-        "user-journey-first",
-        "cognitive-load-budget",
-        "spatial-consistency"
+        "information-design",
+        "ui-design"
       ]
     },
     %{
       "name" => "Documentation",
       "description" => "Skills for producing clear, audience-appropriate documentation",
       "skill_names" => [
-        "audience-aware-writing",
         "structured-reporting",
-        "content-hierarchy"
+        "information-design"
       ]
     },
     %{
@@ -1068,6 +1488,25 @@ defmodule SymphonyElixir.SkillsSeed do
         "extract-constraints",
         "extract-workflows",
         "extract-product-overview"
+      ]
+    },
+    %{
+      "name" => "Product Hardening",
+      "description" =>
+        "Skills for the Product Health & Hardening pipeline — scan/apply pairs for lint, security, DRY, coverage, and more",
+      "skill_names" => [
+        "hardening-lint-format-scan", "hardening-lint-format-apply",
+        "hardening-dead-code-scan", "hardening-dead-code-apply",
+        "hardening-dependency-audit-scan", "hardening-dependency-audit-apply",
+        "hardening-security-scan-scan", "hardening-security-scan-apply",
+        "hardening-dry-analysis-scan", "hardening-dry-analysis-apply",
+        "hardening-error-handling-scan", "hardening-error-handling-apply",
+        "hardening-type-safety-scan", "hardening-type-safety-apply",
+        "hardening-test-style-scan", "hardening-test-style-apply",
+        "hardening-infrastructure-scan", "hardening-infrastructure-apply",
+        "hardening-playwright-e2e-scan", "hardening-playwright-e2e-apply",
+        "hardening-test-coverage-scan", "hardening-test-coverage-apply",
+        "hardening-pipeline-summary"
       ]
     }
   ]

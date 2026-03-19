@@ -5,28 +5,49 @@ defmodule SymphonyElixir.SkillsSeedTest do
 
   @store_path "test_skills_seed_#{System.unique_integer([:positive])}.json"
 
+  # 10 general + 5 extraction + 22 hardening (11 scan + 11 apply) + 1 summary = 38
   @expected_skill_names [
-    "verification-before-completion",
+    # General (merged)
+    "verification",
     "systematic-debugging",
     "test-driven-development",
-    "design-before-code",
-    "executing-plans",
+    "plan-and-execute",
     "code-review",
-    "source-verification",
-    "structured-reporting",
-    "audience-aware-writing",
-    "incremental-verification",
     "scope-discipline",
-    "evidence-based-decisions",
-    "content-hierarchy",
-    "user-journey-first",
-    "cognitive-load-budget",
-    "spatial-consistency",
+    "evidence-based-work",
+    "structured-reporting",
+    "information-design",
+    "ui-design",
+    # Extraction
     "extract-architecture",
     "extract-business-logic",
     "extract-constraints",
     "extract-workflows",
-    "extract-product-overview"
+    "extract-product-overview",
+    # Hardening scan/apply pairs
+    "hardening-lint-format-scan",
+    "hardening-lint-format-apply",
+    "hardening-dead-code-scan",
+    "hardening-dead-code-apply",
+    "hardening-dependency-audit-scan",
+    "hardening-dependency-audit-apply",
+    "hardening-security-scan-scan",
+    "hardening-security-scan-apply",
+    "hardening-dry-analysis-scan",
+    "hardening-dry-analysis-apply",
+    "hardening-error-handling-scan",
+    "hardening-error-handling-apply",
+    "hardening-type-safety-scan",
+    "hardening-type-safety-apply",
+    "hardening-test-style-scan",
+    "hardening-test-style-apply",
+    "hardening-infrastructure-scan",
+    "hardening-infrastructure-apply",
+    "hardening-playwright-e2e-scan",
+    "hardening-playwright-e2e-apply",
+    "hardening-test-coverage-scan",
+    "hardening-test-coverage-apply",
+    "hardening-pipeline-summary"
   ]
 
   @expected_group_names [
@@ -35,7 +56,8 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "Research & Analysis",
     "UI & Design",
     "Documentation",
-    "Knowledge Extraction"
+    "Knowledge Extraction",
+    "Product Hardening"
   ]
 
   setup do
@@ -131,7 +153,7 @@ defmodule SymphonyElixir.SkillsSeedTest do
       resolved = LocalBoard.get_skills_by_ids(group.skill_ids)
       resolved_names = Enum.map(resolved, & &1.name)
 
-      assert "verification-before-completion" in resolved_names
+      assert "verification" in resolved_names
       assert "code-review" in resolved_names
     end
 
@@ -143,17 +165,16 @@ defmodule SymphonyElixir.SkillsSeedTest do
         |> Enum.find(&(&1.name == "Full Discipline"))
 
       assert group != nil
-      assert length(group.skill_ids) == 6
+      assert length(group.skill_ids) == 5
 
       resolved = LocalBoard.get_skills_by_ids(group.skill_ids)
       resolved_names = Enum.map(resolved, & &1.name)
 
       for name <- [
-            "verification-before-completion",
+            "verification",
             "systematic-debugging",
             "test-driven-development",
-            "design-before-code",
-            "executing-plans",
+            "plan-and-execute",
             "code-review"
           ] do
         assert name in resolved_names
@@ -168,17 +189,12 @@ defmodule SymphonyElixir.SkillsSeedTest do
         |> Enum.find(&(&1.name == "UI & Design"))
 
       assert group != nil
-      assert length(group.skill_ids) == 4
+      assert length(group.skill_ids) == 2
 
       resolved = LocalBoard.get_skills_by_ids(group.skill_ids)
       resolved_names = Enum.map(resolved, & &1.name)
 
-      for name <- [
-            "content-hierarchy",
-            "user-journey-first",
-            "cognitive-load-budget",
-            "spatial-consistency"
-          ] do
+      for name <- ["information-design", "ui-design"] do
         assert name in resolved_names
       end
     end
