@@ -150,12 +150,14 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
           # product_id / project_id: run-level override > pipeline default
           run_product_id = Map.get(opts, "product_id") || pipeline.product_id
           run_project_id = Map.get(opts, "project_id")
+          run_input_description = Map.get(opts, "input_description")
 
           run = %{
             id: id,
             pipeline_id: pipeline_id,
             product_id: run_product_id,
             project_id: run_project_id,
+            input_description: run_input_description,
             status: "running",
             node_states: node_states,
             node_attempts: node_attempts,
@@ -351,6 +353,16 @@ defmodule SymphonyElixir.LocalBoard.Pipelines do
                 end
 
               node_states = Map.put(run.node_states, node_id, new_state)
+
+              # Validate and normalize findings_decisions
+              findings_decisions =
+                if is_list(findings_decisions) do
+                  Enum.filter(findings_decisions, fn fd ->
+                    is_map(fd) and is_binary(fd["id"])
+                  end)
+                else
+                  nil
+                end
 
               # Store accepted findings as node output so downstream apply nodes can read them
               node_outputs =

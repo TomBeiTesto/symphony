@@ -41,11 +41,6 @@ defmodule SymphonyElixir.Integrations.KBIndex do
     GenServer.call(__MODULE__, {:search_by_metadata, vault_path, filters, limit})
   end
 
-  @doc "Force rebuild the index for a vault path."
-  def rebuild(vault_path) do
-    GenServer.cast(__MODULE__, {:rebuild, vault_path})
-  end
-
   @doc "Invalidate a single note (after write/delete)."
   def invalidate(vault_path, note_path) do
     GenServer.cast(__MODULE__, {:invalidate, vault_path, note_path})
@@ -78,12 +73,6 @@ defmodule SymphonyElixir.Integrations.KBIndex do
     state = maybe_index(state, vault_path)
     results = do_metadata_search(vault_path, filters, limit)
     {:reply, results, state}
-  end
-
-  @impl true
-  def handle_cast({:rebuild, vault_path}, state) do
-    state = index_vault(state, vault_path)
-    {:noreply, state}
   end
 
   @impl true

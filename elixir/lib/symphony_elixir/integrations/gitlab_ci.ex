@@ -26,7 +26,7 @@ defmodule SymphonyElixir.Integrations.GitlabCI do
     case action do
       "trigger" -> trigger_pipeline(config, context)
       "poll" -> poll_pipeline(config)
-      "get_status" -> get_pipeline_status(config)
+      "get_status" -> poll_pipeline(config)
       _ -> {:error, "Unknown GitLab CI action: #{action}"}
     end
   end
@@ -124,10 +124,6 @@ defmodule SymphonyElixir.Integrations.GitlabCI do
           {:error, inspect(reason)}
       end
     end
-  end
-
-  defp get_pipeline_status(config) do
-    poll_pipeline(config)
   end
 
   defp http_get(url, token) do

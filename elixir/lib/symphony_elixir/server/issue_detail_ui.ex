@@ -32,8 +32,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         </div>
         <div class="page-actions-right">
           <button class="btn-edit" id="edit-btn" onclick="toggleEdit()">Edit</button>
-          <button class="btn btn-ghost" id="send-to-kb-btn" onclick="sendToKB()" style="display:none" title="Send issue and reports to Knowledge Base">Send to KB</button>
-          <button class="btn btn-ghost" id="rerun-btn" onclick="toggleRerunPanel()" style="display:none" title="Rerun agent with additional guidance">Rerun</button>
+          <button class="btn btn-ghost" id="send-to-kb-btn" onclick="sendToKB()"
+            style="display:none" title="Send issue and reports to Knowledge Base">Send to KB</button>
+          <button class="btn btn-ghost" id="rerun-btn" onclick="toggleRerunPanel()"
+            style="display:none" title="Rerun agent with additional guidance">Rerun</button>
           <button class="btn-delete" id="delete-btn" onclick="deleteIssue()">Delete</button>
           <span class="meta" id="agent-status">Loading...</span>
         </div>
@@ -46,7 +48,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             <span class="meta">The agent will read its previous output, then improve based on your guidance.</span>
           </div>
           <div class="rerun-bar-right">
-            <textarea id="rerun-hint" placeholder="e.g. The extraction missed the scheduling logic in scheduler.py. Also expand BR-003 with retry behavior details." rows="2"></textarea>
+            <textarea id="rerun-hint" rows="2" placeholder="e.g. The extraction missed the scheduling logic
+              in scheduler.py. Also expand BR-003 with retry behavior details."></textarea>
             <div class="rerun-bar-actions">
               <button class="btn btn-primary btn-sm" onclick="rerunIssue()">Rerun Agent</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleRerunPanel()">Cancel</button>
@@ -64,13 +67,15 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
               <div id="view-mode">
                 <h2 id="issue-title">#{esc(issue.title)}</h2>
                 <div class="issue-meta">
-                  <span class="priority priority-#{issue.priority || 0}" id="issue-priority">P#{issue.priority || 0}</span>
+                  <span class="priority priority-#{issue.priority || 0}"
+                    id="issue-priority">P#{issue.priority || 0}</span>
                   <span id="issue-labels">#{render_labels(issue.labels || [])}</span>
                   <span id="issue-product" class="product-badge"></span>
                   <span id="issue-project" class="project-badge"></span>
                   <span class="meta">Created #{format_time(issue.created_at)}</span>
                 </div>
-                <div class="description" id="description">#{render_markdown(issue.description || "No description.")}</div>
+                <div class="description"
+                  id="description">#{render_markdown(issue.description || "No description.")}</div>
               </div>
               <!-- Edit mode -->
               <div id="edit-mode" style="display:none;">
@@ -96,7 +101,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                 </div>
                 <div class="edit-field">
                   <label for="edit-labels">Labels (comma-separated)</label>
-                  <input type="text" id="edit-labels" class="edit-input" value="#{esc(Enum.join(issue.labels || [], ", "))}">
+                  <input type="text" id="edit-labels" class="edit-input"
+                    value="#{esc(Enum.join(issue.labels || [], ", "))}">
                 </div>
                 <div class="edit-row">
                   <div class="edit-field">
@@ -114,7 +120,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                 </div>
                 <div class="edit-field">
                   <label for="edit-description">Description</label>
-                  <textarea id="edit-description" class="edit-input edit-textarea">#{esc(issue.description || "")}</textarea>
+                  <textarea id="edit-description"
+                    class="edit-input edit-textarea">#{esc(issue.description || "")}</textarea>
                 </div>
                 <div class="edit-actions">
                   <button class="btn-save" onclick="saveEdit()">Save</button>
@@ -164,9 +171,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
                 <button class="btn btn-ghost" onclick="showRejectForm()">Reject with Feedback</button>
               </div>
               <div class="plan-reject-form" id="plan-reject-form" style="display:none;">
-                <textarea id="plan-feedback" placeholder="What should the agent change in its plan?" rows="3" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--border-primary);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;resize:vertical;"></textarea>
+                <textarea id="plan-feedback" placeholder="What should the agent change in its plan?"
+                  rows="3" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--border-primary);
+                  border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);
+                  font-size:0.85rem;resize:vertical;"></textarea>
                 <div style="display:flex;gap:8px;">
-                  <button class="btn btn-primary" onclick="rejectPlan()" style="background:var(--orange);">Re-plan with Feedback</button>
+                  <button class="btn btn-primary" onclick="rejectPlan()"
+                    style="background:var(--orange);">Re-plan with Feedback</button>
                   <button class="btn btn-ghost" onclick="hideRejectForm()">Cancel</button>
                 </div>
               </div>
@@ -253,11 +264,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { height: 100%; overflow: hidden; }
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
       h1 { color: var(--text-primary); font-size: 1.15rem; }
       .page-actions-bar { padding: 8px 20px; }
       .issue-identifier { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
-      .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
+      .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
+        font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
       .state-badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
       .state-badge.done { background: rgba(63,185,80,0.15); color: var(--green); }
       .state-badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
@@ -267,30 +280,37 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
       @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-      .panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow: hidden; }
+      .panel { background: var(--bg-secondary); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 20px; overflow: hidden; }
       .left-column { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
       .issue-panel { flex-shrink: 0; }
       .issue-panel h2 { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 12px; }
       .issue-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
-      .priority { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--border-light); color: var(--text-muted); }
+      .priority { font-size: 0.7rem; font-weight: 700; padding: 2px 6px;
+        border-radius: 4px; background: var(--border-light); color: var(--text-muted); }
       .priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
       .priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
       .priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
       .description { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
       .description p { margin-bottom: 8px; }
       .activity-panel { display: flex; flex-direction: column; }
-      .activity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+      .activity-header { display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 12px; flex-shrink: 0; }
       .activity-header h3 { color: var(--text-primary); font-size: 1rem; }
       .token-display { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 12px; }
       .token-display .tok { background: var(--border-light); padding: 2px 8px; border-radius: 4px; }
       .activity-feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
       .empty-state { color: var(--text-muted); font-style: italic; text-align: center; padding: 40px; opacity: 0.6; }
-      .event { padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; font-family: 'SF Mono', 'Fira Code', monospace; border-left: 3px solid transparent; }
+      .event { padding: 6px 10px; border-radius: 4px; font-size: 0.8rem;
+        font-family: 'SF Mono', 'Fira Code', monospace; border-left: 3px solid transparent; }
       .event .time { color: var(--text-muted); margin-right: 8px; font-size: 0.7rem; opacity: 0.6; }
       .event.has-detail { cursor: pointer; }
       .event.has-detail:hover { background: var(--bg-secondary); }
       .event .detail-summary { color: var(--text-muted); margin-left: 8px; font-weight: 400; }
-      .event .detail-block { display: none; margin-top: 6px; padding: 8px 10px; background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 4px; font-size: 0.75rem; color: var(--text-muted); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+      .event .detail-block { display: none; margin-top: 6px; padding: 8px 10px;
+        background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 4px;
+        font-size: 0.75rem; color: var(--text-muted); white-space: pre-wrap;
+        word-break: break-all; max-height: 200px; overflow-y: auto; }
       .event.expanded .detail-block { display: block; }
       .event.tool_use { border-left-color: var(--accent); background: var(--bg-primary); }
       .event.tool_use .tool-name { color: var(--accent); font-weight: 600; }
@@ -305,34 +325,46 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .event.default { border-left-color: var(--border); background: var(--bg-primary); }
       .plan-review-panel { flex-shrink: 0; }
       .plan-review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-      .plan-review-header h3 { color: var(--text-primary); font-size: 1rem; display: flex; align-items: center; gap: 8px; }
-      .plan-review-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; }
+      .plan-review-header h3 { color: var(--text-primary); font-size: 1rem;
+        display: flex; align-items: center; gap: 8px; }
+      .plan-review-header h3::before { content: ''; display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; }
       .plan-status-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
       .plan-status-badge.review { color: #58a6ff; background: rgba(88,166,255,0.15); }
       .plan-status-badge.approved { color: var(--green); background: rgba(63,185,80,0.12); }
       .plan-status-badge.planning { color: var(--orange); background: rgba(255,180,50,0.12); }
-      .plan-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-height: 500px; overflow-y: auto; margin-bottom: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border-light); }
+      .plan-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;
+        white-space: pre-wrap; word-break: break-word; max-height: 500px; overflow-y: auto;
+        margin-bottom: 12px; padding: 12px; background: var(--bg-secondary);
+        border-radius: 6px; border: 1px solid var(--border-light); }
       .plan-text p { margin-bottom: 10px; }
       .plan-text strong { color: var(--text-primary); }
       .plan-text h2, .plan-text h3 { color: var(--text-primary); margin: 16px 0 8px; font-size: 1rem; }
-      .plan-text code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
+      .plan-text code { background: var(--border-light); padding: 1px 6px;
+        border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
       .plan-text ul, .plan-text ol { margin-left: 20px; margin-bottom: 10px; }
       .plan-text li { margin-bottom: 4px; }
       .plan-actions { display: flex; gap: 8px; margin-bottom: 8px; }
       .result-panel { flex-shrink: 0; }
-      .result-panel h3 { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-      .result-panel h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
-      .result-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+      .result-panel h3 { color: var(--text-primary); font-size: 1rem;
+        margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+      .result-panel h3::before { content: ''; display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+      .result-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;
+        white-space: pre-wrap; word-break: break-word; }
       .result-text p { margin-bottom: 10px; }
       .result-text strong { color: var(--text-primary); }
       .result-text h2, .result-text h3 { color: var(--text-primary); margin: 16px 0 8px; font-size: 1rem; }
-      .result-text code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
+      .result-text code { background: var(--border-light); padding: 1px 6px;
+        border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
       .result-text ul, .result-text ol { margin-left: 20px; margin-bottom: 10px; }
       .result-text li { margin-bottom: 4px; }
       .skills-panel { flex-shrink: 0; }
       .skills-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-      .skills-panel-header h3 { color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
-      .skills-panel-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--purple); }
+      .skills-panel-header h3 { color: var(--text-primary); font-size: 0.95rem;
+        display: flex; align-items: center; gap: 6px; }
+      .skills-panel-header h3::before { content: ''; display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%; background: var(--purple); }
       .skill-pills { display: flex; flex-wrap: wrap; gap: 6px; }
       .skill-pill {
         display: inline-flex; align-items: center; gap: 4px;
@@ -362,28 +394,41 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       }
       .pipeline-ctx-panel { flex-shrink: 0; }
       .pipeline-ctx-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-      .pipeline-ctx-header h3 { color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
-      .pipeline-ctx-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
-      .pipeline-progress-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 2px; margin: 8px 0; }
+      .pipeline-ctx-header h3 { color: var(--text-primary); font-size: 0.95rem;
+        display: flex; align-items: center; gap: 6px; }
+      .pipeline-ctx-header h3::before { content: ''; display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+      .pipeline-progress-bar { display: flex; height: 6px; border-radius: 3px;
+        overflow: hidden; gap: 2px; margin: 8px 0; }
       .pipeline-progress-seg { flex: 1; border-radius: 2px; }
-      .pipeline-run-link { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 6px; cursor: pointer; text-decoration: none; color: var(--text-secondary); font-size: 0.85rem; transition: border-color var(--transition); }
+      .pipeline-run-link { display: flex; align-items: center; gap: 8px; padding: 8px;
+        border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 6px;
+        cursor: pointer; text-decoration: none; color: var(--text-secondary);
+        font-size: 0.85rem; transition: border-color var(--transition); }
       .pipeline-run-link:hover { border-color: var(--accent); }
       .followups-panel { flex-shrink: 0; }
-      .followups-title { color: var(--text-primary); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-      .followups-title::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
-      .followup-card { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--bg-primary); }
+      .followups-title { color: var(--text-primary); font-size: 1rem;
+        margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+      .followups-title::before { content: ''; display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+      .followup-card { padding: 12px; border: 1px solid var(--border);
+        border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--bg-primary); }
       .followup-card.accepted { border-color: var(--green); opacity: 0.7; }
       .followup-card.rejected { border-color: var(--border); opacity: 0.4; }
       .fu-title { color: var(--text-primary); font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
       .fu-desc { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px; line-height: 1.4; }
       .fu-labels { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
-      .fu-label { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.65rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      .fu-label { display: inline-block; padding: 1px 6px; border-radius: 8px;
+        font-size: 0.65rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
       .fu-actions { display: flex; gap: 8px; align-items: center; }
-      .btn-accept { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--green); background: var(--green); color: #fff; font-size: 0.75rem; cursor: pointer; }
+      .btn-accept { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--green);
+        background: var(--green); color: #fff; font-size: 0.75rem; cursor: pointer; }
       .btn-accept:hover { opacity: 0.9; }
-      .btn-reject { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; }
+      .btn-reject { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
+        background: transparent; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; }
       .btn-reject:hover { border-color: var(--red); color: var(--red); }
-      .btn-fu-edit { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 0.75rem; cursor: pointer; }
+      .btn-fu-edit { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
+        background: transparent; color: var(--text-secondary); font-size: 0.75rem; cursor: pointer; }
       .btn-fu-edit:hover { border-color: var(--accent); color: var(--accent); }
       .fu-status { font-size: 0.75rem; font-weight: 600; }
       .fu-status.accepted { color: var(--green); }
@@ -391,61 +436,84 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .fu-link { color: var(--accent); text-decoration: none; font-size: 0.75rem; margin-left: 8px; }
       .fu-link:hover { text-decoration: underline; }
       .fu-edit-form { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-      .fu-edit-form input, .fu-edit-form textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.8rem; font-family: inherit; }
+      .fu-edit-form input, .fu-edit-form textarea { width: 100%; padding: 6px 8px;
+        border: 1px solid var(--border); border-radius: var(--radius-sm);
+        background: var(--bg-primary); color: var(--text-primary);
+        font-size: 0.8rem; font-family: inherit; }
       .fu-edit-form textarea { min-height: 60px; resize: vertical; }
       .fu-edit-form .fu-edit-btns { display: flex; gap: 6px; }
       .report-panel { flex-shrink: 0; }
       .report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
       .report-header h3 { color: var(--text-primary); font-size: 1rem; display: flex; align-items: center; gap: 8px; }
-      .report-header h3::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+      .report-header h3::before { content: ''; display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
       .report-content { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; }
-      .report-content h1, .report-content h2 { color: var(--text-primary); font-size: 1.1rem; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); }
+      .report-content h1, .report-content h2 { color: var(--text-primary); font-size: 1.1rem;
+        margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); }
       .report-content h3 { color: var(--text-primary); font-size: 1rem; margin: 16px 0 8px; }
       .report-content h4 { color: var(--text-primary); font-size: 0.95rem; margin: 12px 0 6px; }
       .report-content p { margin-bottom: 12px; }
       .report-content strong { color: var(--text-primary); }
       .report-content em { color: var(--text-secondary); font-style: italic; }
-      .report-content code { background: var(--border-light); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
-      .report-content pre { background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; overflow-x: auto; }
+      .report-content code { background: var(--border-light); padding: 1px 6px;
+        border-radius: 3px; font-size: 0.85em; color: var(--accent-hover); }
+      .report-content pre { background: var(--bg-primary); border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; overflow-x: auto; }
       .report-content pre code { background: none; padding: 0; color: var(--text-secondary); }
       .report-content ul, .report-content ol { margin-left: 20px; margin-bottom: 12px; }
       .report-content li { margin-bottom: 4px; }
-      .report-content blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--text-muted); margin: 12px 0; }
+      .report-content blockquote { border-left: 3px solid var(--border);
+        padding-left: 12px; color: var(--text-muted); margin: 12px 0; }
       .report-content hr { border: none; border-top: 1px solid var(--border-light); margin: 20px 0; }
       .report-content a { color: var(--accent); text-decoration: none; }
       .report-content a:hover { text-decoration: underline; }
       .report-content table { border-collapse: collapse; margin: 12px 0; width: 100%; }
       .report-content th, .report-content td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
       .report-content th { background: var(--bg-secondary); color: var(--text-primary); font-weight: 600; }
-      .btn-edit { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+      .btn-edit { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border);
+        background: transparent; color: var(--text-secondary);
+        font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
       .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
       .btn-edit.active { border-color: var(--accent); background: var(--accent); color: #fff; }
-      .btn-delete { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+      .btn-delete { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border);
+        background: transparent; color: var(--text-muted);
+        font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
       .btn-delete:hover { border-color: #e55; color: #e55; }
       .kb-sent { border-color: var(--green, #3fb950); color: var(--green, #3fb950); }
       .rerun-bar { border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
       .rerun-bar-inner { display: flex; align-items: flex-start; gap: 16px; padding: 10px 20px; }
-      .rerun-bar-left { flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 4px; min-width: 180px; }
+      .rerun-bar-left { flex-shrink: 0; display: flex; flex-direction: column;
+        gap: 2px; padding-top: 4px; min-width: 180px; }
       .rerun-bar-left strong { font-size: 0.85rem; color: var(--text-primary); }
       .rerun-bar-left .meta { font-size: 0.75rem; }
       .rerun-bar-right { flex: 1; display: flex; gap: 8px; align-items: flex-start; }
-      .rerun-bar-right textarea { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; resize: vertical; font-family: inherit; min-height: 36px; }
-      .rerun-bar-right textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,0.15); }
+      .rerun-bar-right textarea { flex: 1; padding: 6px 10px; border: 1px solid var(--border);
+        border-radius: 6px; background: var(--bg-primary); color: var(--text-primary);
+        font-size: 0.85rem; resize: vertical; font-family: inherit; min-height: 36px; }
+      .rerun-bar-right textarea:focus { outline: none; border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(88,166,255,0.15); }
       .rerun-bar-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
       .edit-field { margin-bottom: 12px; }
-      .edit-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-      .edit-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
+      .edit-field label { display: block; font-size: 0.75rem; color: var(--text-muted);
+        margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+      .edit-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+        border-radius: var(--radius-sm); background: var(--bg-primary);
+        color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
       .edit-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,0.15); }
       .edit-textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
       .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       .edit-actions { display: flex; gap: 8px; margin-top: 4px; }
-      .btn-save { padding: 6px 20px; border-radius: 4px; border: none; background: var(--accent); color: #fff; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
+      .btn-save { padding: 6px 20px; border-radius: 4px; border: none;
+        background: var(--accent); color: #fff; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
       .btn-save:hover { background: var(--accent-hover); }
-      .btn-cancel { padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }
+      .btn-cancel { padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border);
+        background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }
       .btn-cancel:hover { border-color: var(--text-muted); }
-      .product-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(63,185,80,0.1); color: var(--green); }
+      .product-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;
+        background: rgba(63,185,80,0.1); color: var(--green); }
       .product-badge:empty { display: none; }
-      .project-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      .project-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;
+        background: rgba(88,166,255,0.1); color: var(--accent-hover); }
       .project-badge:empty { display: none; }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -646,15 +714,19 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         } else if (fu.status === 'accepted') {
           actionsHtml = '<span class="fu-status accepted">Accepted</span>';
           if (fu.created_issue_identifier) {
-            actionsHtml += '<a class="fu-link" href="/board/issues/' + fu.created_issue_id + '">' + esc(fu.created_issue_identifier) + '</a>';
+            actionsHtml += '<a class="fu-link" href="/board/issues/' + fu.created_issue_id + '">'
+              + esc(fu.created_issue_identifier) + '</a>';
           }
         } else {
           actionsHtml = '<span class="fu-status rejected">Rejected</span>';
         }
         var editForm = '<div class="fu-edit-form" id="fu-edit-' + fu.id + '" style="display:none;">' +
-          '<input type="text" id="fu-edit-title-' + fu.id + '" value="' + esc(fu.title || '') + '" placeholder="Title">' +
-          '<textarea id="fu-edit-desc-' + fu.id + '" placeholder="Description">' + esc(fu.description || '') + '</textarea>' +
-          '<input type="text" id="fu-edit-labels-' + fu.id + '" value="' + esc((fu.labels || []).join(', ')) + '" placeholder="Labels (comma-separated)">' +
+          '<input type="text" id="fu-edit-title-' + fu.id + '"'
+          + ' value="' + esc(fu.title || '') + '" placeholder="Title">' +
+          '<textarea id="fu-edit-desc-' + fu.id + '" placeholder="Description">'
+          + esc(fu.description || '') + '</textarea>' +
+          '<input type="text" id="fu-edit-labels-' + fu.id + '"'
+          + ' value="' + esc((fu.labels || []).join(', ')) + '" placeholder="Labels (comma-separated)">' +
           '<div class="fu-edit-btns">' +
             '<button class="btn-accept" onclick="saveFollowupEdit(\'' + fu.id + '\')">Save</button>' +
             '<button class="btn-reject" onclick="toggleFollowupEdit(\'' + fu.id + '\')">Cancel</button>' +
@@ -733,7 +805,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         switch(ev.event) {
           case 'tool_use':
             const summary = ev.detail ? `: ${truncate(String(ev.detail), 80)}` : '';
-            body = `<span class="tool-name">${esc(String(ev.tool || 'unknown'))}</span><span class="detail-summary">${esc(summary)}</span>`;
+            body = `<span class="tool-name">${esc(String(ev.tool || 'unknown'))}</span>`
+              + `<span class="detail-summary">${esc(summary)}</span>`;
             if (ev.detail) {
               hasDetail = true;
               detailText = String(ev.detail);
@@ -773,7 +846,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         const detailCls = hasDetail ? ' has-detail' : '';
         const onclick = hasDetail ? ` onclick="toggleDetail(this)"` : '';
 
-        return `<div class="event ${cls}${detailCls}"${onclick}><span class="time">${time}</span>${body}${detailHtml}</div>`;
+        return `<div class="event ${cls}${detailCls}"${onclick}>`
+          + `<span class="time">${time}</span>${body}${detailHtml}</div>`;
       }).join('');
 
       // Auto-scroll to bottom
@@ -1013,7 +1087,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         description: document.getElementById('edit-description').value,
         state: document.getElementById('edit-state').value,
         priority: parseInt(document.getElementById('edit-priority').value) || 0,
-        labels: document.getElementById('edit-labels').value.split(',').map(function(l) { return l.trim(); }).filter(Boolean),
+        labels: document.getElementById('edit-labels').value
+          .split(',').map(function(l) { return l.trim(); }).filter(Boolean),
         product_id: document.getElementById('edit-product').value || null,
         project_id: document.getElementById('edit-project').value || null
       };
@@ -1028,7 +1103,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           issueData = await res.json();
           // Update view mode
           document.getElementById('issue-title').textContent = issueData.title;
-          document.getElementById('description').innerHTML = renderMarkdown(issueData.description || 'No description.');
+          document.getElementById('description').innerHTML =
+            renderMarkdown(issueData.description || 'No description.');
           var badge = document.getElementById('state-badge');
           badge.textContent = issueData.state;
           badge.className = 'state-badge ' + issueData.state.toLowerCase().replace(/\s+/g, '-');
@@ -1041,7 +1117,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           // Update product badge
           var prodSelect = document.getElementById('edit-product');
           var selProdOpt = prodSelect.options[prodSelect.selectedIndex];
-          document.getElementById('issue-product').textContent = selProdOpt && selProdOpt.value ? selProdOpt.textContent : '';
+          document.getElementById('issue-product').textContent =
+            selProdOpt && selProdOpt.value ? selProdOpt.textContent : '';
           // Update project badge
           var projSelect = document.getElementById('edit-project');
           var selOpt = projSelect.options[projSelect.selectedIndex];
@@ -1131,7 +1208,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       skillSelect.innerHTML = '<option value="">Select a skill...</option>';
       allSkills.forEach(function(s) {
         if (issueSkillIds.indexOf(s.id) === -1) {
-          skillSelect.innerHTML += '<option value="' + s.id + '">[' + esc(s.category) + '] ' + esc(s.name) + '</option>';
+          skillSelect.innerHTML += '<option value="' + s.id + '">'
+            + '[' + esc(s.category) + '] ' + esc(s.name) + '</option>';
         }
       });
 
@@ -1139,7 +1217,8 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       groupSelect.innerHTML = '<option value="">Select a group...</option>';
       allGroups.forEach(function(g) {
         if (issueGroupIds.indexOf(g.id) === -1) {
-          groupSelect.innerHTML += '<option value="' + g.id + '">' + esc(g.name) + ' (' + (g.skill_ids || []).length + ' skills)</option>';
+          groupSelect.innerHTML += '<option value="' + g.id + '">'
+            + esc(g.name) + ' (' + (g.skill_ids || []).length + ' skills)</option>';
         }
       });
     }
@@ -1251,8 +1330,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           var run = activeRuns.find(function(r) { return r.pipeline_id === m.pipeline.id; });
           if (run) {
             var nodeState = run.node_states[m.node.id] || 'pending';
-            var stateColors = { pending: 'var(--text-muted)', running: 'var(--accent)', completed: 'var(--green)', failed: 'var(--red)', waiting_gate: 'var(--yellow)' };
-            content.innerHTML += '<div style="margin-top:6px;font-size:0.8rem;color:' + (stateColors[nodeState] || 'var(--text-muted)') + '">Pipeline running \u2014 this step: ' + nodeState + '</div>';
+            var stateColors = {
+              pending: 'var(--text-muted)', running: 'var(--accent)',
+              completed: 'var(--green)', failed: 'var(--red)', waiting_gate: 'var(--yellow)'
+            };
+            content.innerHTML += '<div style="margin-top:6px;font-size:0.8rem;color:'
+              + (stateColors[nodeState] || 'var(--text-muted)') + '">'
+              + 'Pipeline running \u2014 this step: ' + nodeState + '</div>';
           }
         });
       } catch(e) {}

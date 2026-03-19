@@ -249,12 +249,28 @@ defmodule SymphonyElixir.PipelineRunner do
         else
           case LocalBoard.get_pipeline(run.pipeline_id) do
             {:ok, pipeline} ->
+              # Estimate original start from persisted started_at to preserve timeout behavior
+              elapsed_ms =
+                case run.started_at do
+                  nil ->
+                    0
+
+                  iso_str ->
+                    case DateTime.from_iso8601(iso_str) do
+                      {:ok, dt, _} ->
+                        DateTime.diff(DateTime.utc_now(), dt, :millisecond)
+
+                      _ ->
+                        0
+                    end
+                end
+
               run_state = %{
                 pipeline_id: run.pipeline_id,
                 run_id: run.id,
                 pipeline: pipeline,
                 timer_ref: schedule_tick(run.id),
-                started_at: System.monotonic_time(:millisecond),
+                started_at: System.monotonic_time(:millisecond) - elapsed_ms,
                 node_activated_at: %{}
               }
 
@@ -605,7 +621,14 @@ defmodule SymphonyElixir.PipelineRunner do
             }
 
             # Try to read FINDINGS.json from workspace (written by scan agents)
-            output = maybe_read_findings(issue, base_output)
+            # Use run-level project/product context since issue may not have project_id
+            {run_project_id, run_product_id} =
+              case LocalBoard.get_pipeline_run(pipeline_id, run_id) do
+                {:ok, r} -> {r[:project_id], r[:product_id] || pipeline.product_id}
+                _ -> {nil, pipeline.product_id}
+              end
+
+            output = maybe_read_findings(issue, base_output, run_project_id, run_product_id, node.id)
 
             LocalBoard.set_node_output(run_id, node.id, output)
 
@@ -653,7 +676,7 @@ defmodule SymphonyElixir.PipelineRunner do
         run_state.pipeline.nodes
         |> Enum.filter(fn node ->
           state = Map.get(run.node_states, node.id)
-          state in ["running", "waiting_gate"]
+          state in ["running", "waiting_gate", "on_hold"]
         end)
         |> Enum.each(fn node ->
           case Map.get(activated_at, node.id) do
@@ -750,18 +773,28 @@ defmodule SymphonyElixir.PipelineRunner do
       run_suffix = " [#{String.slice(run_id, 0, 6)}]"
       scoped_title = title <> run_suffix
 
-      # Use run-level product_id/project_id (set at run start), fall back to pipeline default
-      {product_id, project_id} =
+      # Use run-level product_id/project_id/input_description, fall back to pipeline default
+      {product_id, project_id, input_description} =
         case LocalBoard.get_pipeline_run(pipeline.id, run_id) do
           {:ok, run} ->
-            {run[:product_id] || pipeline.product_id, run[:project_id]}
+            {run[:product_id] || pipeline.product_id, run[:project_id], run[:input_description]}
           _ ->
-            {pipeline.product_id, nil}
+            {pipeline.product_id, nil, nil}
+        end
+
+      # Prepend the run's input description (feature request) to every issue
+      node_desc = config["description"] || config[:description] || ""
+
+      description =
+        if input_description && input_description != "" do
+          "## Feature Request\n#{input_description}\n\n---\n\n#{node_desc}"
+        else
+          node_desc
         end
 
       attrs = %{
         "title" => scoped_title,
-        "description" => config["description"] || config[:description] || "",
+        "description" => description,
         "labels" => config["labels"] || config[:labels] || [],
         "priority" => config["priority"] || config[:priority] || 3,
         "skill_ids" => config["skill_ids"] || config[:skill_ids] || [],
@@ -856,7 +889,9 @@ defmodule SymphonyElixir.PipelineRunner do
           case LocalBoard.get_issue(issue_id) do
             {:ok, issue} ->
               report_files = SymphonyElixir.Workspace.find_issue_reports(issue)
-              Logger.info("KB sync: issue #{issue[:identifier]}: found #{length(report_files)} reports: #{inspect(report_files)}")
+              Logger.info(
+                "KB sync: issue #{issue[:identifier]}: found #{length(report_files)} reports: #{inspect(report_files)}"
+              )
 
               Enum.flat_map(report_files, fn report_path ->
                 title = Path.basename(report_path, ".md")
@@ -903,32 +938,49 @@ defmodule SymphonyElixir.PipelineRunner do
   end
 
   defp get_predecessor_issue_ids(node, pipeline, run_id) do
-    # Get predecessor node IDs from edges
-    predecessor_node_ids =
-      pipeline.edges
-      |> Enum.filter(&(&1.target_node_id == node.id && &1.source_port != "reject"))
-      |> Enum.map(& &1.source_node_id)
-
-    # Look up the issue IDs created/linked for those nodes
+    # Walk the graph recursively to find all predecessor issue nodes,
+    # passing through gates and other non-issue nodes.
     case LocalBoard.get_pipeline_run_by_id(run_id) do
       {:ok, run} ->
-        node_issue_ids = run.node_issue_ids || %{}
-
-        predecessor_node_ids
-        |> Enum.flat_map(fn nid ->
-          # Check runtime-created issues first, then static issue_id on node
-          case Map.get(node_issue_ids, nid) do
-            nil ->
-              node_def = Enum.find(pipeline.nodes, &(&1.id == nid))
-              if node_def && node_def.issue_id, do: [node_def.issue_id], else: []
-
-            issue_id ->
-              [issue_id]
-          end
-        end)
+        walk_predecessors_for_issues(node.id, pipeline, run, MapSet.new())
+        |> Enum.uniq()
 
       _ ->
         []
+    end
+  end
+
+  defp walk_predecessors_for_issues(node_id, pipeline, run, visited) do
+    if MapSet.member?(visited, node_id) do
+      []
+    else
+      visited = MapSet.put(visited, node_id)
+      node_issue_ids = run.node_issue_ids || %{}
+
+      # Get direct predecessors
+      pred_ids =
+        pipeline.edges
+        |> Enum.filter(&(&1.target_node_id == node_id && &1.source_port != "reject"))
+        |> Enum.map(& &1.source_node_id)
+
+      Enum.flat_map(pred_ids, fn pid ->
+        # Check if this predecessor has an associated issue
+        issue_id =
+          case Map.get(node_issue_ids, pid) do
+            nil ->
+              node_def = Enum.find(pipeline.nodes, &(&1.id == pid))
+              if node_def && node_def.issue_id, do: node_def.issue_id, else: nil
+            id ->
+              id
+          end
+
+        if issue_id do
+          [issue_id]
+        else
+          # Not an issue node (gate, start, etc.) — keep walking through it
+          walk_predecessors_for_issues(pid, pipeline, run, visited)
+        end
+      end)
     end
   end
 
@@ -1052,14 +1104,15 @@ defmodule SymphonyElixir.PipelineRunner do
   end
 
   defp store_check_results(run_id, node_id, check_results) do
-    # Store as a gate decision with special feedback format
-    feedback =
-      "Check results: " <>
-        Enum.map_join(check_results, ", ", fn {name, status} ->
-          "#{name}: #{status}"
+    # Store check results as node output for the UI to display, not as a gate decision
+    output = %{
+      "check_results" =>
+        Enum.map(check_results, fn {name, status} ->
+          %{"name" => to_string(name), "status" => to_string(status)}
         end)
+    }
 
-    LocalBoard.record_gate_decision(run_id, node_id, "hold", feedback)
+    LocalBoard.set_node_output(run_id, node_id, output)
   end
 
   # --- Gap #4: Auto-approve gate after timeout ---
@@ -1253,9 +1306,16 @@ defmodule SymphonyElixir.PipelineRunner do
 
   # Try to read FINDINGS.json from the issue's workspace directory.
   # Scan agents write structured findings here for downstream gate review.
-  defp maybe_read_findings(issue, base_output) do
+  # Searches for issue-specific file first (FINDINGS_SYM-123.json), then generic (FINDINGS.json).
+  defp maybe_read_findings(issue, base_output, run_project_id, run_product_id, node_id) do
     workspace_key = issue.identifier || issue.id
-    project_paths = resolve_issue_project_paths(issue)
+
+    # Resolve project paths: issue's own > run-level > product's projects
+    project_paths =
+      (resolve_issue_project_paths(issue) ++
+        resolve_project_id_paths(run_project_id) ++
+        resolve_product_project_paths(run_product_id))
+      |> Enum.uniq()
 
     workspace_root =
       case Process.get(:symphony_workspace_root) do
@@ -1263,30 +1323,78 @@ defmodule SymphonyElixir.PipelineRunner do
         root -> root
       end
 
-    # Check workspace dir, project paths, and common locations
+    # Derive scan-type-specific filename from node ID (e.g., scan-dead-code → FINDINGS_dead-code.json)
+    scan_type_name =
+      case node_id do
+        "scan-" <> suffix -> "FINDINGS_#{suffix}.json"
+        _ -> nil
+      end
+
+    # Search priority: scan-type-specific > issue-specific > generic FINDINGS.json
+    specific_name = "FINDINGS_#{workspace_key}.json"
+
     candidates =
-      Enum.map(project_paths, fn p -> Path.join(p, "FINDINGS.json") end) ++
-        [Path.join([workspace_root, workspace_key, "FINDINGS.json"])]
+      Enum.flat_map(project_paths, fn p ->
+        names = if scan_type_name, do: [Path.join(p, scan_type_name)], else: []
+        names ++ [Path.join(p, specific_name), Path.join(p, "FINDINGS.json")]
+      end) ++
+        [
+          Path.join([workspace_root, workspace_key, specific_name]),
+          Path.join([workspace_root, workspace_key, "FINDINGS.json"])
+        ]
+
+    Logger.info(
+      "FINDINGS.json lookup for #{workspace_key}: project_paths=#{inspect(project_paths)}," <>
+        " candidates=#{inspect(Enum.take(candidates, 4))}"
+    )
 
     case Enum.find(candidates, &File.exists?/1) do
       nil ->
+        Logger.info("FINDINGS.json: no file found for #{workspace_key}")
         base_output
 
       findings_path ->
+        Logger.info("FINDINGS.json found at #{findings_path}")
+
         case File.read(findings_path) do
           {:ok, json} ->
             case Jason.decode(json) do
               {:ok, findings} when is_list(findings) ->
+                Logger.info("FINDINGS.json: parsed #{length(findings)} findings for #{workspace_key}")
                 Map.put(base_output, "findings", findings)
 
               _ ->
-                Logger.debug("FINDINGS.json is not valid JSON array: #{findings_path}")
+                Logger.warning("FINDINGS.json is not valid JSON array: #{findings_path}")
                 base_output
             end
 
-          {:error, _} ->
+          {:error, reason} ->
+            Logger.warning("FINDINGS.json read failed for #{findings_path}: #{inspect(reason)}")
             base_output
         end
+    end
+  end
+
+  defp resolve_project_id_paths(nil), do: []
+  defp resolve_project_id_paths(project_id) do
+    case LocalBoard.get_project(project_id) do
+      {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
+      _ -> []
+    end
+  end
+
+  defp resolve_product_project_paths(nil), do: []
+  defp resolve_product_project_paths(product_id) do
+    case LocalBoard.get_product(product_id) do
+      {:ok, product} ->
+        (product[:project_ids] || [])
+        |> Enum.flat_map(fn pid ->
+          case LocalBoard.get_project(pid) do
+            {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
+            _ -> []
+          end
+        end)
+      _ -> []
     end
   end
 

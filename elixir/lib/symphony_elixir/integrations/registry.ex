@@ -33,13 +33,6 @@ defmodule SymphonyElixir.Integrations.Registry do
     "knowledge_base" => "kb_"
   }
 
-  @type_labels %{
-    "jira" => "Jira",
-    "gitlab_ci" => "GitLab CI",
-    "confluence" => "Confluence",
-    "knowledge_base" => "Knowledge Base"
-  }
-
   # ---------------------------------------------------------------------------
   # Public API
   # ---------------------------------------------------------------------------
@@ -105,24 +98,6 @@ defmodule SymphonyElixir.Integrations.Registry do
   @doc "List all available integration types."
   @spec available_types() :: [String.t()]
   def available_types, do: Map.keys(@modules)
-
-  @doc "Human-readable label for an integration type."
-  @spec type_label(String.t()) :: String.t()
-  def type_label(type), do: Map.get(@type_labels, type, type)
-
-  @doc "Check whether global credentials are configured for a given integration type."
-  @spec configured?(String.t()) :: boolean()
-  def configured?(type) do
-    creds = get_credentials(type)
-    # Each type has required fields — check at least the base connection fields exist
-    case type do
-      "jira" -> Map.has_key?(creds, "base_url") and Map.has_key?(creds, "auth_token")
-      "gitlab_ci" -> Map.has_key?(creds, "base_url") and Map.has_key?(creds, "project_id")
-      "confluence" -> Map.has_key?(creds, "base_url") and Map.has_key?(creds, "auth_token")
-      "knowledge_base" -> true
-      _ -> false
-    end
-  end
 
   # ---------------------------------------------------------------------------
   # Private

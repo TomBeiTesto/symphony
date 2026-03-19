@@ -28,7 +28,10 @@ defmodule SymphonyElixir.Server.SkillsUI do
         <div class="page-actions-left"><h2 class="page-title">Skills Library</h2></div>
         <div class="page-actions-right">
           <button class="btn btn-ghost" onclick="openGroupsModal()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+              stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/>
+              <rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+              <rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Groups
           </button>
           <button class="btn btn-primary" onclick="openCreateSkillModal()">+ New Skill</button>
@@ -51,7 +54,8 @@ defmodule SymphonyElixir.Server.SkillsUI do
           </div>
           <div class="filter-section">
             <h3>Search</h3>
-            <input type="text" id="search-input" class="search-input" placeholder="Search skills..." oninput="filterSkills()">
+            <input type="text" id="search-input" class="search-input"
+              placeholder="Search skills..." oninput="filterSkills()">
           </div>
           <div class="filter-section stats">
             <span id="skill-count">0 skills</span>
@@ -92,7 +96,8 @@ defmodule SymphonyElixir.Server.SkillsUI do
             </div>
           </div>
           <div class="form-group">
-            <label for="skill-description">Description <span class="help-text">(trigger conditions — when should this skill activate?)</span></label>
+            <label for="skill-description">Description
+              <span class="help-text">(trigger conditions — when should this skill activate?)</span></label>
             <input type="text" id="skill-description" placeholder="Use when the agent claims work is done...">
           </div>
           <div class="form-group">
@@ -101,7 +106,8 @@ defmodule SymphonyElixir.Server.SkillsUI do
               <button class="editor-tab active" onclick="switchEditorTab('edit')">Edit</button>
               <button class="editor-tab" onclick="switchEditorTab('preview')">Preview</button>
             </div>
-            <textarea id="skill-content" class="skill-editor" placeholder="# Skill Name&#10;&#10;## Iron Law&#10;..."></textarea>
+            <textarea id="skill-content" class="skill-editor"
+              placeholder="# Skill Name&#10;&#10;## Iron Law&#10;..."></textarea>
             <div id="skill-preview" class="skill-preview" style="display:none;"></div>
           </div>
           <div class="form-actions">
@@ -213,11 +219,14 @@ defmodule SymphonyElixir.Server.SkillsUI do
         transition: all var(--transition); position: relative;
       }
       .skill-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-      .skill-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+      .skill-card-header { display: flex; align-items: flex-start;
+        justify-content: space-between; margin-bottom: 8px; }
       .skill-card-name { font-size: 0.92rem; font-weight: 600; color: var(--text-primary); }
       .skill-card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
       .skill-card:hover .skill-card-actions { opacity: 1; }
-      .skill-card-desc { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .skill-card-desc { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;
+        line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical; overflow: hidden; }
       .skill-card-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
       .category-badge {
         display: inline-block; padding: 2px 8px; border-radius: 10px;
@@ -330,7 +339,8 @@ defmodule SymphonyElixir.Server.SkillsUI do
           return true;
         });
 
-        document.getElementById('skill-count').textContent = filtered.length + ' skill' + (filtered.length !== 1 ? 's' : '');
+        document.getElementById('skill-count').textContent =
+          filtered.length + ' skill' + (filtered.length !== 1 ? 's' : '');
 
         if (filtered.length === 0) {
           grid.innerHTML = '<div class="loading">No skills found. Create one to get started.</div>';
@@ -339,14 +349,20 @@ defmodule SymphonyElixir.Server.SkillsUI do
 
         grid.innerHTML = filtered.map(function(s) {
           var catClass = 'cat-' + (s.category || 'custom');
-          var tags = (s.tags || []).map(function(t) { return '<span class="tag-pill">' + esc(t) + '</span>'; }).join('');
+          var tags = (s.tags || []).map(function(t) {
+            return '<span class="tag-pill">' + esc(t) + '</span>';
+          }).join('');
           var builtIn = s.built_in ? '<span class="built-in-badge">built-in</span>' : '';
           return '<div class="skill-card" onclick="openEditSkillModal(\'' + s.id + '\')">' +
             '<div class="skill-card-header">' +
               '<span class="skill-card-name">' + esc(s.name) + '</span>' +
               '<div class="skill-card-actions">' +
-                '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();duplicateSkill(\'' + s.id + '\')" title="Duplicate">&#x2398;</button>' +
-                (s.built_in ? '' : '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSkill(\'' + s.id + '\')" title="Delete">&times;</button>') +
+                '<button class="btn btn-ghost btn-sm"'
+                + ' onclick="event.stopPropagation();duplicateSkill(\'' + s.id + '\')"'
+                + ' title="Duplicate">&#x2398;</button>' +
+                (s.built_in ? '' : '<button class="btn btn-danger btn-sm"'
+                + ' onclick="event.stopPropagation();deleteSkill(\'' + s.id + '\')"'
+                + ' title="Delete">&times;</button>') +
               '</div>' +
             '</div>' +
             '<div class="skill-card-desc">' + esc(s.description || 'No description') + '</div>' +

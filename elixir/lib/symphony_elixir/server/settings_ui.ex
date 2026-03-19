@@ -29,10 +29,18 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- Git Provider -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35
+                  6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65
+                  16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5
+                  4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9
+                  18.13V22"/>
+              </svg>
               Git Provider
             </h2>
-            <p class="section-desc">Configure which git host to use for cloning repositories and how to authenticate.</p>
+            <p class="section-desc">Configure which git host to use for cloning repositories
+              and how to authenticate.</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -52,22 +60,35 @@ defmodule SymphonyElixir.Server.SettingsUI do
             <div class="form-group">
               <label for="git_token">Personal Access Token</label>
               <div class="token-input-wrap">
-                <input type="password" id="git_token" placeholder="glpat-xxxxxxxxxxxx or ghp_xxxxxxxxxxxx" autocomplete="off">
-                <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('git_token')">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <input type="password" id="git_token"
+                  placeholder="glpat-xxxxxxxxxxxx or ghp_xxxxxxxxxxxx" autocomplete="off">
+                <button type="button" class="btn-icon toggle-vis"
+                  onclick="toggleTokenVisibility('git_token')">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
                 </button>
               </div>
-              <small class="help-text">Used to clone private repositories. For GitLab use a Personal Access Token (read_repository scope). For GitHub use a Fine-grained PAT.</small>
+              <small class="help-text">Used to clone private repositories. For GitLab use a
+                Personal Access Token (read_repository scope). For GitHub use a Fine-grained PAT.</small>
             </div>
           </section>
 
           <!-- AI / Agent -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a2 2 0 110 4h-1.07A7 7 0 0113 22h-2a7 7 0 01-6.93-4H3a2 2 0 110-4h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2z"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a2 2 0
+                  110 4h-1.07A7 7 0 0113 22h-2a7 7 0 01-6.93-4H3a2 2 0 110-4h1a7 7 0 017-7h1
+                  V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2z"/>
+              </svg>
               AI Provider &amp; Agent
             </h2>
-            <p class="section-desc">Choose which AI model to use as the coding agent. The agent command is what Symphony invokes for each issue.</p>
+            <p class="section-desc">Choose which AI model to use as the coding agent.
+              The agent command is what Symphony invokes for each issue.</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -92,24 +113,30 @@ defmodule SymphonyElixir.Server.SettingsUI do
                 <option value="codex">Codex (codex app-server)</option>
                 <option value="custom">Custom Command</option>
               </select>
-              <small class="help-text">Which agent protocol to use. Claude Code uses --print with streaming JSON. Codex uses the app-server JSON-RPC protocol.</small>
+              <small class="help-text">Which agent protocol to use. Claude Code uses --print
+                with streaming JSON. Codex uses the app-server JSON-RPC protocol.</small>
             </div>
             <div class="form-row">
               <div class="form-group">
                 <label for="agent_command">Agent Command Override</label>
                 <input type="text" id="agent_command" placeholder="Auto-detected from agent backend">
-                <small class="help-text">Override the CLI command. Leave blank to use the default for the selected backend.</small>
+                <small class="help-text">Override the CLI command. Leave blank to use the
+                  default for the selected backend.</small>
               </div>
               <div class="form-group">
                 <label for="agent_shell">Shell</label>
                 <input type="text" id="agent_shell" placeholder="/bin/bash, pwsh, cmd.exe">
-                <small class="help-text">Shell used to run hooks and agent processes. Leave blank for system default.</small>
+                <small class="help-text">Shell used to run hooks and agent processes.
+                  Leave blank for system default.</small>
               </div>
             </div>
             <div class="form-group">
               <label for="agent_allowed_tools">Allowed Tools</label>
-              <input type="text" id="agent_allowed_tools" placeholder="WebSearch,WebFetch,Read,Write,Edit,Bash,Glob,Grep">
-              <small class="help-text">Comma-separated list of tools the agent is allowed to use without prompting. Each becomes a <code>--allowedTools</code> flag. Leave blank to use Claude Code defaults (will prompt for each tool).</small>
+              <input type="text" id="agent_allowed_tools"
+                placeholder="WebSearch,WebFetch,Read,Write,Edit,Bash,Glob,Grep">
+              <small class="help-text">Comma-separated list of tools the agent is allowed to
+                use without prompting. Each becomes a <code>--allowedTools</code> flag.
+                Leave blank to use Claude Code defaults (will prompt for each tool).</small>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
@@ -119,12 +146,14 @@ defmodule SymphonyElixir.Server.SettingsUI do
                   <option value="podman">Podman container</option>
                   <option value="docker">Docker container</option>
                 </select>
-                <small class="help-text">Run agents inside an isolated container. Only the workspace directory is mounted — agents cannot access other files on the host.</small>
+                <small class="help-text">Run agents inside an isolated container. Only the
+                  workspace directory is mounted — agents cannot access other files on the host.</small>
               </div>
               <div class="form-group">
                 <label for="agent_sandbox_image">Sandbox Image</label>
                 <input type="text" id="agent_sandbox_image" placeholder="symphony-agent-sandbox">
-                <small class="help-text">Container image name. Build with: <code>podman build -t symphony-agent-sandbox -f Dockerfile.agent-sandbox .</code></small>
+                <small class="help-text">Container image name. Build with:
+                  <code>podman build -t symphony-agent-sandbox -f Dockerfile.agent-sandbox .</code></small>
               </div>
             </div>
           </section>
@@ -132,10 +161,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- Default Skills -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
               Default Skills
             </h2>
-            <p class="section-desc">Skills and skill groups auto-assigned to every new issue. Manage your skills library at <a href="/board/skills" style="color:var(--accent);">Skills Library</a>.</p>
+            <p class="section-desc">Skills and skill groups auto-assigned to every new issue.
+              Manage your skills library at
+              <a href="/board/skills" style="color:var(--accent);">Skills Library</a>.</p>
 
             <div class="form-group">
               <label>Default Skills</label>
@@ -150,10 +184,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- Knowledge Base -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+              </svg>
               Knowledge Base
             </h2>
-            <p class="section-desc">Configure where research reports and business logic extractions are stored. Agents can read from the KB during implementation tasks.</p>
+            <p class="section-desc">Configure where research reports and business logic
+              extractions are stored. Agents can read from the KB during implementation tasks.</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -173,10 +212,12 @@ defmodule SymphonyElixir.Server.SettingsUI do
             <div class="form-group" id="kb-vault-path-group">
               <label for="kb_vault_path">Vault Path</label>
               <input type="text" id="kb_vault_path" placeholder="C:/Users/me/ObsidianVault">
-              <small class="help-text">Absolute path to the vault directory. For Local type, leave blank to use default (~/.symphony/knowledge_base).</small>
+              <small class="help-text">Absolute path to the vault directory. For Local type,
+                leave blank to use default (~/.symphony/knowledge_base).</small>
             </div>
             <div style="margin-top:8px">
-              <button class="btn btn-ghost btn-sm" id="kb-test-btn" onclick="testKBConnection()">Test Connection</button>
+              <button class="btn btn-ghost btn-sm" id="kb-test-btn"
+                onclick="testKBConnection()">Test Connection</button>
               <span id="kb-test-result" style="margin-left:8px;font-size:0.82rem"></span>
             </div>
           </section>
@@ -184,10 +225,16 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- Jira Integration -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
               Jira Integration
             </h2>
-            <p class="section-desc">Connect to Jira for creating/updating issues and syncing status. Used by pipeline integration nodes of type "Jira".</p>
+            <p class="section-desc">Connect to Jira for creating/updating issues and syncing
+              status. Used by pipeline integration nodes of type "Jira".</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -205,10 +252,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
                 <div class="token-input-wrap">
                   <input type="password" id="jira_auth_token" placeholder="Jira API token" autocomplete="off">
                   <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('jira_auth_token')">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
                   </button>
                 </div>
-                <small class="help-text">API token with read/write access. Create one at <em>Jira &rarr; Profile &rarr; API tokens</em>.</small>
+                <small class="help-text">API token with read/write access. Create one at
+                  <em>Jira &rarr; Profile &rarr; API tokens</em>.</small>
               </div>
               <div class="form-group">
                 <label for="jira_issue_type">Default Issue Type</label>
@@ -229,10 +281,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- GitLab CI Integration -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
               GitLab CI Integration
             </h2>
-            <p class="section-desc">Trigger GitLab CI pipelines and poll for results. Use as quality gates in pipeline nodes.</p>
+            <p class="section-desc">Trigger GitLab CI pipelines and poll for results.
+              Use as quality gates in pipeline nodes.</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -249,9 +306,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <div class="form-group">
                 <label for="gitlab_ci_trigger_token">Pipeline Trigger Token</label>
                 <div class="token-input-wrap">
-                  <input type="password" id="gitlab_ci_trigger_token" placeholder="glptt-xxxxxxxxxxxx" autocomplete="off">
-                  <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('gitlab_ci_trigger_token')">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <input type="password" id="gitlab_ci_trigger_token"
+                    placeholder="glptt-xxxxxxxxxxxx" autocomplete="off">
+                  <button type="button" class="btn-icon toggle-vis"
+                    onclick="toggleTokenVisibility('gitlab_ci_trigger_token')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
                   </button>
                 </div>
                 <small class="help-text">Create under <em>Settings &rarr; CI/CD &rarr; Pipeline triggers</em>.</small>
@@ -270,10 +333,18 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- Confluence Integration -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <path d="M14 2v6h6"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <line x1="10" y1="9" x2="8" y2="9"/>
+              </svg>
               Confluence Integration
             </h2>
-            <p class="section-desc">Create and update Confluence pages for documentation sync. Also available as a Knowledge Base backend.</p>
+            <p class="section-desc">Create and update Confluence pages for documentation sync.
+              Also available as a Knowledge Base backend.</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -289,9 +360,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <div class="form-group">
                 <label for="confluence_auth_token">Auth Token</label>
                 <div class="token-input-wrap">
-                  <input type="password" id="confluence_auth_token" placeholder="Confluence API token" autocomplete="off">
-                  <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('confluence_auth_token')">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <input type="password" id="confluence_auth_token"
+                    placeholder="Confluence API token" autocomplete="off">
+                  <button type="button" class="btn-icon toggle-vis"
+                    onclick="toggleTokenVisibility('confluence_auth_token')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
                   </button>
                 </div>
                 <small class="help-text">API token with Confluence read/write scope.</small>
@@ -311,10 +388,16 @@ defmodule SymphonyElixir.Server.SettingsUI do
           <!-- Tracker -->
           <section class="settings-section">
             <h2>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+              </svg>
               Issue Tracker
             </h2>
-            <p class="section-desc">Override the tracker configured in your Workflow.md. These settings take effect on the next restart.</p>
+            <p class="section-desc">Override the tracker configured in your Workflow.md.
+              These settings take effect on the next restart.</p>
 
             <div class="form-row">
               <div class="form-group">
@@ -340,7 +423,11 @@ defmodule SymphonyElixir.Server.SettingsUI do
                 <div class="token-input-wrap">
                   <input type="password" id="tracker_api_key" placeholder="API key or token" autocomplete="off">
                   <button type="button" class="btn-icon toggle-vis" onclick="toggleTokenVisibility('tracker_api_key')">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -391,7 +478,10 @@ defmodule SymphonyElixir.Server.SettingsUI do
       }
       .settings-saved.show { display: block; animation: fadeIn 0.2s ease; }
 
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
 
       .settings-section {
         background: var(--bg-secondary); border: 1px solid var(--border);
@@ -449,7 +539,8 @@ defmodule SymphonyElixir.Server.SettingsUI do
 
     const FIELDS = [
       'git_provider', 'git_token', 'git_host',
-      'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell', 'agent_allowed_tools', 'agent_sandbox', 'agent_sandbox_image',
+      'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell',
+      'agent_allowed_tools', 'agent_sandbox', 'agent_sandbox_image',
       'tracker_kind', 'tracker_endpoint', 'tracker_api_key', 'tracker_project_slug',
       'kb_type', 'kb_vault_path', 'kb_subfolder',
       'jira_base_url', 'jira_auth_token', 'jira_project_key', 'jira_issue_type',
@@ -669,13 +760,17 @@ defmodule SymphonyElixir.Server.SettingsUI do
       var pills = [];
       defaultSkillIds.forEach(function(sid) {
         var s = allSkills.find(function(sk) { return sk.id === sid; });
-        if (s) pills.push('<span class="ds-pill">' + esc(s.name) + '<button onclick="defaultRemoveSkill(\'' + sid + '\')">&times;</button></span>');
+        if (s) pills.push('<span class="ds-pill">' + esc(s.name) +
+          '<button onclick="defaultRemoveSkill(\'' + sid + '\')">&times;</button></span>');
       });
       defaultGroupIds.forEach(function(gid) {
         var g = allGroups.find(function(gr) { return gr.id === gid; });
-        if (g) pills.push('<span class="ds-pill group">' + esc(g.name) + '<button onclick="defaultRemoveGroup(\'' + gid + '\')">&times;</button></span>');
+        if (g) pills.push('<span class="ds-pill group">' + esc(g.name) +
+          '<button onclick="defaultRemoveGroup(\'' + gid + '\')">&times;</button></span>');
       });
-      container.innerHTML = pills.length > 0 ? pills.join('') : '<span style="font-size:0.75rem;color:var(--text-muted)">No default skills</span>';
+      container.innerHTML = pills.length > 0
+        ? pills.join('')
+        : '<span style="font-size:0.75rem;color:var(--text-muted)">No default skills</span>';
       populateDefaultSkillSelect();
     }
 

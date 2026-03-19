@@ -208,7 +208,8 @@ defmodule SymphonyElixir.Prompt do
 
       ```follow-ups
       [
-        {"title": "Short descriptive title", "description": "What needs to be done and why", "labels": ["relevant-label"], "priority": 3}
+        {"title": "Short descriptive title", "description": "What needs to be done and why",
+          "labels": ["relevant-label"], "priority": 3}
       ]
       ```
 

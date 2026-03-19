@@ -22,6 +22,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   """
 
   use Plug.Router
+  require Logger
 
   alias SymphonyElixir.{LocalBoard, Settings}
 
@@ -831,11 +832,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
         Look for:
         1. **Missing features** — capabilities that should exist but aren't tracked yet
-        2. **Status mismatches** — features marked as "done" that are actually incomplete, or "missing" features that are already implemented
+        2. **Status mismatches** — features marked as "done" that are actually incomplete,
+           or "missing" features that are already implemented
         3. **Missing project coverage** — features that should apply to a project but don't include it
 
         For each gap found, propose a follow-up with:
-        - **Title**: Short description of the gap (e.g. "Add rate limiting to API Gateway", "Fix: Auth is implemented in User Service")
+        - **Title**: Short description of the gap (e.g. "Add rate limiting to API Gateway",
+          "Fix: Auth is implemented in User Service")
         - **Description**: What the gap is, evidence from the codebase, and what needs to happen
         - **Labels**: `["gap-analysis"]`
 
@@ -889,7 +892,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
             attrs = %{
               "title" => "#{feature_name}",
               "description" =>
-                "## Gap Analysis — #{prod.name}\n\n**Feature:** #{feature_name}\n**Reason:** #{reason}\n\nIdentified by cross-project product review.",
+                "## Gap Analysis — #{prod.name}\n\n**Feature:** #{feature_name}\n" <>
+                "**Reason:** #{reason}\n\nIdentified by cross-project product review.",
               "labels" => ["gap-analysis"],
               "priority" => 2,
               "state" => "Backlog",
@@ -941,20 +945,29 @@ defmodule SymphonyElixir.Server.BoardRouter do
           **User's request:** #{user_prompt}
 
           ### Instructions
-          For each project, look at its codebase (if workspace available) or infer from the project name and description.
+          For each project, look at its codebase (if workspace available) or infer from
+          the project name and description.
           Identify features that exist or are needed across the projects in this product.
-          A feature is a capability or concern that may need implementation in one or more projects (e.g. "API Key Management", "Error Handling", "User Documentation").
+          A feature is a capability or concern that may need implementation in one or more
+          projects (e.g. "API Key Management", "Error Handling", "User Documentation").
 
-          **IMPORTANT**: Not every feature applies to every project. Only include projects that genuinely participate in or need a given feature. If you find evidence that a feature is already implemented in a project, mark its status as "done". If it's partially there, use "in_progress". If the project needs it but doesn't have it yet, use "missing". If a feature doesn't apply to a project at all, do NOT include that project.
+          **IMPORTANT**: Not every feature applies to every project. Only include projects
+          that genuinely participate in or need a given feature. If you find evidence that
+          a feature is already implemented in a project, mark its status as "done".
+          If it's partially there, use "in_progress". If the project needs it but doesn't
+          have it yet, use "missing". If a feature doesn't apply to a project at all,
+          do NOT include that project.
 
           Propose each feature as a follow-up with:
           - **Title**: The feature name (short, descriptive — e.g. "API Key Management")
           - **Description**: What this feature covers and evidence of its current state
           - **Labels**: `["product-feature"]`
           - **project_ids**: Array of project IDs that participate in this feature (only relevant projects!)
-          - **statuses**: Object mapping project_id → status ("done", "in_progress", "missing") reflecting the actual current state
+          - **statuses**: Object mapping project_id → status ("done", "in_progress", "missing")
+            reflecting the actual current state
 
-          Valid status values: "done" (implemented), "in_progress" (partially implemented), "planned" (planned but not started), "missing" (needed but absent), "n_a" (not applicable).
+          Valid status values: "done" (implemented), "in_progress" (partially implemented),
+          "planned" (planned but not started), "missing" (needed but absent), "n_a" (not applicable).
 
           These will be added to the product feature matrix for tracking across projects.
           Do NOT propose implementation tasks — propose high-level features.
@@ -1109,7 +1122,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
         **Projects in this product:**
         #{project_list}
 
-        #{if existing != "", do: "**Already tracked features (update status if found, do NOT duplicate):**\n#{existing}\n", else: ""}
+        #{if existing != "",
+          do: "**Already tracked features (update status if found, do NOT duplicate):**\n#{existing}\n",
+          else: ""}
 
         ### Instructions
         For each project, explore the codebase thoroughly. Look at:
@@ -1120,18 +1135,25 @@ defmodule SymphonyElixir.Server.BoardRouter do
         - Documentation and README files
 
         Identify features and capabilities that are already implemented across the projects.
-        A feature is a high-level capability (e.g. "Authentication", "Rate Limiting", "Error Handling", "Logging", "API Versioning").
+        A feature is a high-level capability (e.g. "Authentication", "Rate Limiting",
+        "Error Handling", "Logging", "API Versioning").
 
-        **IMPORTANT**: Not every feature applies to every project. Only include projects where a feature is relevant. If you find evidence a feature is implemented in a project, set its status to "done". If it's partially implemented, use "in_progress". If the project needs it but it's missing, use "missing". Do NOT include projects where a feature doesn't apply at all.
+        **IMPORTANT**: Not every feature applies to every project. Only include projects
+        where a feature is relevant. If you find evidence a feature is implemented in a
+        project, set its status to "done". If it's partially implemented, use "in_progress".
+        If the project needs it but it's missing, use "missing". Do NOT include projects
+        where a feature doesn't apply at all.
 
         Propose each discovered feature as a follow-up with:
         - **Title**: The feature name (short, descriptive)
         - **Description**: What this feature covers, evidence of implementation (file paths, module names)
         - **Labels**: `["product-feature"]`
         - **project_ids**: Array of project IDs where this feature is relevant (only participating projects!)
-        - **statuses**: Object mapping project_id → status ("done", "in_progress", "missing") based on evidence found
+        - **statuses**: Object mapping project_id → status ("done", "in_progress", "missing")
+          based on evidence found
 
-        Valid status values: "done" (implemented), "in_progress" (partially implemented), "planned" (planned but not started), "missing" (needed but absent), "n_a" (not applicable).
+        Valid status values: "done" (implemented), "in_progress" (partially implemented),
+        "planned" (planned but not started), "missing" (needed but absent), "n_a" (not applicable).
 
         These will be added to the product feature matrix.
         Only propose features you have evidence for — do NOT speculate about features that might exist.
@@ -1197,7 +1219,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
         For each finding, propose a follow-up issue with:
         - **Title**: Clear, actionable title (e.g. "Fix SQL injection in user search endpoint")
         - **Description**: What the issue is, where it is (file paths), why it matters, and how to fix it
-        - **Labels**: One of `["code-review-critical"]`, `["code-review-major"]`, or `["code-review-minor"]` based on severity
+        - **Labels**: One of `["code-review-critical"]`, `["code-review-major"]`,
+          or `["code-review-minor"]` based on severity
 
         Prioritize critical issues (security, data loss) over minor style issues.
         Be specific — include file paths and line references where possible.
@@ -1756,6 +1779,40 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
   post "/api/ai/draft-product" do
     hint = Map.get(conn.body_params, "hint", "") |> String.trim()
+    project_ids = Map.get(conn.body_params, "project_ids", [])
+
+    project_context =
+      case project_ids do
+        ids when is_list(ids) and ids != [] ->
+          project_details =
+            Enum.flat_map(ids, fn id ->
+              case LocalBoard.get_project(id) do
+                {:ok, proj} ->
+                  lines = ["  - Name: #{proj.name}"]
+                  lines = if proj[:description] && proj.description != "",
+                    do: lines ++ ["    Description: #{proj.description}"], else: lines
+                  lines = if proj[:path] && proj.path != "",
+                    do: lines ++ ["    Path: #{proj.path}"], else: lines
+                  lines = if proj[:labels] && proj.labels != [],
+                    do: lines ++ ["    Labels: #{Enum.join(proj.labels, ", ")}"], else: lines
+                  [Enum.join(lines, "\n")]
+                _ ->
+                  []
+              end
+            end)
+
+          if project_details != [] do
+            "\n\nSelected projects that belong to this product:\n" <>
+              Enum.join(project_details, "\n") <>
+              "\n\nUse the project names, descriptions, paths, and labels to infer" <>
+              " the product's scope, domain, and purpose."
+          else
+            ""
+          end
+
+        _ ->
+          ""
+      end
 
     if hint == "" do
       conn
@@ -1772,7 +1829,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       - description: 2-3 paragraphs describing the product scope and goals in markdown
       - labels: 1-3 relevant labels (lowercase, hyphenated)
 
-      User hint: #{hint}
+      User hint: #{hint}#{project_context}
       """
 
       case agent_draft(prompt) do
@@ -2448,8 +2505,12 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
   post "/api/pipelines/:id/run" do
     opts = %{}
-    opts = if conn.body_params["product_id"], do: Map.put(opts, "product_id", conn.body_params["product_id"]), else: opts
-    opts = if conn.body_params["project_id"], do: Map.put(opts, "project_id", conn.body_params["project_id"]), else: opts
+    opts = if conn.body_params["product_id"],
+      do: Map.put(opts, "product_id", conn.body_params["product_id"]), else: opts
+    opts = if conn.body_params["project_id"],
+      do: Map.put(opts, "project_id", conn.body_params["project_id"]), else: opts
+    opts = if conn.body_params["input_description"],
+      do: Map.put(opts, "input_description", conn.body_params["input_description"]), else: opts
 
     case LocalBoard.create_pipeline_run(id, opts) do
       {:ok, run} ->
@@ -2600,6 +2661,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
               # Get gate-specific config
               instructions = get_in(node, [:config, "instructions"]) || ""
+              gate_prompt = get_in(node, [:config, "gate_prompt"]) || ""
               checks = get_in(node, [:config, "checks"]) || []
 
               # Feedback history for this gate
@@ -2617,10 +2679,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
               # Collect predecessor node outputs (includes structured findings)
               predecessor_outputs = collect_predecessor_outputs(node_id, pipeline, run)
 
+              # Fallback: if no findings in node_outputs, try reading FINDINGS.json from workspace
+              predecessor_outputs = maybe_enrich_findings_from_workspace(predecessor_outputs, node_id, pipeline, run)
+
               context = %{
                 node_id: node_id,
                 node_type: node.type,
                 label: node.label,
+                gate_prompt: gate_prompt,
                 instructions: instructions,
                 checks: checks,
                 predecessor_issues: predecessor_issues,
@@ -3333,14 +3399,37 @@ defmodule SymphonyElixir.Server.BoardRouter do
           if issue_id do
             case LocalBoard.get_issue(issue_id) do
               {:ok, issue} ->
+                # Inline the agent result_text if available
+                result_text =
+                  case issue[:agent_run] do
+                    %{"result_text" => rt} when is_binary(rt) and rt != "" -> rt
+                    _ -> nil
+                  end
+
+                # Inline report file contents (truncated to keep payload reasonable)
+                report_contents =
+                  find_issue_reports(issue)
+                  |> Enum.map(fn path ->
+                    name = Path.basename(path)
+                    content =
+                      case File.read(path) do
+                        {:ok, data} -> String.slice(data, 0, 8000)
+                        _ -> ""
+                      end
+                    %{name: name, content: content}
+                  end)
+
                 [
                   %{
                     id: issue.id,
                     identifier: issue.identifier,
                     title: issue.title,
+                    description: issue[:description] || "",
                     state: issue.state,
                     url: "/board/issues/#{issue.id}",
-                    has_reports: has_reports?(issue),
+                    result_text: result_text,
+                    reports: report_contents,
+                    has_reports: report_contents != [],
                     rerun_hint: issue[:rerun_hint]
                   }
                   | acc
@@ -3382,8 +3471,150 @@ defmodule SymphonyElixir.Server.BoardRouter do
     end)
   end
 
-  defp has_reports?(issue) do
-    find_issue_reports(issue) != []
+  # If predecessor_outputs has no findings, try reading FINDINGS.json from workspace
+  defp maybe_enrich_findings_from_workspace(predecessor_outputs, gate_node_id, pipeline, run) do
+    has_findings? =
+      Enum.any?(predecessor_outputs, fn {_pid, output} ->
+        is_list(output["findings"]) and output["findings"] != []
+      end)
+
+    Logger.info(
+      "Gate #{gate_node_id}: predecessor_outputs keys=#{inspect(Map.keys(predecessor_outputs))}," <>
+      " has_findings=#{has_findings?}"
+    )
+
+    if has_findings? do
+      predecessor_outputs
+    else
+      # Find direct predecessor issue nodes and try reading their FINDINGS.json
+      pred_ids =
+        pipeline.edges
+        |> Enum.filter(fn e -> e.target_node_id == gate_node_id end)
+        |> Enum.map(& &1.source_node_id)
+
+      node_issue_ids = run.node_issue_ids || %{}
+      run_project_id = run[:project_id]
+      run_product_id = run[:product_id]
+
+      Enum.reduce(pred_ids, predecessor_outputs, fn pid, acc ->
+        issue_id = Map.get(node_issue_ids, pid)
+
+        if issue_id do
+          case LocalBoard.get_issue(issue_id) do
+            {:ok, issue} ->
+              # Enrich issue with run-level IDs for workspace lookup
+              issue_with_run_ctx =
+                issue
+                |> then(fn i -> if i[:product_id], do: i, else: Map.put(i, :product_id, run_product_id) end)
+
+              findings = read_findings_from_workspace(issue_with_run_ctx, run_project_id, pid)
+
+              if findings != [] do
+                existing = Map.get(acc, pid, %{})
+                Map.put(acc, pid, Map.put(existing, "findings", findings))
+              else
+                acc
+              end
+
+            _ ->
+              acc
+          end
+        else
+          acc
+        end
+      end)
+    end
+  end
+
+  defp read_findings_from_workspace(issue, run_project_id, scan_node_id) do
+    # Try issue's own project_id first, then fall back to the run's project_id
+    effective_project_id =
+      case issue[:project_id] do
+        pid when is_binary(pid) and pid != "" -> pid
+        _ -> run_project_id
+      end
+
+    project_paths =
+      case effective_project_id do
+        pid when is_binary(pid) and pid != "" ->
+          case LocalBoard.get_project(pid) do
+            {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
+            _ -> []
+          end
+        _ -> []
+      end
+
+    # Also check product's project paths as fallback
+    product_paths =
+      case issue[:product_id] do
+        prod_id when is_binary(prod_id) and prod_id != "" ->
+          case LocalBoard.get_product(prod_id) do
+            {:ok, product} ->
+              (product[:project_ids] || [])
+              |> Enum.flat_map(fn pid ->
+                case LocalBoard.get_project(pid) do
+                  {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
+                  _ -> []
+                end
+              end)
+            _ -> []
+          end
+        _ -> []
+      end
+
+    workspace_key = issue[:identifier] || issue.id
+
+    workspace_root =
+      case Process.get(:symphony_workspace_root) do
+        nil -> Path.join(System.tmp_dir!(), "symphony_workspaces")
+        root -> root
+      end
+
+    # Derive scan-type-specific filename from node ID (e.g., scan-dead-code → FINDINGS_dead-code.json)
+    scan_type_name =
+      case scan_node_id do
+        "scan-" <> suffix -> "FINDINGS_#{suffix}.json"
+        _ -> nil
+      end
+
+    # Search priority: scan-type-specific > issue-specific > generic FINDINGS.json
+    specific_name = "FINDINGS_#{workspace_key}.json"
+
+    candidates =
+      Enum.flat_map(project_paths ++ product_paths, fn p ->
+        names = if scan_type_name, do: [Path.join(p, scan_type_name)], else: []
+        names ++ [Path.join(p, specific_name), Path.join(p, "FINDINGS.json")]
+      end) ++
+        [
+          Path.join([workspace_root, workspace_key, specific_name]),
+          Path.join([workspace_root, workspace_key, "FINDINGS.json"])
+        ]
+
+    Logger.info(
+      "FINDINGS.json gate-context lookup for #{workspace_key}: " <>
+      "effective_project_id=#{inspect(effective_project_id)}, " <>
+      "candidates=#{inspect(Enum.take(candidates, 4))}"
+    )
+
+    case Enum.find(candidates, &File.exists?/1) do
+      nil ->
+        Logger.info("FINDINGS.json gate-context: no file found for #{workspace_key}")
+        []
+
+      findings_path ->
+        Logger.info("FINDINGS.json gate-context: found at #{findings_path}")
+
+        case File.read(findings_path) do
+          {:ok, json} ->
+            case Jason.decode(json) do
+              {:ok, findings} when is_list(findings) ->
+                Logger.info("FINDINGS.json gate-context: parsed #{length(findings)} findings")
+                findings
+              _ -> []
+            end
+          _ -> []
+        end
+    end
   end
 
   defp resolve_product_name(issue) do

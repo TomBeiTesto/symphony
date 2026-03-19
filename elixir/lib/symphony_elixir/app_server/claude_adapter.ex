@@ -241,7 +241,8 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     # Shell command: pipe prompt file into claude via stdin redirection
     shell_command =
-      "cat #{shell_escape(prompt_file)} | #{claude_cmd} -p --output-format stream-json --verbose#{allowed_tools_flag} 2>&1"
+      "cat #{shell_escape(prompt_file)} | #{claude_cmd} -p --output-format stream-json" <>
+        " --verbose#{allowed_tools_flag} 2>&1"
 
     Logger.info("Claude adapter command: bash -lc '#{shell_command}'")
     Logger.info("Claude adapter workspace: #{workspace_path}")

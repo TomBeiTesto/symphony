@@ -61,7 +61,10 @@ defmodule SymphonyElixir.Server.BoardUI do
             </div>
           </div>
           <button class="btn btn-primary" onclick="openCreateModal()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
             New Issue
           </button>
         </div>
@@ -247,7 +250,8 @@ defmodule SymphonyElixir.Server.BoardUI do
         padding: 8px 4px 4px; border-bottom: 1px solid var(--border-light);
         margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
       }
-      .project-group-header .pg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+      .project-group-header .pg-dot {
+        width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 
       /* --- Board (#7,#8) --- */
       .board {
@@ -284,18 +288,22 @@ defmodule SymphonyElixir.Server.BoardUI do
         background: var(--bg-secondary);
       }
       .column-title-group { display: flex; align-items: center; gap: 6px; }
-      .column-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--column-accent, var(--text-muted)); flex-shrink: 0; }
-      .column-title { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+      .column-dot { width: 8px; height: 8px; border-radius: 50%;
+        background: var(--column-accent, var(--text-muted)); flex-shrink: 0; }
+      .column-title { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.04em; }
       .column-count {
         font-size: 0.72rem; color: var(--text-primary); font-weight: 600;
         background: var(--bg-tertiary); padding: 1px 7px; border-radius: 10px;
         min-width: 20px; text-align: center;
       }
       /* Column completion bar (#33) */
-      .column-progress { height: 2px; background: var(--bg-tertiary); border-radius: 1px; margin-top: 4px; overflow: hidden; }
+      .column-progress { height: 2px; background: var(--bg-tertiary);
+        border-radius: 1px; margin-top: 4px; overflow: hidden; }
       .column-progress-fill { height: 100%; border-radius: 1px; transition: width 0.3s ease; }
       /* WIP limit (#34) */
-      .wip-badge { font-size: 0.65rem; color: var(--text-muted); padding: 1px 5px; border-radius: 8px; background: var(--bg-tertiary); }
+      .wip-badge { font-size: 0.65rem; color: var(--text-muted);
+        padding: 1px 5px; border-radius: 8px; background: var(--bg-tertiary); }
       .wip-badge.over-limit { color: var(--red); background: rgba(248,81,73,0.15); }
 
       .btn-collapse {
@@ -340,7 +348,8 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .card-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       /* Age indicator (#23) */
-      .card-skills { font-size: 0.6rem; color: var(--purple); background: rgba(188,140,255,0.1); padding: 1px 5px; border-radius: 6px; }
+      .card-skills { font-size: 0.6rem; color: var(--purple);
+        background: rgba(188,140,255,0.1); padding: 1px 5px; border-radius: 6px; }
       .card-plan-badge { font-size: 0.6rem; padding: 1px 5px; border-radius: 6px; }
       .card-plan-badge.planning { color: var(--orange); background: rgba(255,180,50,0.12); }
       .card-plan-badge.review { color: var(--blue); background: rgba(88,166,255,0.15); font-weight: 600; }
@@ -365,13 +374,16 @@ defmodule SymphonyElixir.Server.BoardUI do
       .detail-actions { display: flex; gap: 6px; align-items: center; }
       .detail-body h2 { font-size: 1.15rem; margin-bottom: 12px; }
       .detail-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-      .detail-description { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; white-space: pre-wrap; }
+      .detail-description { font-size: 0.9rem; color: var(--text-secondary);
+        line-height: 1.6; margin-bottom: 16px; white-space: pre-wrap; }
       .detail-labels { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
       .detail-timestamps { display: flex; gap: 16px; color: var(--text-muted); font-size: 0.75rem; }
 
       /* --- Form overrides for board --- */
-      .form-checkbox label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-secondary); }
-      .form-checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--purple); cursor: pointer; }
+      .form-checkbox label { display: flex; align-items: center; gap: 8px;
+        cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+      .form-checkbox input[type="checkbox"] {
+        width: 16px; height: 16px; accent-color: var(--purple); cursor: pointer; }
       .form-hint { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; }
       .form-skill-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; min-height: 24px; }
       .form-skill-pill {
@@ -379,7 +391,8 @@ defmodule SymphonyElixir.Server.BoardUI do
         padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 500;
         background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.25);
       }
-      .form-skill-pill.group { background: rgba(88,166,255,0.12); color: var(--accent); border-color: rgba(88,166,255,0.25); }
+      .form-skill-pill.group { background: rgba(88,166,255,0.12);
+        color: var(--accent); border-color: rgba(88,166,255,0.25); }
       .form-skill-pill button {
         background: none; border: none; color: inherit; cursor: pointer;
         font-size: 0.8rem; padding: 0 2px; opacity: 0.6; line-height: 1;
@@ -394,7 +407,8 @@ defmodule SymphonyElixir.Server.BoardUI do
       .empty-column-icon { width: 28px; height: 28px; margin-bottom: 6px; opacity: 0.3; }
 
       /* --- Quick Add (#26) --- */
-      .quick-add { padding: 4px 6px 6px; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-secondary); }
+      .quick-add { padding: 4px 6px 6px; border-top: 1px solid var(--border-light);
+        flex-shrink: 0; background: var(--bg-secondary); }
       .quick-add-input {
         width: 100%; padding: 6px 8px; background: transparent;
         border: 1px dashed var(--border); border-radius: var(--radius-sm);
@@ -413,7 +427,9 @@ defmodule SymphonyElixir.Server.BoardUI do
       .project-select:focus { border-color: var(--accent); }
 
       /* --- Project List --- */
-      .project-filter { width: 100%; padding: 6px 10px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
+      .project-filter { width: 100%; padding: 6px 10px; margin-bottom: 8px;
+        border: 1px solid var(--border); border-radius: var(--radius-sm);
+        background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
       .project-filter:focus { outline: none; border-color: var(--accent); }
       .project-list { max-height: 50vh; overflow-y: auto; }
       .project-card {
@@ -424,9 +440,12 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .project-card:hover { background: var(--bg-hover); }
       .project-info { flex: 1; min-width: 0; }
-      .project-info h3 { font-size: 0.85rem; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .project-info .project-desc { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .project-info .project-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; margin-top: 1px; }
+      .project-info h3 { font-size: 0.85rem; font-weight: 600; margin: 0;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .project-info .project-desc { font-size: 0.75rem; color: var(--text-secondary);
+        margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .project-info .project-meta { font-size: 0.75rem; color: var(--text-muted);
+        display: flex; gap: 8px; margin-top: 1px; }
       .project-info .project-meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .project-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
       .project-empty { color: var(--text-muted); font-style: italic; padding: 20px; text-align: center; }
@@ -467,7 +486,8 @@ defmodule SymphonyElixir.Server.BoardUI do
         .topbar { padding: 8px 12px; }
         .topbar-right { gap: 3px; }
         .board { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
-        .column { min-width: 100%; max-width: 100%; border-right: none; border-bottom: 1px solid var(--border-light); height: auto; }
+        .column { min-width: 100%; max-width: 100%; border-right: none;
+          border-bottom: 1px solid var(--border-light); height: auto; }
         .column-body { max-height: 400px; }
         .column.collapsed { flex: 0 0 36px; min-width: 100%; max-width: 100%; }
         .column.collapsed .column-header { writing-mode: horizontal-tb; padding: 8px 12px; flex-direction: row; }
@@ -520,7 +540,11 @@ defmodule SymphonyElixir.Server.BoardUI do
       if (!boardData) {
         var board = document.getElementById('board');
         board.innerHTML = '<div style="display:flex;gap:0;flex:1;padding:16px;">' +
-          Array(5).fill('<div style="flex:1;padding:8px;"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>').join('') + '</div>';
+          Array(5).fill(
+            '<div style="flex:1;padding:8px;"><div class="skeleton skeleton-text"></div>' +
+            '<div class="skeleton skeleton-card"></div>' +
+            '<div class="skeleton skeleton-card"></div></div>'
+          ).join('') + '</div>';
       }
 
       try {
@@ -595,9 +619,12 @@ defmodule SymphonyElixir.Server.BoardUI do
 
       bar.innerHTML =
         '<span class="metric"><span class="metric-val">' + total + '</span> total</span>' +
-        '<span class="metric"><span class="metric-dot" style="background:var(--accent)"></span><span class="metric-val">' + active + '</span> active</span>' +
-        '<span class="metric"><span class="metric-dot" style="background:var(--yellow)"></span><span class="metric-val">' + todo + '</span> todo</span>' +
-        '<span class="metric"><span class="metric-dot" style="background:var(--green)"></span><span class="metric-val">' + done + '</span> done</span>' +
+        '<span class="metric"><span class="metric-dot" style="background:var(--accent)"></span>' +
+        '<span class="metric-val">' + active + '</span> active</span>' +
+        '<span class="metric"><span class="metric-dot" style="background:var(--yellow)"></span>' +
+        '<span class="metric-val">' + todo + '</span> todo</span>' +
+        '<span class="metric"><span class="metric-dot" style="background:var(--green)"></span>' +
+        '<span class="metric-val">' + done + '</span> done</span>' +
         (backlog > 0 ? '<span class="metric"><span class="metric-val">' + backlog + '</span> backlog</span>' : '');
     }
 
@@ -636,7 +663,10 @@ defmodule SymphonyElixir.Server.BoardUI do
 
         // Column completion bar (#33)
         var pctFill = totalIssues > 0 ? Math.round(issues.length / totalIssues * 100) : 0;
-        var progressHtml = !isCollapsed ? '<div class="column-progress"><div class="column-progress-fill" style="width:' + pctFill + '%;background:' + color + '"></div></div>' : '';
+        var progressHtml = !isCollapsed
+          ? '<div class="column-progress"><div class="column-progress-fill" style="width:' +
+            pctFill + '%;background:' + color + '"></div></div>'
+          : '';
 
         column.innerHTML = `
           <div class="column-header">
@@ -645,11 +675,24 @@ defmodule SymphonyElixir.Server.BoardUI do
               <span class="column-title">${esc(col.state)}</span>
               <span class="column-count">${issues.length}</span>
             </div>
-            ${!isCollapsed && issues.length > 0 && ['Backlog','Cancelled','Archived'].includes(col.state) ? `<button class="btn-clear-col" onclick="event.stopPropagation(); clearColumn('${esc(col.state)}')" title="Delete all ${esc(col.state)} issues">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            ${!isCollapsed && issues.length > 0 && ['Backlog','Cancelled','Archived'].includes(col.state)
+              ? `<button class="btn-clear-col"
+                onclick="event.stopPropagation(); clearColumn('${esc(col.state)}')"
+                title="Delete all ${esc(col.state)} issues">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              </svg>
             </button>` : ''}
-            ${!isCollapsed ? `<button class="btn-collapse" onclick="event.stopPropagation(); toggleColumn('${esc(col.state)}')" title="Collapse column">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            ${!isCollapsed
+              ? `<button class="btn-collapse"
+                onclick="event.stopPropagation(); toggleColumn('${esc(col.state)}')"
+                title="Collapse column">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
             </button>` : ''}
           </div>
           ${progressHtml}
@@ -660,7 +703,8 @@ defmodule SymphonyElixir.Server.BoardUI do
                ondrop="handleDrop(event)">
             ${issues.length === 0 ?
               `<div class="empty-column">
-                <svg class="empty-column-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="empty-column-icon" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="3" y="3" width="18" height="18" rx="2"/>
                   <line x1="9" y1="12" x2="15" y2="12"/>
                 </svg>
@@ -710,7 +754,9 @@ defmodule SymphonyElixir.Server.BoardUI do
         if (showHeaders) {
           const proj = pid !== '__none__' ? projects.find(p => p.id === pid) : null;
           const name = proj ? proj.name : 'Unassigned';
-          html += `<div class="project-group-header"><span class="pg-dot"></span>${esc(name)} <span style="opacity:0.5;margin-left:auto">${groups[pid].length}</span></div>`;
+          html += `<div class="project-group-header">` +
+            `<span class="pg-dot"></span>${esc(name)} ` +
+            `<span style="opacity:0.5;margin-left:auto">${groups[pid].length}</span></div>`;
         }
         html += groups[pid].map(renderCard).join('');
       });
@@ -731,7 +777,9 @@ defmodule SymphonyElixir.Server.BoardUI do
       const borderColor = PRIORITY_COLORS[issue.priority] || 'transparent';
       const highPriority = (issue.priority === 1 || issue.priority === 2) ? ' priority-high' : '';
       const delBtn = DELETABLE_STATES.includes(issue.state)
-        ? `<button class="card-delete" onclick="event.stopPropagation(); deleteIssue('${issue.id}', '${esc(issue.identifier)}')" title="Delete">&#215;</button>`
+        ? `<button class="card-delete"
+          onclick="event.stopPropagation(); deleteIssue('${issue.id}', '${esc(issue.identifier)}')"
+          title="Delete">&#215;</button>`
         : '';
 
       // Age indicator (#23)
@@ -753,9 +801,13 @@ defmodule SymphonyElixir.Server.BoardUI do
 
       // Plan status badge
       var planBadge = '';
-      if (issue.plan_status === 'planning') planBadge = '<span class="card-plan-badge planning" title="Planning phase">&#128203; Planning</span>';
-      else if (issue.plan_status === 'plan_review') planBadge = '<span class="card-plan-badge review" title="Plan awaiting review">&#128203; Plan Ready</span>';
-      else if (issue.plan_status === 'approved') planBadge = '<span class="card-plan-badge approved" title="Plan approved, executing">&#128203; Executing</span>';
+      if (issue.plan_status === 'planning')
+        planBadge = '<span class="card-plan-badge planning" title="Planning phase">&#128203; Planning</span>';
+      else if (issue.plan_status === 'plan_review')
+        planBadge = '<span class="card-plan-badge review" title="Plan awaiting review">&#128203; Plan Ready</span>';
+      else if (issue.plan_status === 'approved')
+        planBadge = '<span class="card-plan-badge approved"' +
+          ' title="Plan approved, executing">&#128203; Executing</span>';
 
       return `
         <div class="card${highPriority}" draggable="true" data-id="${issue.id}"
@@ -829,7 +881,8 @@ defmodule SymphonyElixir.Server.BoardUI do
       document.getElementById('form-priority').value = (issue.priority || 0).toString();
       document.getElementById('form-labels').value = (issue.labels || []).join(', ');
       document.getElementById('form-followups').checked = issue.propose_followups !== false;
-      document.getElementById('form-plan-first').checked = issue.plan_status === 'planning' || issue.plan_status === 'plan_review';
+      document.getElementById('form-plan-first').checked =
+        issue.plan_status === 'planning' || issue.plan_status === 'plan_review';
       document.getElementById('modal-title').textContent = `Edit ${issue.identifier}`;
       document.getElementById('form-submit').textContent = 'Save Changes';
 
@@ -911,11 +964,13 @@ defmodule SymphonyElixir.Server.BoardUI do
       var pills = [];
       formSkillIds.forEach(function(sid) {
         var s = allSkillsCache.find(function(sk) { return sk.id === sid; });
-        if (s) pills.push('<span class="form-skill-pill">' + esc(s.name) + '<button type="button" onclick="formRemoveSkill(\'' + sid + '\')">&times;</button></span>');
+        if (s) pills.push('<span class="form-skill-pill">' + esc(s.name) +
+          '<button type="button" onclick="formRemoveSkill(\'' + sid + '\')">&times;</button></span>');
       });
       formGroupIds.forEach(function(gid) {
         var g = allGroupsCache.find(function(gr) { return gr.id === gid; });
-        if (g) pills.push('<span class="form-skill-pill group">' + esc(g.name) + '<button type="button" onclick="formRemoveGroup(\'' + gid + '\')">&times;</button></span>');
+        if (g) pills.push('<span class="form-skill-pill group">' + esc(g.name) +
+          '<button type="button" onclick="formRemoveGroup(\'' + gid + '\')">&times;</button></span>');
       });
       container.innerHTML = pills.join('');
       populateFormSkillSelect();
@@ -1074,7 +1129,11 @@ defmodule SymphonyElixir.Server.BoardUI do
             fetch(`${API}/issues`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title: issueData.title, state: issueData.state, priority: issueData.priority, labels: issueData.labels, description: issueData.description, project_id: issueData.project_id })
+              body: JSON.stringify({
+                title: issueData.title, state: issueData.state,
+                priority: issueData.priority, labels: issueData.labels,
+                description: issueData.description, project_id: issueData.project_id
+              })
             }).then(function() { loadBoard(); });
           } : null
         });
@@ -1086,7 +1145,8 @@ defmodule SymphonyElixir.Server.BoardUI do
     async function clearColumn(state) {
       const colIssues = boardData.columns.find(c => c.state === state)?.issues || [];
       if (colIssues.length === 0) return;
-      if (!confirm(`Delete all ${colIssues.length} issue${colIssues.length !== 1 ? 's' : ''} in "${state}"? This cannot be undone.`)) return;
+      if (!confirm(`Delete all ${colIssues.length} issue${colIssues.length !== 1 ? 's' : ''}` +
+        ` in "${state}"? This cannot be undone.`)) return;
       try {
         await Promise.all(colIssues.map(i => fetch(`${API}/issues/${i.id}`, { method: 'DELETE' })));
         await loadBoard();

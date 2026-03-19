@@ -38,20 +38,6 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
     end
   end
 
-  describe "schedule_continuation/3" do
-    test "creates a retry entry with short delay" do
-      state = %State{}
-      state = Retry.schedule_continuation(state, "issue-1", "MT-100")
-
-      assert Map.has_key?(state.retry_attempts, "issue-1")
-      entry = state.retry_attempts["issue-1"]
-      assert entry.attempt == 1
-      assert entry.error == nil
-      assert is_integer(entry.due_at_ms)
-      assert is_reference(entry.timer_ref)
-    end
-  end
-
   describe "schedule_failure_retry/6" do
     test "creates a retry entry with backoff delay", %{config: config} do
       state = %State{}
@@ -64,8 +50,8 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
     end
 
     test "replaces existing retry entry", %{config: config} do
-      state = Retry.schedule_continuation(%State{}, "issue-1", "MT-100")
-      old_entry = state.retry_attempts["issue-1"]
+      old_entry = %{issue_id: "issue-1", identifier: "MT-100", attempt: 1, error: nil, due_at_ms: 0, timer_ref: nil}
+      state = %State{retry_attempts: %{"issue-1" => old_entry}}
 
       state = Retry.schedule_failure_retry(state, config, "issue-1", "MT-100", 3, "error")
       new_entry = state.retry_attempts["issue-1"]
@@ -107,15 +93,16 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
   describe "handle_retry/4" do
     test "dispatches when issue found and slots available", %{config: config} do
       issue = make_issue("issue-1", "MT-100", "In Progress")
-      state = Retry.schedule_continuation(%State{}, "issue-1", "MT-100")
+      entry = %{issue_id: "issue-1", identifier: "MT-100", attempt: 1, error: nil, due_at_ms: 0, timer_ref: nil}
+      state = %State{retry_attempts: %{"issue-1" => entry}}
 
       {result, _state} = Retry.handle_retry(state, config, "issue-1", [issue])
       assert {:dispatch, %Issue{}} = result
     end
 
     test "releases claim when issue not in candidates", %{config: config} do
-      state = Retry.schedule_continuation(%State{}, "issue-1", "MT-100")
-      state = %{state | claimed: MapSet.put(state.claimed, "issue-1")}
+      entry = %{issue_id: "issue-1", identifier: "MT-100", attempt: 1, error: nil, due_at_ms: 0, timer_ref: nil}
+      state = %State{retry_attempts: %{"issue-1" => entry}, claimed: MapSet.new(["issue-1"])}
 
       {result, state} = Retry.handle_retry(state, config, "issue-1", [])
       assert result == :released
@@ -153,18 +140,4 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
     end
   end
 
-  describe "cancel_retry/2" do
-    test "removes retry entry" do
-      state = Retry.schedule_continuation(%State{}, "issue-1", "MT-100")
-      assert Map.has_key?(state.retry_attempts, "issue-1")
-
-      state = Retry.cancel_retry(state, "issue-1")
-      refute Map.has_key?(state.retry_attempts, "issue-1")
-    end
-
-    test "is a no-op for nonexistent entry" do
-      state = %State{}
-      assert state == Retry.cancel_retry(state, "nonexistent")
-    end
-  end
 end

@@ -72,15 +72,6 @@ defmodule SymphonyElixir.AppServer.ProtocolTest do
     end
   end
 
-  describe "tool_call_success/2" do
-    test "builds a tool call success response" do
-      msg = Protocol.tool_call_success("tool-1", %{"key" => "value"})
-      assert msg["id"] == "tool-1"
-      assert msg["result"]["success"] == true
-      assert msg["result"]["data"]["key"] == "value"
-    end
-  end
-
   describe "encode/1 and decode/1" do
     test "roundtrips a message through encode/decode" do
       msg = Protocol.initialize()

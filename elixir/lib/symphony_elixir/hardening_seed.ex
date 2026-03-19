@@ -25,9 +25,11 @@ defmodule SymphonyElixir.HardeningSeed do
   # Phase definitions: {node_id, scan_skill, apply_skill, label, description}
   @phase_1 [
     {"lint-format", "hardening-lint-format-scan", "hardening-lint-format-apply", "Lint & Format",
-     "Lint and auto-format the entire codebase. Detects tech stack per subproject and runs appropriate tools (ruff, credo, eslint, gofmt, etc.)."},
+     "Lint and auto-format the entire codebase. Detects tech stack per subproject and runs" <>
+       " appropriate tools (ruff, credo, eslint, gofmt, etc.)."},
     {"dead-code", "hardening-dead-code-scan", "hardening-dead-code-apply", "Dead Code Removal",
-     "Find and remove unused functions, modules, imports, unreachable branches, and stale files across all subprojects."},
+     "Find and remove unused functions, modules, imports, unreachable branches, and stale files" <>
+       " across all subprojects."},
     {"dep-audit", "hardening-dependency-audit-scan", "hardening-dependency-audit-apply", "Dependency Audit",
      "Audit all dependencies for vulnerabilities, outdated versions, and unused packages."},
     {"security-scan", "hardening-security-scan-scan", "hardening-security-scan-apply", "Security Scan",
@@ -209,7 +211,10 @@ defmodule SymphonyElixir.HardeningSeed do
 
       gate_node =
         node_def(gate_id, "human_gate", "Review: #{label}", %{
-          "instructions" => "Review each finding individually. Accept the ones you want applied, discard the rest."
+          "instructions" => "Review each finding individually. Accept the ones you want applied, discard the rest.",
+          "gate_prompt" =>
+            "Review the #{label} scan results below. Check each finding you want applied and" <>
+              " uncheck the ones to skip. Then approve to apply accepted findings, or reject to re-scan."
         }, %{
           "x" => x,
           "y" => y_base + scan_to_gate

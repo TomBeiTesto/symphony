@@ -4,7 +4,7 @@ defmodule SymphonyElixir.GitLab.ClientTest do
   alias SymphonyElixir.GitLab.Client, as: GitLabClient
   alias SymphonyElixir.Config
 
-  # ── helpers ──────────────────────────────────────────────────────────────
+  # -- helpers ----------------------------------------------------------------------
 
   defp gitlab_config(overrides \\ %{}) do
     base = %{
@@ -20,7 +20,7 @@ defmodule SymphonyElixir.GitLab.ClientTest do
     config
   end
 
-  # ── derive_state/3 ──────────────────────────────────────────────────────
+  # -- derive_state/3 ----------------------------------------------------------------------
 
   describe "derive_state/3" do
     test "returns first matching label from known states" do
@@ -56,7 +56,7 @@ defmodule SymphonyElixir.GitLab.ClientTest do
     end
   end
 
-  # ── fetch_candidate_issues/1 ────────────────────────────────────────────
+  # -- fetch_candidate_issues/1 ----------------------------------------------------------------------
 
   describe "fetch_candidate_issues/1 (unit, no HTTP)" do
     test "returns ok with empty list when API returns empty array" do
@@ -70,16 +70,16 @@ defmodule SymphonyElixir.GitLab.ClientTest do
     end
   end
 
-  # ── fetch_issues_by_states/2 ────────────────────────────────────────────
+  # -- fetch_issues_by_states/2 ----------------------------------------------------------------------
 
   describe "fetch_issues_by_states/2" do
-    test "returns ok with empty list for empty state_names" do
+    test "returns empty list for empty state_names" do
       config = gitlab_config()
       assert {:ok, []} = GitLabClient.fetch_issues_by_states(config, [])
     end
   end
 
-  # ── fetch_issue_states_by_ids/2 ─────────────────────────────────────────
+  # -- fetch_issue_states_by_ids/2 ----------------------------------------------------------------------
 
   describe "fetch_issue_states_by_ids/2" do
     test "returns empty list for empty ids" do
@@ -106,7 +106,7 @@ defmodule SymphonyElixir.GitLab.ClientTest do
     end
   end
 
-  # ── default endpoint ────────────────────────────────────────────────────
+  # -- default endpoint ----------------------------------------------------------------------
 
   describe "default endpoint" do
     test "gitlab kind defaults to gitlab.com API" do

@@ -8,7 +8,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   alias SymphonyElixir.Server.UIHelpers
 
-  # ── Pipeline List Page ──────────────────────────────────────────
+  # ── Pipeline List Page ──────────────────────
 
   @spec render_list() :: String.t()
   def render_list do
@@ -184,7 +184,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       var waiting = Object.values(states).filter(function(s) { return s === 'waiting_gate'; }).length;
       var detail = done + '/' + total + ' nodes';
       if (waiting > 0) detail += ', ' + waiting + ' waiting';
-      return '<div class="run-badge ' + cls + '" title="' + detail + '"><span class="run-dot"></span> ' + label + ' <span class="run-detail">' + detail + '</span></div>';
+      return '<div class="run-badge ' + cls + '" title="' + detail + '">' +
+        '<span class="run-dot"></span> ' + label +
+        ' <span class="run-detail">' + detail + '</span></div>';
     }
 
     function renderGrid() {
@@ -212,8 +214,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
               <span>${edgeCount} connections</span>
             </div>
             <div class="pipeline-card-actions">
-              <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); duplicatePipeline('${p.id}')">Duplicate</button>
-              <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="event.stopPropagation(); deletePipeline('${p.id}')">Delete</button>
+              <button class="btn btn-sm btn-ghost"
+                onclick="event.stopPropagation(); duplicatePipeline('${p.id}')">Duplicate</button>
+              <button class="btn btn-sm btn-ghost" style="color:var(--red)"
+                onclick="event.stopPropagation(); deletePipeline('${p.id}')">Delete</button>
             </div>
           </div>`;
       }).join('');
@@ -245,7 +249,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
         const s = nodeMap[e.source_node_id];
         const t = nodeMap[e.target_node_id];
         if (s && t) {
-          svg += `<line x1="${s.position.x + 100}" y1="${s.position.y + 30}" x2="${t.position.x + 100}" y2="${t.position.y + 30}" stroke="#30363d" stroke-width="2"/>`;
+          svg += `<line x1="${s.position.x + 100}" y1="${s.position.y + 30}"` +
+            ` x2="${t.position.x + 100}" y2="${t.position.y + 30}" stroke="#30363d" stroke-width="2"/>`;
         }
       });
 
@@ -255,7 +260,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
         if (n.type === 'start' || n.type === 'end') {
           svg += `<circle cx="${n.position.x + 100}" cy="${n.position.y + 30}" r="8" fill="${c}" opacity="0.8"/>`;
         } else {
-          svg += `<rect x="${n.position.x}" y="${n.position.y}" width="200" height="48" rx="6" fill="${c}" opacity="0.15" stroke="${c}" stroke-width="1.5"/>`;
+          svg += `<rect x="${n.position.x}" y="${n.position.y}"` +
+            ` width="200" height="48" rx="6" fill="${c}" opacity="0.15" stroke="${c}" stroke-width="1.5"/>`;
         }
       });
 
@@ -339,21 +345,28 @@ defmodule SymphonyElixir.Server.PipelineUI do
           '<td>' + (typeLabels[g.node_type] || g.node_type) + '</td>' +
           '<td><span class="gate-state-badge ' + stateClass + '">' + stateLabel + '</span></td>' +
           '<td>' + g.attempts + '</td>' +
-          '<td><a href="/pipeline/' + g.pipeline_id + '" style="color:var(--accent);text-decoration:none">Open</a></td>' +
+          '<td><a href="/pipeline/' + g.pipeline_id +
+            '" style="color:var(--accent);text-decoration:none">Open</a></td>' +
           '</tr>';
       }).join('');
 
       container.innerHTML = '<div class="gates-panel">' +
-        '<div class="gates-panel-header"><h3>Waiting Gates</h3><span class="gate-count">' + waitingGates.length + '</span></div>' +
+        '<div class="gates-panel-header"><h3>Waiting Gates</h3>' +
+        '<span class="gate-count">' + waitingGates.length + '</span></div>' +
         '<table class="gate-table">' +
-        '<tr><th class="gate-check"><input type="checkbox" id="gate-select-all" onchange="toggleAllGates(this.checked)"></th>' +
+        '<tr><th class="gate-check">' +
+        '<input type="checkbox" id="gate-select-all" onchange="toggleAllGates(this.checked)"></th>' +
         '<th>Pipeline</th><th>Gate</th><th>Type</th><th>State</th><th>Attempts</th><th></th></tr>' +
         rows + '</table>' +
         '<div class="batch-bar">' +
         '<span class="selected-count" id="gate-selected-count">0 selected</span>' +
-        '<textarea id="batch-gate-feedback" rows="1" placeholder="Feedback (optional)" style="flex:1;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:6px;font-size:0.8rem;resize:none"></textarea>' +
-        '<button class="btn btn-sm" style="background:var(--green);color:#fff" onclick="batchGateAction(\'approve\')">Approve</button>' +
-        '<button class="btn btn-sm" style="background:var(--red);color:#fff" onclick="batchGateAction(\'reject\')">Reject</button>' +
+        '<textarea id="batch-gate-feedback" rows="1" placeholder="Feedback (optional)"' +
+        ' style="flex:1;background:var(--bg-tertiary);border:1px solid var(--border);' +
+        'border-radius:6px;color:var(--text-primary);padding:6px;font-size:0.8rem;resize:none"></textarea>' +
+        '<button class="btn btn-sm" style="background:var(--green);color:#fff"' +
+        ' onclick="batchGateAction(\'approve\')">Approve</button>' +
+        '<button class="btn btn-sm" style="background:var(--red);color:#fff"' +
+        ' onclick="batchGateAction(\'reject\')">Reject</button>' +
         '<button class="btn btn-sm btn-ghost" onclick="batchGateAction(\'hold\')">Hold</button>' +
         '</div></div>';
 
@@ -382,7 +395,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
         const g = waitingGates[parseInt(cb.dataset.idx)];
         if (!g) continue;
         try {
-          const res = await fetch('/board/api/pipelines/' + g.pipeline_id + '/runs/' + g.run_id + '/gate/' + g.node_id, {
+          const res = await fetch('/board/api/pipelines/' + g.pipeline_id +
+            '/runs/' + g.run_id + '/gate/' + g.node_id, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: action, feedback: feedback })
@@ -390,14 +404,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
           if (res.ok) ok++; else fail++;
         } catch(e) { fail++; }
       }
-      showToast(ok + ' gate(s) ' + action + 'd' + (fail > 0 ? ', ' + fail + ' failed' : ''), { type: fail > 0 ? 'warning' : 'success' });
+      showToast(ok + ' gate(s) ' + action + 'd' + (fail > 0 ? ', ' + fail + ' failed' : ''),
+        { type: fail > 0 ? 'warning' : 'success' });
       loadWaitingGates();
       loadPipelines();
     }
     """
   end
 
-  # ── Pipeline Designer Page ──────────────────────────────────────
+  # ── Pipeline Designer Page ──────────────────────
 
   @spec render_designer(map()) :: String.t()
   def render_designer(pipeline) do
@@ -423,7 +438,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
           <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#58a6ff"/></svg>
         </div>
         <div class="palette-item" draggable="true" data-type="issue" title="Issue / Task">
-          <svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="2" fill="#58a6ff"/></svg>
+          <svg viewBox="0 0 16 16" width="16" height="16">
+            <rect x="2" y="2" width="12" height="12" rx="2" fill="#58a6ff"/></svg>
         </div>
         <div class="palette-item" draggable="true" data-type="human_gate" title="Human Gate">
           <svg viewBox="0 0 16 16" width="16" height="16"><polygon points="8,1 15,8 8,15 1,8" fill="#d29922"/></svg>
@@ -432,13 +448,17 @@ defmodule SymphonyElixir.Server.PipelineUI do
           <svg viewBox="0 0 16 16" width="16" height="16"><polygon points="8,1 15,8 8,15 1,8" fill="#bc8cff"/></svg>
         </div>
         <div class="palette-item" draggable="true" data-type="loop" title="Loop">
-          <svg viewBox="0 0 16 16" width="16" height="16"><path d="M4 8a4 4 0 0 1 8 0" stroke="#d18616" stroke-width="2" fill="none"/><path d="M10 6l2 2-2 2" stroke="#d18616" stroke-width="2" fill="none"/></svg>
+          <svg viewBox="0 0 16 16" width="16" height="16">
+            <path d="M4 8a4 4 0 0 1 8 0" stroke="#d18616" stroke-width="2" fill="none"/>
+            <path d="M10 6l2 2-2 2" stroke="#d18616" stroke-width="2" fill="none"/></svg>
         </div>
         <div class="palette-item" draggable="true" data-type="kb_sync" title="KB Sync">
-          <svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="2" fill="#3fb950"/></svg>
+          <svg viewBox="0 0 16 16" width="16" height="16">
+            <rect x="2" y="2" width="12" height="12" rx="2" fill="#3fb950"/></svg>
         </div>
         <div class="palette-item" draggable="true" data-type="integration" title="Integration">
-          <svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="2" fill="#8b949e"/></svg>
+          <svg viewBox="0 0 16 16" width="16" height="16">
+            <rect x="2" y="2" width="12" height="12" rx="2" fill="#8b949e"/></svg>
         </div>
         <div class="palette-item" draggable="true" data-type="end" title="End">
           <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#3fb950"/></svg>
@@ -469,7 +489,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
       <!-- Floating actions bottom-right -->
       <div class="canvas-actions">
-        <button class="btn btn-sm btn-ghost" onclick="toggleRunHistory()" id="history-btn" title="Run History">&#128337; History</button>
+        <button class="btn btn-sm btn-ghost" onclick="toggleRunHistory()"
+          id="history-btn" title="Run History">&#128337; History</button>
         <button class="btn btn-sm btn-ghost" onclick="toggleExecution()" id="run-btn">&#9654; Run</button>
         <button class="btn btn-sm btn-primary" onclick="savePipeline()">Save</button>
       </div>
@@ -486,18 +507,23 @@ defmodule SymphonyElixir.Server.PipelineUI do
       <!-- Pipeline name / breadcrumb top-left below topbar -->
       <div class="canvas-breadcrumb">
         <a href="/board/pipeline" class="btn btn-ghost btn-sm">&larr; Pipelines</a>
-        <input id="pipeline-name" class="pipeline-name-input" value="#{UIHelpers.esc(pipeline.name)}" onchange="markDirty()">
+        <input id="pipeline-name" class="pipeline-name-input"
+          value="#{UIHelpers.esc(pipeline.name)}" onchange="markDirty()">
         <span style="color:var(--border);font-size:0.9rem">/</span>
-        <input id="pipeline-desc" class="pipeline-desc-input" placeholder="Add description..." value="#{UIHelpers.esc(pipeline.description || "")}" onchange="markDirty()">
+        <input id="pipeline-desc" class="pipeline-desc-input"
+          placeholder="Add description..."
+          value="#{UIHelpers.esc(pipeline.description || "")}" onchange="markDirty()">
         <span style="color:var(--border);font-size:0.9rem">/</span>
         <select id="pipeline-product" class="pipeline-product-select" onchange="markDirty()">
           <option value="">No product</option>
         </select>
-        <button class="btn btn-ghost btn-sm" onclick="toggleHelpModal()" title="Keyboard shortcuts" style="margin-left:auto">?</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleHelpModal()"
+          title="Keyboard shortcuts" style="margin-left:auto">?</button>
       </div>
 
       <!-- Help modal -->
-      <div class="modal-overlay" id="help-modal" style="display:none" onclick="if(event.target===this)closeHelpModal()">
+      <div class="modal-overlay" id="help-modal" style="display:none"
+        onclick="if(event.target===this)closeHelpModal()">
         <div class="modal" style="max-width:440px">
           <div class="modal-header">
             <h3>Keyboard Shortcuts</h3>
@@ -505,12 +531,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>
           <div class="modal-body" style="font-size:0.85rem">
             <table style="width:100%;border-collapse:collapse">
-              <tr><td style="padding:4px 0;color:var(--text-muted)">Save</td><td style="text-align:right"><kbd>Ctrl+S</kbd></td></tr>
-              <tr><td style="padding:4px 0;color:var(--text-muted)">Undo</td><td style="text-align:right"><kbd>Ctrl+Z</kbd></td></tr>
-              <tr><td style="padding:4px 0;color:var(--text-muted)">Redo</td><td style="text-align:right"><kbd>Ctrl+Y</kbd> / <kbd>Ctrl+Shift+Z</kbd></td></tr>
-              <tr><td style="padding:4px 0;color:var(--text-muted)">Delete node</td><td style="text-align:right"><kbd>Delete</kbd> / <kbd>Backspace</kbd></td></tr>
-              <tr><td style="padding:4px 0;color:var(--text-muted)">Deselect / Close</td><td style="text-align:right"><kbd>Escape</kbd></td></tr>
-              <tr><td style="padding:4px 0;color:var(--text-muted)">Show help</td><td style="text-align:right"><kbd>?</kbd></td></tr>
+              <tr><td style="padding:4px 0;color:var(--text-muted)">Save</td>
+                <td style="text-align:right"><kbd>Ctrl+S</kbd></td></tr>
+              <tr><td style="padding:4px 0;color:var(--text-muted)">Undo</td>
+                <td style="text-align:right"><kbd>Ctrl+Z</kbd></td></tr>
+              <tr><td style="padding:4px 0;color:var(--text-muted)">Redo</td>
+                <td style="text-align:right"><kbd>Ctrl+Y</kbd> / <kbd>Ctrl+Shift+Z</kbd></td></tr>
+              <tr><td style="padding:4px 0;color:var(--text-muted)">Delete node</td>
+                <td style="text-align:right"><kbd>Delete</kbd> / <kbd>Backspace</kbd></td></tr>
+              <tr><td style="padding:4px 0;color:var(--text-muted)">Deselect / Close</td>
+                <td style="text-align:right"><kbd>Escape</kbd></td></tr>
+              <tr><td style="padding:4px 0;color:var(--text-muted)">Show help</td>
+                <td style="text-align:right"><kbd>?</kbd></td></tr>
             </table>
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);color:var(--text-muted)">
               <strong style="color:var(--text-primary)">Mouse</strong><br>
@@ -525,7 +557,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       </div>
 
       <!-- Create Issue modal (shared) -->
-    #{UIHelpers.create_issue_modal_html(prefix: "ci", on_submit: "submitCreateIssue", on_cancel: "closeCreateIssueModal", submit_label: "Create &amp; Link", z_index: 1010, ai_draft: true, show_skills_picker: true)}
+    #{UIHelpers.create_issue_modal_html(prefix: "ci", on_submit: "submitCreateIssue",
+      on_cancel: "closeCreateIssueModal", submit_label: "Create &amp; Link",
+      z_index: 1010, ai_draft: true, show_skills_picker: true)}
 
       <!-- Config modal -->
       <div class="modal-overlay" id="config-modal" style="display:none" onclick="if(event.target===this)closeConfig()">
@@ -639,7 +673,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .p-node-top { height: 4px; border-radius: 8px 8px 0 0; }
       .p-node-body { padding: 8px 12px; }
       .p-node-type { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-      .p-node-label { font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .p-node-label { font-size: 0.85rem; font-weight: 500; color: var(--text-primary);
+        margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .p-node-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
 
       /* Start/End special nodes */
@@ -742,7 +777,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
       /* Execution sidebar */
       .exec-sidebar {
-        position: fixed; top: 48px; right: 0; bottom: 0; width: 320px;
+        position: fixed; top: 48px; right: 0; bottom: 0; width: 480px;
         background: rgba(22,27,34,0.95); border-left: 1px solid var(--border);
         z-index: 110; transform: translateX(100%);
         transition: transform 250ms ease; overflow-y: auto; padding: 16px;
@@ -750,7 +785,89 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .exec-sidebar.open { transform: translateX(0); }
       .exec-sidebar h3 { font-size: 0.95rem; margin-bottom: 12px; }
       .gate-action { margin-top: 12px; display: flex; gap: 6px; }
-      .gate-feedback { width: 100%; margin-top: 8px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); padding: 8px; font-size: 0.85rem; resize: vertical; min-height: 60px; }
+      .gate-feedback { width: 100%; margin-top: 8px; background: var(--bg-tertiary);
+        border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);
+        padding: 8px; font-size: 0.85rem; resize: vertical; min-height: 60px; }
+
+      /* Gate prompt banner */
+      .gate-prompt-banner {
+        margin-top: 12px; padding: 10px 12px;
+        background: linear-gradient(135deg, rgba(56,139,253,0.08), rgba(56,139,253,0.03));
+        border: 1px solid rgba(56,139,253,0.3); border-radius: 8px;
+      }
+
+      /* Accordion styles */
+      .accordion-header {
+        font-size: 0.78rem; font-weight: 500; color: var(--text-secondary);
+        cursor: pointer; padding: 6px 8px; border-radius: 4px;
+        background: var(--bg-secondary); border: 1px solid var(--border);
+        list-style: none; user-select: none;
+      }
+      .accordion-header::-webkit-details-marker { display: none; }
+      .accordion-header::before {
+        content: '\\25B6'; display: inline-block; margin-right: 6px;
+        font-size: 0.6rem; transition: transform 150ms ease;
+      }
+      details[open] > .accordion-header::before { transform: rotate(90deg); }
+      .accordion-body {
+        padding: 8px 10px; font-size: 0.8rem; color: var(--text-secondary);
+        border-left: 2px solid var(--border); margin-left: 4px; margin-top: 4px;
+      }
+
+      /* Issue accordion */
+      .issue-accordion { margin-bottom: 6px; }
+      .issue-accordion > .accordion-header {
+        font-size: 0.8rem; padding: 8px 10px;
+      }
+
+      /* Report sections inside accordions */
+      .report-section {
+        margin-top: 8px; padding: 8px; background: var(--bg-tertiary);
+        border-radius: 6px; border: 1px solid var(--border);
+      }
+      .report-section-title {
+        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
+        color: var(--text-muted); margin-bottom: 4px; font-weight: 600;
+      }
+      .report-content {
+        font-size: 0.78rem; line-height: 1.5; color: var(--text-secondary);
+        max-height: 300px; overflow-y: auto;
+      }
+
+      /* Finding cards */
+      .finding-card {
+        padding: 8px 10px; background: var(--bg-secondary);
+        border: 1px solid var(--border); border-radius: 6px;
+        margin-bottom: 6px; transition: opacity 200ms ease;
+      }
+      .finding-card[data-decision="rejected"] {
+        border-color: rgba(248,81,73,0.3);
+      }
+      .finding-card[data-decision="accepted"] {
+        border-color: rgba(63,185,80,0.3);
+      }
+      .finding-header {
+        display: flex; align-items: flex-start; gap: 8px;
+      }
+      .finding-actions {
+        display: flex; gap: 4px; flex-shrink: 0;
+      }
+      .finding-btn {
+        width: 28px; height: 28px; border-radius: 4px;
+        border: 1px solid var(--border); background: var(--bg-tertiary);
+        color: var(--text-muted); cursor: pointer; font-size: 0.85rem;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 150ms ease;
+      }
+      .finding-btn:hover { border-color: var(--text-secondary); }
+      .finding-accept.active {
+        background: rgba(63,185,80,0.15); border-color: var(--green);
+        color: var(--green);
+      }
+      .finding-reject.active {
+        background: rgba(248,81,73,0.15); border-color: var(--red);
+        color: var(--red);
+      }
 
       /* Minimap */
       .minimap {
@@ -832,9 +949,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp state_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // State
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     let pipeline = JSON.parse(JSON.stringify(PIPELINE_DATA));
     let nodes = pipeline.nodes || [];
     let edges = pipeline.edges || [];
@@ -903,9 +1020,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp render_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Render
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     function render() {
       applyTransform();
       renderNodes();
@@ -949,7 +1066,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
           let meta = '';
           if (n.type === 'issue' && n.issue_id) meta = '<div class="p-node-meta">Linked issue</div>';
-          if (n.type === 'loop') meta = '<div class="p-node-meta">Max retries: ' + (n.loop_max_retries || '∞') + '</div>';
+          if (n.type === 'loop') meta =
+            '<div class="p-node-meta">Max retries: ' + (n.loop_max_retries || '∞') + '</div>';
           if (n.type === 'integration') meta = '<div class="p-node-meta">' + integrationNodeMeta(n) + '</div>';
 
           el.innerHTML = `
@@ -961,16 +1079,20 @@ defmodule SymphonyElixir.Server.PipelineUI do
             </div>
             <div class="port port-in" data-node="${n.id}" data-port="input"></div>
             <div class="port port-out" data-node="${n.id}" data-port="output"></div>
-            ${(n.type === 'human_gate' || n.type === 'quality_gate') ? '<div class="port port-reject" data-node="' + n.id + '" data-port="reject"></div>' : ''}
+            ${(n.type === 'human_gate' || n.type === 'quality_gate')
+              ? '<div class="port port-reject" data-node="' + n.id + '" data-port="reject"></div>' : ''}
           `;
 
           // Selected toolbar
           if (n.id === selectedNodeId && !execMode) {
             el.innerHTML += `
               <div class="node-toolbar">
-                <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); openConfig('${n.id}')">Configure</button>
-                <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); duplicateNode('${n.id}')">Duplicate</button>
-                <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="event.stopPropagation(); deleteNode('${n.id}')">Delete</button>
+                <button class="btn btn-sm btn-ghost"
+                  onclick="event.stopPropagation(); openConfig('${n.id}')">Configure</button>
+                <button class="btn btn-sm btn-ghost"
+                  onclick="event.stopPropagation(); duplicateNode('${n.id}')">Duplicate</button>
+                <button class="btn btn-sm btn-ghost" style="color:var(--red)"
+                  onclick="event.stopPropagation(); deleteNode('${n.id}')">Delete</button>
               </div>`;
           }
 
@@ -1054,7 +1176,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
             edges = edges.filter(x => x.id !== removedEdge.id);
             markDirty();
             render();
-            showToast('Connection deleted', { type: 'success', undo: function() { edges.push(removedEdge); undo(); } });
+            showToast('Connection deleted', { type: 'success',
+              undo: function() { edges.push(removedEdge); undo(); } });
           }
         });
 
@@ -1082,9 +1205,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp pan_zoom_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Pan & Zoom
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     viewport.addEventListener('mousedown', e => {
       if (e.target === viewport || e.target === transform || e.target === edgeLayer) {
         if (e.button === 0) {
@@ -1186,9 +1309,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp node_interaction_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Node interaction (drag, select, connect)
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     nodeLayer.addEventListener('mousedown', e => {
       const port = e.target.closest('.port');
       if (port) {
@@ -1267,9 +1390,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
     });
 
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Temp edge for connection drawing
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     let tempLine = null;
     function clientToCanvas(cx, cy) {
       const rect = viewport.getBoundingClientRect();
@@ -1320,9 +1443,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp palette_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Palette drag-and-drop
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     document.querySelectorAll('.palette-item').forEach(item => {
       item.addEventListener('dragstart', e => {
         e.dataTransfer.setData('node-type', item.dataset.type);
@@ -1436,9 +1559,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp config_modal_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Configuration modal
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     let configNodeId = null;
 
     function openConfig(nodeId) {
@@ -1458,13 +1581,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
         var cfg = node.config || {};
         html += `
           <div class="form-group">
-            <label>Linked Issue ID <span style="font-weight:400;color:var(--text-muted)">(leave empty for template mode)</span></label>
+            <label>Linked Issue ID
+              <span style="font-weight:400;color:var(--text-muted)">(leave empty for template mode)</span></label>
             <input id="cfg-issue-id" value="${esc(node.issue_id || '')}" placeholder="Select or enter issue ID">
             <div id="issue-picker" style="margin-top:4px"></div>
           </div>
           <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:8px">
             <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">
-              <strong>Template mode:</strong> If no issue is linked, the pipeline auto-creates one from this template at runtime — scoped to the pipeline's product.
+              <strong>Template mode:</strong> If no issue is linked, the pipeline auto-creates one
+              from this template at runtime — scoped to the pipeline's product.
             </div>
             <div class="form-group">
               <label>Template Title</label>
@@ -1472,15 +1597,19 @@ defmodule SymphonyElixir.Server.PipelineUI do
             </div>
             <div class="form-group">
               <label>Template Description</label>
-              <textarea id="cfg-tpl-desc" rows="3" placeholder="Task description for the agent...">${esc(cfg.description || '')}</textarea>
+              <textarea id="cfg-tpl-desc" rows="3"
+                placeholder="Task description for the agent...">${esc(cfg.description || '')}</textarea>
             </div>
             <div class="form-group">
-              <label>Template Labels <span style="font-weight:400;color:var(--text-muted)">(comma-separated)</span></label>
-              <input id="cfg-tpl-labels" value="${esc((cfg.labels || []).join(', '))}" placeholder="e.g., extract-logic, research">
+              <label>Template Labels
+                <span style="font-weight:400;color:var(--text-muted)">(comma-separated)</span></label>
+              <input id="cfg-tpl-labels"
+                value="${esc((cfg.labels || []).join(', '))}" placeholder="e.g., extract-logic, research">
             </div>
           </div>
           <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
-            <button class="btn btn-ghost" type="button" onclick="openCreateIssueModal()" style="width:100%">+ Create new issue</button>
+            <button class="btn btn-ghost" type="button"
+              onclick="openCreateIssueModal()" style="width:100%">+ Create new issue</button>
           </div>`;
       }
 
@@ -1507,13 +1636,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>
           <div class="form-group">
             <label>Auto-approve Timeout (ms, blank = manual only)</label>
-            <input id="cfg-auto-timeout" type="number" value="${autoTimeout}" min="0" step="1000" placeholder="e.g. 300000 = 5 min">
+            <input id="cfg-auto-timeout" type="number" value="${autoTimeout}"
+              min="0" step="1000" placeholder="e.g. 300000 = 5 min">
           </div>
           <div class="form-group">
             <label>Auto-approve Condition</label>
             <select id="cfg-auto-cond">
               <option value="" ${autoCond === '' ? 'selected' : ''}>(None — manual only)</option>
-              <option value="all_predecessors_completed" ${autoCond === 'all_predecessors_completed' ? 'selected' : ''}>All predecessors completed</option>
+              <option value="all_predecessors_completed"
+                ${autoCond === 'all_predecessors_completed' ? 'selected' : ''}>All predecessors completed</option>
             </select>
           </div>
           <div class="form-group">
@@ -1536,7 +1667,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>
           <div class="form-group">
             <label>Check Commands (one per line: name:command)</label>
-            <textarea id="cfg-check-cmds" rows="3" placeholder="tests:mix test\nlint:mix credo">${esc(checkCmdsStr)}</textarea>
+            <textarea id="cfg-check-cmds" rows="3"
+              placeholder="tests:mix test\nlint:mix credo">${esc(checkCmdsStr)}</textarea>
           </div>
           <div class="form-group">
             <label>Auto-approve Timeout (ms, blank = manual only)</label>
@@ -1919,9 +2051,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp save_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Save
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     function markDirty() { dirty = true; }
 
     window.addEventListener('beforeunload', e => {
@@ -1987,9 +2119,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp execution_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Execution mode
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     async function toggleExecution() {
       if (execMode) {
         // Stop execution mode
@@ -2024,11 +2156,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
       // If pipeline has a default product, pre-select it
       var defaultProductId = pipeline.product_id || '';
 
-      // If nothing to pick from, start without scope
-      if (products.length === 0 && projects.length === 0) {
-        startRunWithScope(null, null);
-        return;
-      }
+      // If nothing to pick from, still show modal for description input
+
 
       // Build modal
       var overlay = document.createElement('div');
@@ -2048,8 +2177,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
           return '<option value="' + p.id + '">' + esc(p.name) + (p.path ? ' — ' + esc(p.path) : '') + '</option>';
         }).join('');
 
-      overlay.innerHTML = '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:360px;max-width:500px">' +
-        '<h3 style="margin:0 0 12px 0;color:var(--text-primary);font-size:1rem">Start Pipeline Run</h3>' +
+      var textareaStyle = 'width:100%;padding:8px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:0.85rem;margin-bottom:16px;resize:vertical;font-family:inherit';
+
+      overlay.innerHTML = '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:400px;max-width:560px">' +
+        '<h3 style="margin:0 0 16px 0;color:var(--text-primary);font-size:1rem">Start Pipeline Run</h3>' +
+        '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">What needs to be done?</label>' +
+        '<textarea id="run-input-description" rows="5" style="' + textareaStyle + '" placeholder="Describe the feature, bug fix, or task...\n\nE.g.: Add three new boolean fields (anonymize_name, anonymize_email, anonymize_phone) to the tenant model. These come in at the start of the ETL pipeline and control whether PII is stripped before loading."></textarea>' +
         '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">Product</label>' +
         '<select id="run-product-select" style="' + selectStyle + '" onchange="window._onRunProductChange()">' + productOpts + '</select>' +
         '<div id="run-project-row">' +
@@ -2082,17 +2215,20 @@ defmodule SymphonyElixir.Server.PipelineUI do
     async function confirmRunStart() {
       var productSelect = document.getElementById('run-product-select');
       var projectSelect = document.getElementById('run-project-select');
+      var descInput = document.getElementById('run-input-description');
       var productId = productSelect ? productSelect.value : null;
       var projectId = (!productId && projectSelect) ? projectSelect.value : null;
+      var inputDescription = descInput ? descInput.value.trim() : '';
       var overlay = document.getElementById('run-product-overlay');
       if (overlay) overlay.remove();
-      startRunWithScope(productId || null, projectId || null);
+      startRunWithScope(productId || null, projectId || null, inputDescription || null);
     }
 
-    async function startRunWithScope(productId, projectId) {
+    async function startRunWithScope(productId, projectId, inputDescription) {
       var body = {};
       if (productId) body.product_id = productId;
       if (projectId) body.project_id = projectId;
+      if (inputDescription) body.input_description = inputDescription;
 
       const res = await fetch('/board/api/pipelines/' + pipeline.id + '/run', {
         method: 'POST',
@@ -2135,8 +2271,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
             clearInterval(pollTimer);
             pollTimer = null;
           }
-          // Update sidebar if open
-          if (selectedNodeId) showExecSidebar(selectedNodeId);
+          // Update sidebar if open — but only if node state changed
+          if (selectedNodeId) {
+            var newState = (activeRun.node_states || {})[selectedNodeId] || 'pending';
+            if (newState !== window._sidebarNodeState) {
+              window._sidebarNodeState = newState;
+              window._gateContextLoadedFor = null;
+              showExecSidebar(selectedNodeId);
+            }
+          }
         }
       } catch(e) {}
     }
@@ -2145,6 +2288,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
       const sidebar = document.getElementById('exec-sidebar');
       if (sidebar) sidebar.classList.remove('open');
       selectedNodeId = null;
+      window._gateContextLoadedFor = null;
+      window._sidebarNodeState = null;
       render();
     }
 
@@ -2157,12 +2302,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (!node) { sidebar.innerHTML = ''; return; }
 
       const state = (activeRun.node_states || {})[nodeId] || 'pending';
+      window._sidebarNodeState = state;
       const attempts = (activeRun.node_attempts || {})[nodeId] || 0;
       const color = NODE_COLORS[node.type] || '#8b949e';
 
       let html = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <h3 style="border-left:3px solid ${color}; padding-left:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:250px; margin:0">${esc(node.label)}</h3>
+          <h3 style="border-left:3px solid ${color}; padding-left:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:400px; margin:0">${esc(node.label)}</h3>
           <button class="btn-icon" onclick="closeExecSidebar()" title="Close">&times;</button>
         </div>
         <div style="margin-top:8px; font-size:0.85rem; color:var(--text-muted)">
@@ -2213,11 +2359,29 @@ defmodule SymphonyElixir.Server.PipelineUI do
         html += '</div>';
       }
 
-      // Load gate context asynchronously for gate nodes
+      // Load gate context asynchronously for gate nodes (only once per node)
       sidebar.innerHTML = html;
       if ((node.type === 'human_gate' || node.type === 'quality_gate') && (state === 'waiting_gate' || state === 'on_hold')) {
-        loadGateContext(nodeId);
+        if (window._gateContextLoadedFor !== nodeId) {
+          window._gateContextLoadedFor = nodeId;
+          loadGateContext(nodeId);
+        }
+      } else {
+        window._gateContextLoadedFor = null;
       }
+    }
+
+    function renderMarkdown(text) {
+      if (!text) return '';
+      return esc(text)
+        .replace(/^### (.+)$/gm, '<h4 style="margin:8px 0 4px;font-size:0.82rem;color:var(--text-primary)">$1</h4>')
+        .replace(/^## (.+)$/gm, '<h3 style="margin:10px 0 4px;font-size:0.88rem;color:var(--text-primary)">$1</h3>')
+        .replace(/^# (.+)$/gm, '<h2 style="margin:12px 0 6px;font-size:0.95rem;color:var(--text-primary)">$1</h2>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code style="background:var(--bg-tertiary);padding:1px 4px;border-radius:3px;font-size:0.78rem">$1</code>')
+        .replace(/^- (.+)$/gm, '<div style="padding-left:12px">&#8226; $1</div>')
+        .replace(/^(\d+)\. (.+)$/gm, '<div style="padding-left:12px">$1. $2</div>')
+        .replace(/\n/g, '<br>');
     }
 
     async function loadGateContext(nodeId) {
@@ -2230,12 +2394,27 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
         var contextHtml = '';
 
-        // Instructions
-        if (ctx.instructions) {
-          contextHtml += '<div style="margin-top:12px;padding:8px;background:var(--bg-tertiary);border-radius:6px;font-size:0.82rem">';
-          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Review Instructions</strong>';
-          contextHtml += esc(ctx.instructions);
+        // Gate prompt banner — the key decision question
+        if (ctx.gate_prompt) {
+          contextHtml += '<div class="gate-prompt-banner">';
+          contextHtml += '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);margin-bottom:4px">Decision Required</div>';
+          contextHtml += '<div style="font-size:0.85rem;color:var(--text-primary);line-height:1.4">' + esc(ctx.gate_prompt) + '</div>';
           contextHtml += '</div>';
+        }
+
+        // Instructions (collapsible if gate_prompt exists)
+        if (ctx.instructions) {
+          if (ctx.gate_prompt) {
+            contextHtml += '<details style="margin-top:8px">';
+            contextHtml += '<summary class="accordion-header">Review Instructions</summary>';
+            contextHtml += '<div class="accordion-body">' + esc(ctx.instructions) + '</div>';
+            contextHtml += '</details>';
+          } else {
+            contextHtml += '<div class="gate-prompt-banner">';
+            contextHtml += '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px">Review Instructions</div>';
+            contextHtml += '<div style="font-size:0.85rem;color:var(--text-primary);line-height:1.4">' + esc(ctx.instructions) + '</div>';
+            contextHtml += '</div>';
+          }
         }
 
         // Quality checks
@@ -2248,23 +2427,65 @@ defmodule SymphonyElixir.Server.PipelineUI do
           contextHtml += '</div>';
         }
 
-        // Predecessor issues
+        // Predecessor issues — expandable accordions with inline reports
         if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
           contextHtml += '<div style="margin-top:10px">';
-          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Predecessor Issues</strong>';
-          ctx.predecessor_issues.forEach(function(issue) {
+          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:6px">Predecessor Issues (' + ctx.predecessor_issues.length + ')</strong>';
+          ctx.predecessor_issues.forEach(function(issue, idx) {
             var stateColor = issue.state === 'Done' ? 'var(--green)' : issue.state === 'Review' ? 'var(--yellow)' : 'var(--text-muted)';
-            contextHtml += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
-            contextHtml += '<a href="' + issue.url + '" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500">' + esc(issue.identifier) + '</a> ';
-            contextHtml += esc(issue.title);
-            contextHtml += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
-            if (issue.has_reports) contextHtml += ' <span style="font-size:0.65rem;color:var(--green)" title="Has agent reports">reports</span>';
-            contextHtml += '</div>';
+            var hasContent = issue.result_text || (issue.reports && issue.reports.length > 0) || issue.description;
+
+            if (hasContent) {
+              contextHtml += '<details class="issue-accordion"' + (idx === 0 ? ' open' : '') + '>';
+              contextHtml += '<summary class="accordion-header">';
+              contextHtml += '<span style="color:var(--accent);font-weight:500">' + esc(issue.identifier) + '</span> ';
+              contextHtml += esc(issue.title);
+              contextHtml += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
+              if (issue.reports && issue.reports.length > 0) contextHtml += ' <span style="font-size:0.65rem;color:var(--green)">&#128196; ' + issue.reports.length + '</span>';
+              contextHtml += '</summary>';
+              contextHtml += '<div class="accordion-body">';
+
+              // Issue description
+              if (issue.description) {
+                contextHtml += '<div class="report-section">';
+                contextHtml += '<div class="report-section-title">Description</div>';
+                contextHtml += '<div class="report-content">' + renderMarkdown(issue.description) + '</div>';
+                contextHtml += '</div>';
+              }
+
+              // Agent result text
+              if (issue.result_text) {
+                contextHtml += '<div class="report-section">';
+                contextHtml += '<div class="report-section-title">Agent Result</div>';
+                contextHtml += '<div class="report-content">' + renderMarkdown(issue.result_text) + '</div>';
+                contextHtml += '</div>';
+              }
+
+              // Report files
+              if (issue.reports && issue.reports.length > 0) {
+                issue.reports.forEach(function(report) {
+                  contextHtml += '<div class="report-section">';
+                  contextHtml += '<div class="report-section-title">' + esc(report.name) + '</div>';
+                  contextHtml += '<div class="report-content">' + renderMarkdown(report.content) + '</div>';
+                  contextHtml += '</div>';
+                });
+              }
+
+              contextHtml += '<div style="margin-top:6px"><a href="' + esc(issue.url) + '" target="_blank" class="btn btn-sm btn-ghost" style="font-size:0.72rem;text-decoration:none">Open Full Issue</a></div>';
+              contextHtml += '</div></details>';
+            } else {
+              // Simple row for issues without content
+              contextHtml += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
+              contextHtml += '<a href="' + esc(issue.url) + '" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500">' + esc(issue.identifier) + '</a> ';
+              contextHtml += esc(issue.title);
+              contextHtml += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
+              contextHtml += '</div>';
+            }
           });
           contextHtml += '</div>';
         }
 
-        // Per-finding checkboxes from predecessor scan outputs
+        // Per-finding accept/reject buttons from predecessor scan outputs
         if (ctx.predecessor_outputs) {
           var allFindings = [];
           Object.keys(ctx.predecessor_outputs).forEach(function(predId) {
@@ -2275,29 +2496,38 @@ defmodule SymphonyElixir.Server.PipelineUI do
           });
           if (allFindings.length > 0) {
             contextHtml += '<div style="margin-top:12px">';
-            contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:6px">Findings (' + allFindings.length + ') — check to accept</strong>';
-            contextHtml += '<div style="margin-bottom:4px"><button class="btn btn-sm btn-ghost" style="font-size:0.7rem" onclick="toggleAllFindings(true)">Select All</button> <button class="btn btn-sm btn-ghost" style="font-size:0.7rem" onclick="toggleAllFindings(false)">Deselect All</button></div>';
-            allFindings.forEach(function(f, i) {
+            contextHtml += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+            contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted)">Findings (' + allFindings.length + ')</strong>';
+            contextHtml += '<span style="display:flex;gap:4px"><button class="btn btn-sm btn-ghost" style="font-size:0.68rem;color:var(--green)" onclick="setAllFindings(true)">Accept All</button><button class="btn btn-sm btn-ghost" style="font-size:0.68rem;color:var(--red)" onclick="setAllFindings(false)">Reject All</button></span>';
+            contextHtml += '</div>';
+            allFindings.forEach(function(f) {
               var sevColor = f.severity === 'critical' ? 'var(--red)' : f.severity === 'high' ? '#f0883e' : f.severity === 'medium' ? 'var(--yellow)' : 'var(--text-muted)';
-              contextHtml += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
-              contextHtml += '<label style="display:flex;align-items:flex-start;gap:6px;cursor:pointer">';
-              contextHtml += '<input type="checkbox" class="finding-cb" data-finding-id="' + esc(f.id) + '" checked style="margin-top:3px">';
-              contextHtml += '<div>';
-              contextHtml += '<span style="color:' + sevColor + ';font-weight:500;font-size:0.7rem;text-transform:uppercase">' + esc(f.severity || 'info') + '</span> ';
-              contextHtml += '<span style="font-weight:500">' + esc(f.title) + '</span>';
-              if (f.description) contextHtml += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px">' + esc(f.description) + '</div>';
-              if (f.files && f.files.length > 0) contextHtml += '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">' + f.files.map(esc).join(', ') + '</div>';
-              if (f.fix_hint) contextHtml += '<div style="font-size:0.68rem;color:var(--green);margin-top:2px">Fix: ' + esc(f.fix_hint) + '</div>';
-              contextHtml += '</div></label></div>';
+              var fid = esc(f.id);
+              contextHtml += '<div class="finding-card" data-finding-id="' + fid + '" data-decision="accepted">';
+              contextHtml += '<div class="finding-header">';
+              contextHtml += '<div style="flex:1;min-width:0">';
+              contextHtml += '<span style="color:' + sevColor + ';font-weight:600;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.3px">' + esc(f.severity || 'info') + '</span> ';
+              contextHtml += '<span style="font-weight:500;font-size:0.82rem">' + esc(f.title) + '</span>';
+              contextHtml += '</div>';
+              contextHtml += '<div class="finding-actions">';
+              contextHtml += '<button class="finding-btn finding-accept active" onclick="setFindingDecision(\'' + fid + '\', true)" title="Accept">&#10003;</button>';
+              contextHtml += '<button class="finding-btn finding-reject" onclick="setFindingDecision(\'' + fid + '\', false)" title="Reject">&#10007;</button>';
+              contextHtml += '</div></div>';
+              if (f.description) contextHtml += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;padding:0 4px">' + esc(f.description) + '</div>';
+              if (f.files && f.files.length > 0) contextHtml += '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;padding:0 4px">' + f.files.map(esc).join(', ') + '</div>';
+              if (f.fix_hint) contextHtml += '<div style="font-size:0.68rem;color:var(--green);margin-top:2px;padding:0 4px">Fix: ' + esc(f.fix_hint) + '</div>';
+              contextHtml += '</div>';
             });
+            contextHtml += '<div id="findings-summary" style="margin-top:8px;font-size:0.75rem;color:var(--text-muted)"></div>';
             contextHtml += '</div>';
           }
         }
 
         // Feedback history thread
         if (ctx.feedback_history && ctx.feedback_history.length > 0) {
-          contextHtml += '<div style="margin-top:10px">';
-          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Decision History (' + ctx.feedback_history.length + ')</strong>';
+          contextHtml += '<details style="margin-top:10px"' + (ctx.feedback_history.length <= 3 ? ' open' : '') + '>';
+          contextHtml += '<summary class="accordion-header">Decision History (' + ctx.feedback_history.length + ')</summary>';
+          contextHtml += '<div class="accordion-body" style="padding:4px 0">';
           ctx.feedback_history.forEach(function(d) {
             var actionColor = d.action === 'approve' ? 'var(--green)' : d.action === 'reject' ? 'var(--red)' : 'var(--yellow)';
             contextHtml += '<div style="padding:4px 8px;border-left:2px solid ' + actionColor + ';margin-bottom:4px;font-size:0.78rem">';
@@ -2306,7 +2536,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             if (d.feedback) contextHtml += '<div style="margin-top:2px;color:var(--text-secondary)">' + esc(d.feedback) + '</div>';
             contextHtml += '</div>';
           });
-          contextHtml += '</div>';
+          contextHtml += '</div></details>';
         }
 
         if (contextHtml) {
@@ -2336,21 +2566,50 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
     }
 
-    function toggleAllFindings(checked) {
-      document.querySelectorAll('.finding-cb').forEach(function(cb) { cb.checked = checked; });
+    function setFindingDecision(findingId, accepted) {
+      var card = document.querySelector('.finding-card[data-finding-id="' + findingId + '"]');
+      if (!card) return;
+      card.dataset.decision = accepted ? 'accepted' : 'rejected';
+      var acceptBtn = card.querySelector('.finding-accept');
+      var rejectBtn = card.querySelector('.finding-reject');
+      if (accepted) {
+        acceptBtn.classList.add('active');
+        rejectBtn.classList.remove('active');
+        card.style.opacity = '1';
+      } else {
+        acceptBtn.classList.remove('active');
+        rejectBtn.classList.add('active');
+        card.style.opacity = '0.6';
+      }
+      updateFindingsSummary();
+    }
+
+    function setAllFindings(accepted) {
+      document.querySelectorAll('.finding-card').forEach(function(card) {
+        setFindingDecision(card.dataset.findingId, accepted);
+      });
+    }
+
+    function updateFindingsSummary() {
+      var cards = document.querySelectorAll('.finding-card');
+      if (cards.length === 0) return;
+      var accepted = 0, rejected = 0;
+      cards.forEach(function(c) { if (c.dataset.decision === 'accepted') accepted++; else rejected++; });
+      var el = document.getElementById('findings-summary');
+      if (el) el.innerHTML = '<span style="color:var(--green)">' + accepted + ' accepted</span> &middot; <span style="color:var(--red)">' + rejected + ' rejected</span> of ' + cards.length + ' findings';
     }
 
     async function gateDecision(nodeId, action) {
       if (!activeRun) return;
       const feedback = document.getElementById('gate-feedback')?.value || '';
 
-      // Collect per-finding decisions if any finding checkboxes exist
-      var findingsCbs = document.querySelectorAll('.finding-cb');
+      // Collect per-finding decisions from accept/reject buttons
+      var findingCards = document.querySelectorAll('.finding-card');
       var findingsDecisions = null;
-      if (findingsCbs.length > 0) {
+      if (findingCards.length > 0) {
         findingsDecisions = [];
-        findingsCbs.forEach(function(cb) {
-          findingsDecisions.push({ id: cb.dataset.findingId, accepted: cb.checked });
+        findingCards.forEach(function(card) {
+          findingsDecisions.push({ id: card.dataset.findingId, accepted: card.dataset.decision === 'accepted' });
         });
       }
 
@@ -2443,9 +2702,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   defp help_and_utils_js do
     ~S"""
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Help modal
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     function toggleHelpModal() {
       const m = document.getElementById('help-modal');
       m.style.display = m.style.display === 'none' ? 'flex' : 'none';
@@ -2454,17 +2713,17 @@ defmodule SymphonyElixir.Server.PipelineUI do
       document.getElementById('help-modal').style.display = 'none';
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Utilities
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     function generateId() {
       return 'n' + Math.random().toString(36).substring(2, 14);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
+    // ══════════════════════════════════
     // Minimap
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     function renderMinimap() {
       const canvas = document.getElementById('minimap-canvas');
       if (!canvas || nodes.length === 0) return;
@@ -2584,9 +2843,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       } catch(e) {}
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     // Run History (Fix R)
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     var runHistoryOpen = false;
 
     function toggleRunHistory() {
@@ -2652,7 +2911,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
   defp init_js do
     ~S"""
     // Init
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════
     render();
     if (nodes.length > 0) zoomFit();
     renderMinimap();

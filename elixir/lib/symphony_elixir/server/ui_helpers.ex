@@ -73,7 +73,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
     """
   end
 
-  @doc "Shared JS markdown renderer supporting headings, bold, italic, code blocks, tables, lists, blockquotes, links, and horizontal rules."
+  @doc "Shared JS markdown renderer supporting headings, bold, italic, code blocks,
+  tables, lists, blockquotes, links, and horizontal rules."
   @spec markdown_js() :: String.t()
   def markdown_js do
     ~S"""
@@ -85,9 +86,11 @@ defmodule SymphonyElixir.Server.UIHelpers do
       });
       // Tables
       html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm, function(m, header, sep, body) {
-        var ths = header.split('|').filter(function(c){return c.trim();}).map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
+        var ths = header.split('|').filter(function(c){return c.trim();})
+          .map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
         var rows = body.trim().split('\n').map(function(row) {
-          var tds = row.split('|').filter(function(c){return c.trim();}).map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
+          var tds = row.split('|').filter(function(c){return c.trim();})
+            .map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
           return '<tr>' + tds + '</tr>';
         }).join('');
         return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + rows + '</tbody></table>';
@@ -136,19 +139,24 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec markdown_css() :: String.t()
   def markdown_css do
     ~S"""
-      .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 { color: var(--text-primary); margin: 16px 0 8px; }
+      .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4
+        { color: var(--text-primary); margin: 16px 0 8px; }
       .markdown-body h1 { font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
       .markdown-body h2 { font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
       .markdown-body h3 { font-size: 0.95rem; }
       .markdown-body h4 { font-size: 0.88rem; color: var(--text-secondary); }
       .markdown-body p { margin: 6px 0; line-height: 1.55; }
       .markdown-body strong { color: var(--text-primary); }
-      .markdown-body code { background: var(--bg-hover); padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; font-family: 'SF Mono', 'Fira Code', monospace; }
-      .markdown-body pre { background: var(--bg-hover); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+      .markdown-body code { background: var(--bg-hover); padding: 1px 5px;
+        border-radius: 3px; font-size: 0.82rem; font-family: 'SF Mono', 'Fira Code', monospace; }
+      .markdown-body pre { background: var(--bg-hover); padding: 12px;
+        border-radius: 6px; overflow-x: auto; margin: 8px 0; }
       .markdown-body pre code { background: none; padding: 0; font-size: 0.8rem; line-height: 1.5; }
       .markdown-body ul, .markdown-body ol { padding-left: 20px; margin: 6px 0; }
       .markdown-body li { margin: 3px 0; line-height: 1.5; }
-      .markdown-body blockquote { border-left: 3px solid var(--accent); padding: 4px 12px; margin: 8px 0; color: var(--text-secondary); background: rgba(88,166,255,0.05); border-radius: 0 4px 4px 0; }
+      .markdown-body blockquote { border-left: 3px solid var(--accent); padding: 4px 12px;
+        margin: 8px 0; color: var(--text-secondary);
+        background: rgba(88,166,255,0.05); border-radius: 0 4px 4px 0; }
       .markdown-body table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.82rem; }
       .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
       .markdown-body th { background: var(--bg-hover); font-weight: 600; color: var(--text-primary); }
@@ -195,7 +203,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .topbar-nav { display: flex; align-items: center; gap: 2px; margin-left: 8px; }
       .topbar-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
       .logo { color: var(--accent); }
-      .back-link { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; }
+      .back-link { color: var(--text-muted); text-decoration: none;
+        font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; }
       .back-link:hover { color: var(--accent); background: var(--bg-hover); }
       .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
       .breadcrumb a { color: var(--text-muted); text-decoration: none; }
@@ -245,7 +254,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .btn-ghost:hover { color: var(--text-primary); background: var(--bg-hover); }
       .btn-accent { background: var(--purple); color: #fff; border-color: var(--purple); }
       .btn-accent:hover { opacity: 0.9; }
-      .btn-accent-soft { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+      .btn-accent-soft { background: rgba(188,140,255,0.15); color: var(--purple);
+        border: 1px solid rgba(188,140,255,0.3); }
       .btn-accent-soft:hover { background: rgba(188,140,255,0.25); }
       .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
       .btn-danger:hover { background: var(--red); color: #fff; }
@@ -343,7 +353,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec toast_css() :: String.t()
   def toast_css do
     ~S"""
-      .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+      .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        display: flex; flex-direction: column; gap: 8px; }
       .toast {
         padding: 10px 16px; border-radius: var(--radius-sm);
         background: var(--bg-secondary); border: 1px solid var(--border);
@@ -353,8 +364,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
       }
       .toast.success { border-color: var(--green); }
       .toast.error { border-color: var(--red); }
-      .toast-undo { color: var(--accent); cursor: pointer; font-weight: 600; background: none; border: none; font-size: 0.85rem; }
-      @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      .toast-undo { color: var(--accent); cursor: pointer; font-weight: 600;
+        background: none; border: none; font-size: 0.85rem; }
+      @keyframes toastIn { from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); } }
     """
   end
 
@@ -365,7 +378,9 @@ defmodule SymphonyElixir.Server.UIHelpers do
     function showToast(msg, opts) {
       opts = opts || {};
       var container = document.getElementById('toast-container');
-      if (!container) { container = document.createElement('div'); container.id = 'toast-container'; container.className = 'toast-container'; document.body.appendChild(container); }
+      if (!container) { container = document.createElement('div');
+        container.id = 'toast-container'; container.className = 'toast-container';
+        document.body.appendChild(container); }
       var toast = document.createElement('div');
       toast.className = 'toast ' + (opts.type || '');
       var html = '<span>' + esc(msg) + '</span>';
@@ -382,7 +397,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec skeleton_css() :: String.t()
   def skeleton_css do
     ~S"""
-      .skeleton { background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--radius-sm); }
+      .skeleton { background: linear-gradient(90deg,
+        var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+        background-size: 200% 100%; animation: shimmer 1.5s infinite;
+        border-radius: var(--radius-sm); }
       @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       .skeleton-card { height: 72px; margin-bottom: 6px; }
       .skeleton-text { height: 14px; width: 60%; margin-bottom: 8px; }
@@ -499,7 +517,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
         indicator =
           if key == "pipeline",
             do:
-              ~s(<span id="pipeline-run-indicator" class="pipeline-run-dot" style="display:none" title="Pipeline running"></span>),
+              ~s(<span id="pipeline-run-indicator" class="pipeline-run-dot"
+                style="display:none" title="Pipeline running"></span>),
             else: ""
 
         ~s(<a href="#{href}" class="#{cls}">#{label}#{indicator}</a>)
@@ -517,7 +536,9 @@ defmodule SymphonyElixir.Server.UIHelpers do
         <div class="topbar-left">
           #{back_btn}
           <a href="/board" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
-            <svg class="logo" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
+            <svg class="logo" viewBox="0 0 24 24" width="22" height="22"
+              fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
             <h1 style="margin:0;">Symphony</h1>
           </a>
         </div>
@@ -558,7 +579,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
         show_skills_picker ->
           """
                 <div class="form-group">
-                  <label>Skills <button type="button" class="skill-picker-toggle" onclick="toggleSkillPicker('#{p}-skills')">select skills...</button></label>
+                  <label>Skills <button type="button" class="skill-picker-toggle"
+                    onclick="toggleSkillPicker('#{p}-skills')">select skills...</button></label>
                   <div class="skill-picker" id="#{p}-skills" style="display:none"></div>
                 </div>
           """
@@ -582,8 +604,11 @@ defmodule SymphonyElixir.Server.UIHelpers do
       if ai_draft do
         """
             <div class="ai-draft-bar">
-              <textarea id="#{p}-ai-draft-input" class="ai-draft-input" placeholder="Describe what you need in a few words... (Shift+Enter for new line)" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();#{p}AiDraft();}"></textarea>
-              <button type="button" class="btn btn-accent-soft btn-sm" id="#{p}-ai-draft-btn" onclick="#{p}AiDraft()">AI Draft</button>
+              <textarea id="#{p}-ai-draft-input" class="ai-draft-input" rows="1"
+                placeholder="Describe what you need in a few words... (Shift+Enter for new line)"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();#{p}AiDraft();}"></textarea>
+              <button type="button" class="btn btn-accent-soft btn-sm"
+                id="#{p}-ai-draft-btn" onclick="#{p}AiDraft()">AI Draft</button>
             </div>
         """
       else
@@ -591,7 +616,9 @@ defmodule SymphonyElixir.Server.UIHelpers do
       end
 
     """
-    <div class="modal-overlay" id="#{p}-modal" style="display:none#{if z_index, do: ";z-index:#{z_index}", else: ""}" onclick="if(event.target===this)#{on_cancel}()">
+    <div class="modal-overlay" id="#{p}-modal"
+      style="display:none#{if z_index, do: ";z-index:#{z_index}", else: ""}"
+      onclick="if(event.target===this)#{on_cancel}()">
       <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
         <div class="modal-header">
           <h3 id="#{p}-modal-title">New Issue</h3>
@@ -776,7 +803,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
           body: JSON.stringify(body)
         });
         const draft = await res.json();
-        if (draft.error) { if (typeof showToast === 'function') showToast('Draft failed: ' + draft.error, { type: 'error' }); return; }
+        if (draft.error) {
+          if (typeof showToast === 'function') showToast('Draft failed: ' + draft.error, { type: 'error' });
+          return;
+        }
         document.getElementById('#{prefix}-title').value = draft.title || hint;
         document.getElementById('#{prefix}-description').value = draft.description || '';
         document.getElementById('#{prefix}-priority').value = (draft.priority || 0).toString();
@@ -794,8 +824,12 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @doc "CSS for the AI draft bar used in create modals."
   def ai_draft_css do
     ~S"""
-      .ai-draft-bar { display: flex; align-items: flex-start; gap: 8px; padding: 8px 20px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 0; }
-      .ai-draft-input { flex: 1; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); color: var(--text-primary); font-size: 0.85rem; font-family: inherit; outline: none; resize: vertical; min-height: 34px; max-height: 200px; line-height: 1.4; }
+      .ai-draft-bar { display: flex; align-items: flex-start; gap: 8px;
+        padding: 8px 20px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 0; }
+      .ai-draft-input { flex: 1; padding: 6px 10px; background: var(--bg-primary);
+        border: 1px solid var(--border); border-radius: var(--radius-sm, 6px);
+        color: var(--text-primary); font-size: 0.85rem; font-family: inherit;
+        outline: none; resize: vertical; min-height: 34px; max-height: 200px; line-height: 1.4; }
       .ai-draft-input:focus { border-color: var(--accent); }
       .ai-draft-input::placeholder { color: var(--text-muted); }
     """
@@ -804,15 +838,20 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @doc "CSS for the skill picker widget."
   def skill_picker_css do
     ~S"""
-      .skill-picker { max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-top: 4px; background: var(--bg-secondary); }
+      .skill-picker { max-height: 200px; overflow-y: auto; border: 1px solid var(--border);
+        border-radius: 6px; padding: 8px; margin-top: 4px; background: var(--bg-secondary); }
       .skill-picker-section { margin-bottom: 8px; }
-      .skill-picker-section strong { display: block; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.5px; }
-      .skill-pick-item { display: flex !important; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.8rem; cursor: pointer; font-weight: normal; margin-bottom: 0; }
+      .skill-picker-section strong { display: block; font-size: 0.7rem;
+        text-transform: uppercase; color: var(--text-muted);
+        margin-bottom: 4px; letter-spacing: 0.5px; }
+      .skill-pick-item { display: flex !important; align-items: center; gap: 6px;
+        padding: 3px 0; font-size: 0.8rem; cursor: pointer; font-weight: normal; margin-bottom: 0; }
       .skill-pick-item input[type="checkbox"] { margin: 0; cursor: pointer; width: auto; flex-shrink: 0; }
       .skill-pick-name { color: var(--text-primary); }
       .skill-pick-count { color: var(--text-muted); font-size: 0.7rem; }
       .skill-pick-empty { font-size: 0.8rem; color: var(--text-muted); padding: 8px; text-align: center; }
-      .skill-picker-toggle { font-size: 0.75rem; color: var(--accent); cursor: pointer; border: none; background: none; padding: 0; }
+      .skill-picker-toggle { font-size: 0.75rem; color: var(--accent);
+        cursor: pointer; border: none; background: none; padding: 0; }
       .skill-picker-toggle:hover { text-decoration: underline; }
     """
   end
@@ -822,8 +861,36 @@ defmodule SymphonyElixir.Server.UIHelpers do
     ~S"""
       function renderSkillPicker(containerId, selectedSkillIds, selectedGroupIds) {
         var el = document.getElementById(containerId); if (!el) return; var html = '';
-        if (allSkillGroups.length > 0) { html += '<div class="skill-picker-section"><strong>Skill Groups</strong>'; allSkillGroups.forEach(function(g) { var checked = selectedGroupIds.indexOf(g.id) >= 0 ? ' checked' : ''; html += '<label class="skill-pick-item"><input type="checkbox" value="' + g.id + '" data-type="group"' + checked + '><span class="skill-pick-name">' + esc(g.name) + '</span><span class="skill-pick-count">(' + (g.skill_ids || []).length + ')</span></label>'; }); html += '</div>'; }
-        if (allSkills.length > 0) { var categories = {}; allSkills.forEach(function(s) { var cat = s.category || 'custom'; if (!categories[cat]) categories[cat] = []; categories[cat].push(s); }); Object.keys(categories).sort().forEach(function(cat) { html += '<div class="skill-picker-section"><strong>' + esc(cat.charAt(0).toUpperCase() + cat.slice(1)) + '</strong>'; categories[cat].forEach(function(s) { var checked = selectedSkillIds.indexOf(s.id) >= 0 ? ' checked' : ''; html += '<label class="skill-pick-item"><input type="checkbox" value="' + s.id + '" data-type="skill"' + checked + '><span class="skill-pick-name">' + esc(s.name) + '</span></label>'; }); html += '</div>'; }); }
+        if (allSkillGroups.length > 0) {
+          html += '<div class="skill-picker-section"><strong>Skill Groups</strong>';
+          allSkillGroups.forEach(function(g) {
+            var checked = selectedGroupIds.indexOf(g.id) >= 0 ? ' checked' : '';
+            html += '<label class="skill-pick-item"><input type="checkbox" value="' + g.id + '"'
+              + ' data-type="group"' + checked + '>'
+              + '<span class="skill-pick-name">' + esc(g.name) + '</span>'
+              + '<span class="skill-pick-count">(' + (g.skill_ids || []).length + ')</span></label>';
+          });
+          html += '</div>';
+        }
+        if (allSkills.length > 0) {
+          var categories = {};
+          allSkills.forEach(function(s) {
+            var cat = s.category || 'custom';
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(s);
+          });
+          Object.keys(categories).sort().forEach(function(cat) {
+            html += '<div class="skill-picker-section"><strong>'
+              + esc(cat.charAt(0).toUpperCase() + cat.slice(1)) + '</strong>';
+            categories[cat].forEach(function(s) {
+              var checked = selectedSkillIds.indexOf(s.id) >= 0 ? ' checked' : '';
+              html += '<label class="skill-pick-item"><input type="checkbox" value="' + s.id + '"'
+                + ' data-type="skill"' + checked + '>'
+                + '<span class="skill-pick-name">' + esc(s.name) + '</span></label>';
+            });
+            html += '</div>';
+          });
+        }
         if (!html) html = '<div class="skill-pick-empty">No skills available.</div>';
         el.innerHTML = html;
       }
@@ -831,7 +898,9 @@ defmodule SymphonyElixir.Server.UIHelpers do
       function getSelectedSkills(containerId) {
         var el = document.getElementById(containerId); if (!el) return { skill_ids: [], skill_group_ids: [] };
         var skillIds = [], groupIds = [];
-        el.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) { if (cb.dataset.type === 'group') groupIds.push(cb.value); else skillIds.push(cb.value); });
+        el.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
+          if (cb.dataset.type === 'group') groupIds.push(cb.value); else skillIds.push(cb.value);
+        });
         return { skill_ids: skillIds, skill_group_ids: groupIds };
       }
 
@@ -890,7 +959,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec spinner_css() :: String.t()
   def spinner_css do
     ~S"""
-      .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+      .spinner { display: inline-block; width: 14px; height: 14px;
+        border: 2px solid var(--border); border-top-color: var(--accent);
+        border-radius: 50%; animation: spin 0.6s linear infinite;
+        vertical-align: middle; margin-right: 6px; }
       @keyframes spin { to { transform: rotate(360deg); } }
     """
   end
@@ -899,7 +971,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec label_css() :: String.t()
   def label_css do
     ~S"""
-      .label { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
+      .label { display: inline-block; padding: 2px 8px; border-radius: 10px;
+        font-size: 0.7rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
     """
   end
 
@@ -908,9 +981,15 @@ defmodule SymphonyElixir.Server.UIHelpers do
   def dropdown_css do
     ~S"""
       .dropdown { position: relative; }
-      .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 220px; box-shadow: var(--shadow); z-index: 100; padding: 4px 0; }
+      .dropdown-menu { display: none; position: absolute; top: 100%; right: 0;
+        margin-top: 4px; background: var(--bg-secondary); border: 1px solid var(--border);
+        border-radius: var(--radius-sm); min-width: 220px;
+        box-shadow: var(--shadow); z-index: 100; padding: 4px 0; }
       .dropdown.open .dropdown-menu, .dropdown-menu.open { display: block; }
-      .dropdown-item { display: block; width: 100%; padding: 7px 12px; background: none; border: none; color: var(--text-secondary); font-size: 0.82rem; text-align: left; cursor: pointer; font-family: inherit; transition: background var(--transition); }
+      .dropdown-item { display: block; width: 100%; padding: 7px 12px;
+        background: none; border: none; color: var(--text-secondary);
+        font-size: 0.82rem; text-align: left; cursor: pointer;
+        font-family: inherit; transition: background var(--transition); }
       .dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
       .dropdown-item small { display: block; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; }
     """
@@ -920,8 +999,16 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec dropdown_js() :: String.t()
   def dropdown_js do
     ~S"""
-    function toggleDropdown(id) { var el = document.getElementById(id); document.querySelectorAll('.dropdown.open').forEach(function(d) { if (d.id !== id) d.classList.remove('open'); }); el.classList.toggle('open'); }
-    function closeDropdowns() { document.querySelectorAll('.dropdown.open').forEach(function(d) { d.classList.remove('open'); }); }
+    function toggleDropdown(id) {
+      var el = document.getElementById(id);
+      document.querySelectorAll('.dropdown.open').forEach(function(d) {
+        if (d.id !== id) d.classList.remove('open');
+      });
+      el.classList.toggle('open');
+    }
+    function closeDropdowns() {
+      document.querySelectorAll('.dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+    }
     document.addEventListener('click', function(e) { if (!e.target.closest('.dropdown')) closeDropdowns(); });
     """
   end
@@ -930,7 +1017,9 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec page_actions_css() :: String.t()
   def page_actions_css do
     ~S"""
-      .page-actions-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); flex-shrink: 0; }
+      .page-actions-bar { display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 20px; border-bottom: 1px solid var(--border);
+        background: var(--bg-primary); flex-shrink: 0; }
       .page-actions-left { display: flex; align-items: center; gap: 10px; }
       .page-actions-right { display: flex; align-items: center; gap: 6px; }
       .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }

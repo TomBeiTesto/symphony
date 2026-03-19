@@ -88,31 +88,6 @@ defmodule SymphonyElixir.GitLab.Client do
     end
   end
 
-  @spec execute_graphql(Config.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
-  def execute_graphql(%Config{} = config, query, variables \\ %{}) do
-    url = graphql_url(config)
-    body = Jason.encode!(%{"query" => query, "variables" => variables})
-
-    headers = [
-      {"content-type", "application/json"},
-      {"authorization", "Bearer #{config.tracker_api_key}"}
-    ]
-
-    case Req.post(url, body: body, headers: headers, receive_timeout: @network_timeout) do
-      {:ok, %Req.Response{status: 200, body: body}} when is_map(body) ->
-        {:ok, body}
-
-      {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
-        Jason.decode(body)
-
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:gitlab_api_status, status}}
-
-      {:error, reason} ->
-        {:error, {:gitlab_api_request, reason}}
-    end
-  end
-
   # ---------------------------------------------------------------------------
   # Pagination
   # ---------------------------------------------------------------------------
@@ -167,13 +142,6 @@ defmodule SymphonyElixir.GitLab.Client do
     "/projects/#{URI.encode(project, &URI.char_unreserved?/1)}/issues"
   end
 
-  defp graphql_url(%Config{} = config) do
-    base =
-      config.tracker_endpoint
-      |> String.replace(~r{/api/v4/?$}, "")
-
-    "#{base}/api/graphql"
-  end
 
   # ---------------------------------------------------------------------------
   # Normalization — GitLab JSON → Issue struct

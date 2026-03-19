@@ -73,6 +73,7 @@ defmodule SymphonyElixir.CLI do
             SymphonyElixir.SkillsSeed.seed()
             SymphonyElixir.PipelineSeed.seed()
             SymphonyElixir.HardeningSeed.seed()
+            SymphonyElixir.FeaturePipelineSeed.seed()
           end
 
           {:ok, pid}

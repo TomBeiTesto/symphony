@@ -80,15 +80,6 @@ defmodule SymphonyElixir.AppServer.Protocol do
     }
   end
 
-  @doc "Build a tool call success response."
-  @spec tool_call_success(String.t(), term()) :: message()
-  def tool_call_success(tool_call_id, data) do
-    %{
-      "id" => tool_call_id,
-      "result" => %{"success" => true, "data" => data}
-    }
-  end
-
   @doc "Encode a message to a line-delimited JSON string."
   @spec encode(message()) :: {:ok, String.t()} | {:error, term()}
   def encode(msg) do

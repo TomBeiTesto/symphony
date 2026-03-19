@@ -146,14 +146,22 @@ defmodule SymphonyElixir.ProjectScanner.AgentSummarizer do
     projects_json = Jason.encode!(projects_context, pretty: true)
 
     """
-    You are a project analyzer. Given the following list of software projects (with their directory contents), generate a structured summary for each one.
+    You are a project analyzer. Given the following list of software projects (with their directory
+    contents), generate a structured summary for each one.
 
     For each project, return:
-    - "name": A clean, human-readable project name (title case, no garbage like "---" or "auto-generated"). Use the README title if good, otherwise derive from package metadata or directory name.
-    - "description": A concise 1-2 sentence description of what the project does. Extract from README About/Overview sections, package description fields, or infer from the tech stack and file structure. Max 250 characters.
-    - "tags": An array of lowercase tags covering: programming languages used, frameworks, infrastructure tools, and domain categories (e.g. "api", "data-pipeline", "ml", "frontend", "monitoring", "auth", "database", "streaming", "messaging").
+    - "name": A clean, human-readable project name (title case, no garbage like "---" or
+      "auto-generated"). Use the README title if good, otherwise derive from package metadata or
+      directory name.
+    - "description": A concise 1-2 sentence description of what the project does. Extract from
+      README About/Overview sections, package description fields, or infer from the tech stack and
+      file structure. Max 250 characters.
+    - "tags": An array of lowercase tags covering: programming languages used, frameworks,
+      infrastructure tools, and domain categories (e.g. "api", "data-pipeline", "ml", "frontend",
+      "monitoring", "auth", "database", "streaming", "messaging").
 
-    IMPORTANT: Respond with ONLY a JSON array. No markdown, no code fences, no explanation. Each element must have "path", "name", "description", and "tags" keys.
+    IMPORTANT: Respond with ONLY a JSON array. No markdown, no code fences, no explanation.
+    Each element must have "path", "name", "description", and "tags" keys.
 
     Projects to analyze:
 

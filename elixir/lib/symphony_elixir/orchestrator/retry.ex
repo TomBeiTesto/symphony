@@ -8,29 +8,7 @@ defmodule SymphonyElixir.Orchestrator.Retry do
   alias SymphonyElixir.{Config, Issue}
   alias SymphonyElixir.Orchestrator.State
 
-  @continuation_delay_ms 1_000
   @base_delay_ms 10_000
-
-  @doc """
-  Schedule a continuation retry (after normal worker exit).
-  Uses a short fixed delay.
-  """
-  @spec schedule_continuation(State.t(), String.t(), String.t()) :: State.t()
-  def schedule_continuation(%State{} = state, issue_id, identifier) do
-    due_at = System.monotonic_time(:millisecond) + @continuation_delay_ms
-
-    entry = %{
-      issue_id: issue_id,
-      identifier: identifier,
-      attempt: 1,
-      error: nil,
-      due_at_ms: due_at,
-      timer_ref: schedule_timer(due_at)
-    }
-
-    state = cancel_existing_retry(state, issue_id)
-    %{state | retry_attempts: Map.put(state.retry_attempts, issue_id, entry)}
-  end
 
   @doc """
   Schedule an exponential-backoff retry (after failure).
@@ -138,12 +116,6 @@ defmodule SymphonyElixir.Orchestrator.Retry do
           end
       end
     end
-  end
-
-  @doc "Cancel a retry for an issue."
-  @spec cancel_retry(State.t(), String.t()) :: State.t()
-  def cancel_retry(%State{} = state, issue_id) do
-    cancel_existing_retry(state, issue_id)
   end
 
   # --- Private ---

@@ -19,17 +19,6 @@ defmodule SymphonyElixir.Integrations.RegistryTest do
       assert "confluence" in types
       assert "knowledge_base" in types
     end
-
-    test "type_label returns human-readable labels" do
-      assert Registry.type_label("jira") == "Jira"
-      assert Registry.type_label("gitlab_ci") == "GitLab CI"
-      assert Registry.type_label("confluence") == "Confluence"
-      assert Registry.type_label("knowledge_base") == "Knowledge Base"
-    end
-
-    test "type_label falls back to raw type for unknown types" do
-      assert Registry.type_label("unknown") == "unknown"
-    end
   end
 
   describe "execute/3" do
@@ -109,27 +98,4 @@ defmodule SymphonyElixir.Integrations.RegistryTest do
     end
   end
 
-  describe "configured?/1" do
-    test "returns false when jira credentials are empty" do
-      SymphonyElixir.Settings.update(%{"jira_base_url" => "", "jira_auth_token" => ""})
-      refute Registry.configured?("jira")
-    end
-
-    test "returns true when jira credentials are set" do
-      SymphonyElixir.Settings.update(%{
-        "jira_base_url" => "https://test.atlassian.net",
-        "jira_auth_token" => "tok"
-      })
-
-      assert Registry.configured?("jira")
-    end
-
-    test "knowledge_base is always configured" do
-      assert Registry.configured?("knowledge_base")
-    end
-
-    test "returns false for unknown type" do
-      refute Registry.configured?("nonexistent")
-    end
-  end
 end

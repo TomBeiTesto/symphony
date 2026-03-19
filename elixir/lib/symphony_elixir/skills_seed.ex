@@ -12,7 +12,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "verification",
       "description" =>
-        "Use when making changes or claiming completion. Ensures every change is verified incrementally and completion claims are backed by fresh evidence.",
+        "Use when making changes or claiming completion. Ensures every change is verified incrementally and" <>
+          " completion claims are backed by fresh evidence.",
       "category" => "quality",
       "tags" => "verification,completion,incremental,evidence",
       "built_in" => true,
@@ -54,7 +55,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "systematic-debugging",
       "description" =>
-        "Use when investigating a bug, test failure, or unexpected behavior. Enforces root cause investigation before fixes.",
+        "Use when investigating a bug, test failure, or unexpected behavior. Enforces root cause" <>
+          " investigation before fixes.",
       "category" => "debugging",
       "tags" => "debugging,root-cause,investigation",
       "built_in" => true,
@@ -137,7 +139,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "plan-and-execute",
       "description" =>
-        "Use when starting a new feature or multi-step change. Ensures design thinking before implementation and disciplined step-by-step execution.",
+        "Use when starting a new feature or multi-step change. Ensures design thinking before implementation" <>
+          " and disciplined step-by-step execution.",
       "category" => "planning",
       "tags" => "design,planning,execution,checkpoints",
       "built_in" => true,
@@ -231,7 +234,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "scope-discipline",
       "description" =>
-        "Use when working on any task with defined boundaries. Prevents scope creep and keeps work focused on the stated objective.",
+        "Use when working on any task with defined boundaries. Prevents scope creep and keeps work" <>
+          " focused on the stated objective.",
       "category" => "workflow",
       "tags" => "scope,focus,discipline,boundaries",
       "built_in" => true,
@@ -271,7 +275,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "evidence-based-work",
       "description" =>
-        "Use when making claims, gathering information, or choosing between approaches. Requires citations, multiple sources, and concrete evidence.",
+        "Use when making claims, gathering information, or choosing between approaches. Requires citations," <>
+          " multiple sources, and concrete evidence.",
       "category" => "research",
       "tags" => "research,evidence,citations,decisions,sources",
       "built_in" => true,
@@ -308,7 +313,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "structured-reporting",
       "description" =>
-        "Use when producing written deliverables, documentation, or reports. Enforces clear structure tailored to the audience.",
+        "Use when producing written deliverables, documentation, or reports. Enforces clear structure" <>
+          " tailored to the audience.",
       "category" => "research",
       "tags" => "research,writing,reports,structure,audience",
       "built_in" => true,
@@ -352,7 +358,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "information-design",
       "description" =>
-        "Use when organizing information, navigation, or page structure. Ensures content is structured by user mental models with manageable cognitive load.",
+        "Use when organizing information, navigation, or page structure. Ensures content is structured by" <>
+          " user mental models with manageable cognitive load.",
       "category" => "information-architecture",
       "tags" => "ia,hierarchy,navigation,cognitive-load,organization",
       "built_in" => true,
@@ -391,7 +398,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "ui-design",
       "description" =>
-        "Use when designing flows, forms, layouts, or visual components. Ensures user-goal-driven design with consistent spatial language.",
+        "Use when designing flows, forms, layouts, or visual components. Ensures user-goal-driven design" <>
+          " with consistent spatial language.",
       "category" => "ux",
       "tags" => "ux,user-journey,flows,layout,spacing,css",
       "built_in" => true,
@@ -430,7 +438,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "extract-architecture",
       "description" =>
-        "Use when extracting system architecture from a codebase. Produces a structured KB note documenting components, boundaries, data flow, and tech stack.",
+        "Use when extracting system architecture from a codebase. Produces a structured KB note" <>
+          " documenting components, boundaries, data flow, and tech stack.",
       "category" => "knowledge-extraction",
       "tags" => "extraction,architecture,documentation,kb",
       "built_in" => true,
@@ -438,7 +447,8 @@ defmodule SymphonyElixir.SkillsSeed do
       # Extract Architecture
 
       ## Goal
-      Produce a structured KB note that documents the system's architecture so that anyone — human or agent — can understand the system's shape without reading every file.
+      Produce a structured KB note that documents the system's architecture so that anyone — human or agent —
+      can understand the system's shape without reading every file.
 
       ## Process
 
@@ -488,7 +498,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "extract-business-logic",
       "description" =>
-        "Use when extracting business rules and domain logic from a codebase. Produces a structured KB note cataloging validation rules, state machines, invariants, and domain concepts.",
+        "Use when extracting business rules and domain logic from a codebase. Produces a structured KB note" <>
+          " cataloging validation rules, state machines, invariants, and domain concepts.",
       "category" => "knowledge-extraction",
       "tags" => "extraction,business-logic,domain,rules,kb",
       "built_in" => true,
@@ -496,7 +507,8 @@ defmodule SymphonyElixir.SkillsSeed do
       # Extract Business Logic
 
       ## Goal
-      Produce a structured KB note that catalogs the business rules embedded in the code — the "why" behind conditionals, validations, and state transitions.
+      Produce a structured KB note that catalogs the business rules embedded in the code — the "why" behind
+      conditionals, validations, and state transitions.
 
       ## Process
 
@@ -551,7 +563,9 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "extract-constraints",
       "description" =>
-        "Use when extracting technical constraints and limitations from a codebase. Produces a structured KB note documenting performance limits, security boundaries, compatibility requirements, and operational constraints.",
+        "Use when extracting technical constraints and limitations from a codebase. Produces a structured KB" <>
+          " note documenting performance limits, security boundaries, compatibility requirements, and" <>
+          " operational constraints.",
       "category" => "knowledge-extraction",
       "tags" => "extraction,constraints,limits,security,kb",
       "built_in" => true,
@@ -559,7 +573,8 @@ defmodule SymphonyElixir.SkillsSeed do
       # Extract Technical Constraints
 
       ## Goal
-      Produce a structured KB note that documents the hard limits, boundaries, and non-negotiable requirements baked into the system — the things you cannot change without consequences.
+      Produce a structured KB note that documents the hard limits, boundaries, and non-negotiable
+      requirements baked into the system — the things you cannot change without consequences.
 
       ## Process
 
@@ -614,7 +629,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "extract-workflows",
       "description" =>
-        "Use when extracting process workflows from a codebase. Produces a structured KB note documenting how data and work flow through the system — pipelines, lifecycles, and multi-step processes.",
+        "Use when extracting process workflows from a codebase. Produces a structured KB note documenting" <>
+          " how data and work flow through the system — pipelines, lifecycles, and multi-step processes.",
       "category" => "knowledge-extraction",
       "tags" => "extraction,workflows,processes,lifecycle,kb",
       "built_in" => true,
@@ -622,7 +638,8 @@ defmodule SymphonyElixir.SkillsSeed do
       # Extract Process Workflows
 
       ## Goal
-      Produce a structured KB note that documents the end-to-end processes in the system — how things move from start to finish, who/what is involved at each step, and what triggers transitions.
+      Produce a structured KB note that documents the end-to-end processes in the system — how things move
+      from start to finish, who/what is involved at each step, and what triggers transitions.
 
       ## Process
 
@@ -677,7 +694,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "extract-product-overview",
       "description" =>
-        "Use when extracting a product or project overview from a codebase. Produces a structured KB note with feature inventory, completeness status, and project structure.",
+        "Use when extracting a product or project overview from a codebase. Produces a structured KB note" <>
+          " with feature inventory, completeness status, and project structure.",
       "category" => "knowledge-extraction",
       "tags" => "extraction,product,features,overview,kb",
       "built_in" => true,
@@ -685,7 +703,8 @@ defmodule SymphonyElixir.SkillsSeed do
       # Extract Product/Project Overview
 
       ## Goal
-      Produce a structured KB note that gives a complete picture of what the product does, what features exist, how complete they are, and how the project is organized.
+      Produce a structured KB note that gives a complete picture of what the product does, what features
+      exist, how complete they are, and how the project is organized.
 
       ## Process
 
@@ -746,20 +765,22 @@ defmodule SymphonyElixir.SkillsSeed do
       - Subjective quality judgments — report facts (has tests / no tests, not "poorly tested")
       """
     },
-    # ── Product Hardening Skills (scan + apply pairs) ──────────────────────
+    # ── Product Hardening Skills (scan + apply pairs) ──────────────
     #
     # Each hardening step has two skills:
     #   *-scan: Analyze only, output structured findings as JSON. No code changes.
     #   *-apply: Read accepted findings, apply only those. Make code changes.
     #
-    # Findings JSON format (written to FINDINGS.json in workspace):
+    # Findings JSON format (written to FINDINGS_<scan-type>.json in workspace):
     # [{"id": "F1", "title": "...", "severity": "high|medium|low",
     #   "description": "...", "files": ["path/to/file.ex:42"], "fix_hint": "..."}]
+    # Each scan writes to a UNIQUE filename to avoid overwriting parallel scans.
 
     # ── Lint & Format ──
     %{
       "name" => "hardening-lint-format-scan",
-      "description" => "SCAN: Detect lint and format violations across all subprojects. No code changes — output structured findings.",
+      "description" => "SCAN: Detect lint and format violations across all subprojects. No code changes —" <>
+        " output structured findings.",
       "category" => "hardening",
       "tags" => "hardening,lint,format,scan",
       "built_in" => true,
@@ -789,7 +810,7 @@ defmodule SymphonyElixir.SkillsSeed do
       ### 3. Skip subprojects with no linter config — note them in the report.
 
       ## Output
-      Write `FINDINGS.json` to the workspace root with this format:
+      Write `FINDINGS_lint-format.json` to the workspace root with this format:
       ```json
       [
         {"id": "F1", "title": "ruff: unused import os (main.py:3)", "severity": "low",
@@ -811,7 +832,8 @@ defmodule SymphonyElixir.SkillsSeed do
       # Lint & Format — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      Read the accepted findings from the gate decision. Apply ONLY those fixes. Do NOT fix anything that was not accepted.
+      Read the accepted findings from the gate decision. Apply ONLY those fixes.
+      Do NOT fix anything that was not accepted.
 
       ## Process
       1. Read the accepted finding IDs from the pipeline context
@@ -829,7 +851,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Dead Code ──
     %{
       "name" => "hardening-dead-code-scan",
-      "description" => "SCAN: Find dead code, unused imports, unreachable branches across all subprojects. No removals — output findings.",
+      "description" => "SCAN: Find dead code, unused imports, unreachable branches across all subprojects." <>
+        " No removals — output findings.",
       "category" => "hardening",
       "tags" => "hardening,dead-code,unused,scan",
       "built_in" => true,
@@ -840,11 +863,13 @@ defmodule SymphonyElixir.SkillsSeed do
       You MUST NOT delete or modify any code. Analyze and report findings only.
 
       ## Goal
-      Find all unused code across every subproject: unused functions, modules, imports, variables, unreachable branches, stale files.
+      Find all unused code across every subproject: unused functions, modules, imports, variables,
+      unreachable branches, stale files.
 
       ## Process
       ### 1. Detect and scan each subproject
-      - **Elixir**: `mix xref graph --format stats`, check for unused functions/modules, stale `alias`/`import`/`require`
+      - **Elixir**: `mix xref graph --format stats`, check for unused functions/modules,
+        stale `alias`/`import`/`require`
       - **Python**: `vulture`, `ruff` unused import rules, `autoflake --check`
       - **TypeScript/JavaScript**: `ts-prune`, `eslint` no-unused-vars/imports, `knip`
       - **Go**: `deadcode`, compiler unused var/import errors
@@ -858,7 +883,7 @@ defmodule SymphonyElixir.SkillsSeed do
       - Confidence level: high (definitely dead) vs. medium (probably dead) vs. low (uncertain)
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_dead-code.json`:
       ```json
       [
         {"id": "F1", "title": "Unused function: MyModule.old_helper/2", "severity": "medium",
@@ -888,7 +913,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Dependency Audit ──
     %{
       "name" => "hardening-dependency-audit-scan",
-      "description" => "SCAN: Audit dependencies for vulnerabilities, outdated versions, unused packages. No changes — output findings.",
+      "description" => "SCAN: Audit dependencies for vulnerabilities, outdated versions, unused packages." <>
+        " No changes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,dependencies,audit,scan",
       "built_in" => true,
@@ -914,7 +940,7 @@ defmodule SymphonyElixir.SkillsSeed do
       - **Major update**: flag separately — requires manual review
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_dep-audit.json`:
       ```json
       [
         {"id": "F1", "title": "CVE-2024-1234 in requests 2.28.0", "severity": "high",
@@ -948,7 +974,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Security Scan ──
     %{
       "name" => "hardening-security-scan-scan",
-      "description" => "SCAN: Find security vulnerabilities (OWASP top 10, secrets, injection) across all subprojects. No fixes — output findings.",
+      "description" => "SCAN: Find security vulnerabilities (OWASP top 10, secrets, injection) across all" <>
+        " subprojects. No fixes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,security,owasp,scan",
       "built_in" => true,
@@ -973,7 +1000,7 @@ defmodule SymphonyElixir.SkillsSeed do
       ### 3. Rate each finding: critical / high / medium / low
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_security-scan.json`:
       ```json
       [
         {"id": "F1", "title": "SQL injection in user search", "severity": "critical",
@@ -1005,7 +1032,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── DRY Analysis ──
     %{
       "name" => "hardening-dry-analysis-scan",
-      "description" => "SCAN: Find duplicated code and patterns across all subprojects. No refactoring — output findings.",
+      "description" => "SCAN: Find duplicated code and patterns across all subprojects." <>
+        " No refactoring — output findings.",
       "category" => "hardening",
       "tags" => "hardening,dry,duplication,scan",
       "built_in" => true,
@@ -1024,7 +1052,7 @@ defmodule SymphonyElixir.SkillsSeed do
       - Only flag 3+ occurrences OR likely-to-grow duplication
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_dry-analysis.json`:
       ```json
       [
         {"id": "F1", "title": "Duplicated HTTP client setup (4 occurrences)", "severity": "medium",
@@ -1055,7 +1083,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Error Handling ──
     %{
       "name" => "hardening-error-handling-scan",
-      "description" => "SCAN: Find error handling issues (bare rescues, swallowed errors) across all subprojects. No fixes — output findings.",
+      "description" => "SCAN: Find error handling issues (bare rescues, swallowed errors) across all" <>
+        " subprojects. No fixes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,errors,handling,scan",
       "built_in" => true,
@@ -1074,12 +1103,13 @@ defmodule SymphonyElixir.SkillsSeed do
       - **Rust**: `.unwrap()` in library code
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_error-handling.json`:
       ```json
       [
         {"id": "F1", "title": "Bare rescue in DataLoader.fetch/1", "severity": "high",
          "description": "Bare rescue catches all errors and returns :ok, hiding failures.",
-         "files": ["lib/data_loader.ex:45"], "fix_hint": "Pattern match on specific error types, log unexpected errors",
+         "files": ["lib/data_loader.ex:45"],
+         "fix_hint": "Pattern match on specific error types, log unexpected errors",
          "category": "swallowed-error"}
       ]
       ```
@@ -1106,7 +1136,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Type Safety ──
     %{
       "name" => "hardening-type-safety-scan",
-      "description" => "SCAN: Find missing type annotations and type errors across all subprojects. No changes — output findings.",
+      "description" => "SCAN: Find missing type annotations and type errors across all subprojects." <>
+        " No changes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,types,typespecs,scan",
       "built_in" => true,
@@ -1124,12 +1155,14 @@ defmodule SymphonyElixir.SkillsSeed do
       - **Rust**: find unnecessary `.unwrap()`, loose generic bounds
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_type-safety.json`:
       ```json
       [
         {"id": "F1", "title": "Missing @spec for MyModule.process/2", "severity": "low",
-         "description": "Public function without typespec. Takes a map and string, returns {:ok, map} | {:error, term}.",
-         "files": ["lib/my_module.ex:30"], "fix_hint": "@spec process(map(), String.t()) :: {:ok, map()} | {:error, term()}",
+         "description": "Public function without typespec. Takes a map and string,
+           returns {:ok, map} | {:error, term}.",
+         "files": ["lib/my_module.ex:30"],
+         "fix_hint": "@spec process(map(), String.t()) :: {:ok, map()} | {:error, term()}",
          "category": "missing-type"}
       ]
       ```
@@ -1174,7 +1207,7 @@ defmodule SymphonyElixir.SkillsSeed do
       - Flaky patterns: shared state, time-dependent, order-dependent?
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_test-style.json`:
       ```json
       [
         {"id": "F1", "title": "Inconsistent test naming in test/api_test.exs", "severity": "low",
@@ -1206,7 +1239,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Infrastructure ──
     %{
       "name" => "hardening-infrastructure-scan",
-      "description" => "SCAN: Find infrastructure issues (CI/CD, Docker, config, .gitignore) across all subprojects. No changes — output findings.",
+      "description" => "SCAN: Find infrastructure issues (CI/CD, Docker, config, .gitignore) across all" <>
+        " subprojects. No changes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,infrastructure,ci,docker,scan",
       "built_in" => true,
@@ -1224,7 +1258,7 @@ defmodule SymphonyElixir.SkillsSeed do
       - **Git**: `.gitignore` gaps (build artifacts, secrets, IDE files)
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_infra-review.json`:
       ```json
       [
         {"id": "F1", "title": "No dependency caching in CI pipeline", "severity": "medium",
@@ -1256,7 +1290,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Playwright E2E ──
     %{
       "name" => "hardening-playwright-e2e-scan",
-      "description" => "SCAN: Find broken/missing Playwright E2E tests. Mark N/A if no frontend. No fixes — output findings.",
+      "description" => "SCAN: Find broken/missing Playwright E2E tests. Mark N/A if no frontend." <>
+        " No fixes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,playwright,e2e,scan",
       "built_in" => true,
@@ -1270,7 +1305,9 @@ defmodule SymphonyElixir.SkillsSeed do
       First, determine if the product has a frontend:
       - Look for Playwright config, test directories, `@playwright/test` in deps
       - Look for HTML templates, React/Vue/Svelte/Angular components
-      - If NO frontend: write `FINDINGS.json` with a single entry: `{"id": "F0", "title": "N/A — no frontend detected", "severity": "info", "description": "No frontend or E2E tests found.", "files": [], "category": "not-applicable"}`
+      - If NO frontend: write `FINDINGS_playwright-e2e.json` with a single entry:
+        `{"id": "F0", "title": "N/A — no frontend detected", "severity": "info",
+        "description": "No frontend or E2E tests found.", "files": [], "category": "not-applicable"}`
 
       ## Process (if applicable)
       1. Run `npx playwright test` — collect all failures
@@ -1278,12 +1315,13 @@ defmodule SymphonyElixir.SkillsSeed do
       3. Identify untested critical paths
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_playwright-e2e.json`:
       ```json
       [
         {"id": "F1", "title": "Broken test: login flow (timeout on submit)", "severity": "high",
          "description": "test/e2e/login.spec.ts:15 — times out clicking submit button.",
-         "files": ["test/e2e/login.spec.ts:15"], "fix_hint": "Update selector from #login-btn to [data-testid=login-submit]",
+         "files": ["test/e2e/login.spec.ts:15"],
+         "fix_hint": "Update selector from #login-btn to [data-testid=login-submit]",
          "category": "broken-test"},
         {"id": "F2", "title": "Missing E2E: user settings page", "severity": "medium",
          "description": "No tests cover the /settings page (CRUD operations).",
@@ -1314,7 +1352,8 @@ defmodule SymphonyElixir.SkillsSeed do
     # ── Test Coverage ──
     %{
       "name" => "hardening-test-coverage-scan",
-      "description" => "SCAN: Measure test coverage, find gaps and duplicates across all subprojects. No changes — output findings.",
+      "description" => "SCAN: Measure test coverage, find gaps and duplicates across all subprojects." <>
+        " No changes — output findings.",
       "category" => "hardening",
       "tags" => "hardening,coverage,testing,scan",
       "built_in" => true,
@@ -1340,15 +1379,17 @@ defmodule SymphonyElixir.SkillsSeed do
       - Integration tests duplicating unit test coverage
 
       ## Output
-      Write `FINDINGS.json`:
+      Write `FINDINGS_test-coverage.json`:
       ```json
       [
         {"id": "F1", "title": "Zero coverage: PaymentProcessor.refund/2", "severity": "high",
          "description": "Critical business logic with no tests. Handles refund calculation and validation.",
-         "files": ["lib/payment_processor.ex:80-120"], "fix_hint": "Add unit tests for happy path, partial refund, and error cases",
+         "files": ["lib/payment_processor.ex:80-120"],
+         "fix_hint": "Add unit tests for happy path, partial refund, and error cases",
          "category": "coverage-gap"},
         {"id": "F2", "title": "Duplicate tests: user creation (3 identical)", "severity": "low",
-         "description": "test/user_test.exs:10, test/integration/user_test.exs:5, test/api/user_test.exs:20 all test the same create path.",
+         "description": "test/user_test.exs:10, test/integration/user_test.exs:5,
+           test/api/user_test.exs:20 all test the same create path.",
          "files": ["test/user_test.exs:10", "test/integration/user_test.exs:5"],
          "fix_hint": "Keep test/user_test.exs:10 (most focused), remove others", "category": "duplicate-test"}
       ]
@@ -1357,7 +1398,8 @@ defmodule SymphonyElixir.SkillsSeed do
     },
     %{
       "name" => "hardening-test-coverage-apply",
-      "description" => "APPLY: Add missing tests and remove duplicates for accepted findings. Only apply approved items.",
+      "description" => "APPLY: Add missing tests and remove duplicates for accepted findings." <>
+        " Only apply approved items.",
       "category" => "hardening",
       "tags" => "hardening,coverage,testing,apply",
       "built_in" => true,
@@ -1378,7 +1420,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "hardening-pipeline-summary",
       "description" =>
-        "Summarize the entire Product Health & Hardening pipeline run: what was done, what was accepted/rejected, final state.",
+        "Summarize the entire Product Health & Hardening pipeline run: what was done," <>
+          " what was accepted/rejected, final state.",
       "category" => "hardening",
       "tags" => "hardening,summary,report,overview",
       "built_in" => true,
@@ -1432,6 +1475,449 @@ defmodule SymphonyElixir.SkillsSeed do
 
       ## Output
       Write the summary as a markdown file in the workspace root: `HARDENING_REPORT.md`
+      """
+    },
+
+    # ===========================================================
+    # Feature Implementation skills
+    # ===========================================================
+
+    # ── Phase 1: Analyze (parallel) ──
+
+    %{
+      "name" => "feature-kb-context",
+      "description" =>
+        "Retrieve relevant product knowledge from the Knowledge Base to inform feature implementation.",
+      "category" => "feature-implementation",
+      "tags" => "feature,kb,context,analysis",
+      "built_in" => true,
+      "content" => """
+      # KB Context Retrieval
+
+      ## Goal
+      Pull all relevant product knowledge from the Knowledge Base so the planning and implementation
+      agents start informed — not cold-reading the codebase.
+
+      ## Process
+
+      ### 1. Read the feature description
+      From the issue title and description, identify:
+      - The domain/area being changed (e.g. "tenant ETL", "auth", "billing")
+      - Key entities, fields, or flows mentioned
+      - Any explicit constraints or requirements
+
+      ### 2. Search the Knowledge Base
+      Look up KB notes for the selected product. Retrieve:
+      - **Architecture**: System boundaries, service topology, data flow diagrams
+      - **Business Logic**: Domain rules, invariants, validation logic relevant to the feature area
+      - **Constraints**: Rate limits, security boundaries, data contracts that may affect the feature
+      - **Workflows**: Existing process flows that the feature will interact with or modify
+      - **Product Overview**: Feature inventory to understand what already exists
+
+      ### 3. Summarize for downstream agents
+      Write a structured context document that downstream agents can reference:
+
+      ```markdown
+      # KB Context: [Feature Area]
+
+      ## Relevant Architecture
+      [System boundaries, services, data stores involved]
+
+      ## Business Rules & Invariants
+      [Domain rules that MUST be preserved]
+
+      ## Constraints
+      [Technical limits, security boundaries, data contracts]
+
+      ## Existing Workflows
+      [Flows the feature touches or extends]
+
+      ## Related Features
+      [What already exists in this area]
+      ```
+
+      ## Output
+      Write `KB_CONTEXT.md` to the workspace root.
+
+      ## Rules
+      - Do NOT make any code changes
+      - Do NOT invent information — only report what the KB contains
+      - If the KB has no relevant entries, say so explicitly
+      """
+    },
+    %{
+      "name" => "feature-impact-analysis",
+      "description" =>
+        "Analyze the codebase to identify files, modules, and functions affected by a feature change.",
+      "category" => "feature-implementation",
+      "tags" => "feature,impact,analysis,codebase",
+      "built_in" => true,
+      "content" => """
+      # Codebase Impact Analysis
+
+      ## Goal
+      Identify every file, module, and function that will need to change for the feature.
+      Produce a structured impact map so the planning agent knows the full scope.
+
+      ## Process
+
+      ### 1. Parse the feature description
+      Extract the concrete changes requested: new fields, new endpoints, modified flows, etc.
+
+      ### 2. Trace through the codebase
+      For each change, trace the full path:
+      - **Data layer**: schemas, migrations, types, database models
+      - **Business layer**: service modules, domain logic, validation
+      - **API layer**: endpoints, controllers, serializers, GraphQL resolvers
+      - **UI layer**: components, pages, forms (if applicable)
+      - **Test layer**: existing tests that cover the affected code
+      - **Config layer**: environment variables, feature flags, config files
+
+      ### 3. Identify risk areas
+      Flag any changes that:
+      - Touch shared/core modules used by other features
+      - Modify database schemas (migration required)
+      - Change public API contracts
+      - Affect security-sensitive code (auth, permissions, data access)
+      - Could break existing tests
+
+      ## Output
+      Write `IMPACT_ANALYSIS.md` to the workspace root:
+      ```markdown
+      # Impact Analysis: [Feature Title]
+
+      ## Files to Modify
+      | File | Change Type | Risk | Notes |
+      |------|------------|------|-------|
+
+      ## New Files to Create
+      | File | Purpose |
+      |------|---------|
+
+      ## Migrations Required
+      [Yes/No, with details]
+
+      ## Risk Areas
+      - [Shared module X used by Y, Z]
+      - [Public API change affecting clients]
+
+      ## Test Impact
+      - Tests that will need updating: [list]
+      - New tests needed: [list]
+      ```
+
+      ## Rules
+      - Do NOT make any code changes
+      - Be thorough — missing an affected file costs more later
+      - When in doubt, include it in the impact map
+      """
+    },
+    %{
+      "name" => "feature-constraint-check",
+      "description" =>
+        "Cross-reference a feature against known constraints, security boundaries, and data contracts.",
+      "category" => "feature-implementation",
+      "tags" => "feature,constraints,validation,security",
+      "built_in" => true,
+      "content" => """
+      # Constraint Check
+
+      ## Goal
+      Verify the feature does not violate known constraints, security policies, or data contracts.
+      Flag conflicts BEFORE implementation begins.
+
+      ## Process
+
+      ### 1. Check against product constraints
+      Review the KB context (from KB Context Retrieval) for:
+      - Rate limits that the feature might exceed
+      - Data retention policies affecting new fields
+      - Size limits on payloads, records, or collections
+      - Performance budgets (query time, response time)
+
+      ### 2. Check security boundaries
+      - Does the feature introduce new data that needs access control?
+      - Are there PII/GDPR implications for new fields?
+      - Does it modify authentication or authorization flows?
+      - Are new external API calls needed (CORS, firewall rules)?
+
+      ### 3. Check data contracts
+      - Does the feature change API response shapes (breaking change)?
+      - Are there downstream consumers that depend on the current schema?
+      - Is backward compatibility required? For how long?
+      - Are there message queue or event schemas affected?
+
+      ### 4. Check infrastructure constraints
+      - Database: will the migration lock tables? Estimated row count?
+      - Deployment: feature flag needed? Rolling deploy safe?
+      - Monitoring: new metrics, alerts, or dashboards needed?
+
+      ## Output
+      Write `CONSTRAINT_CHECK.md` to the workspace root:
+      ```markdown
+      # Constraint Check: [Feature Title]
+
+      ## Status: [CLEAR / CONFLICTS FOUND]
+
+      ## Conflicts
+      | Constraint | Conflict | Severity | Mitigation |
+      |-----------|----------|----------|------------|
+
+      ## Warnings
+      [Non-blocking concerns to address during implementation]
+
+      ## Cleared Constraints
+      [Constraints checked and passed]
+      ```
+
+      ## Rules
+      - Do NOT make any code changes
+      - CLEAR status means zero conflicts, not "probably fine"
+      - Warnings are not blockers but should inform the plan
+      """
+    },
+
+    # ── Phase 2: Plan ──
+
+    %{
+      "name" => "feature-implementation-plan",
+      "description" =>
+        "Generate a concrete implementation plan from analysis outputs: file changes, order, test strategy.",
+      "category" => "feature-implementation",
+      "tags" => "feature,plan,implementation,design",
+      "built_in" => true,
+      "content" => """
+      # Implementation Plan
+
+      ## Goal
+      Produce a step-by-step implementation plan that a coding agent can follow mechanically.
+      Read ALL predecessor outputs (KB Context, Impact Analysis, Constraint Check) before planning.
+
+      ## Process
+
+      ### 1. Synthesize predecessor outputs
+      Read from the workspace:
+      - `KB_CONTEXT.md` — relevant architecture, business rules, constraints
+      - `IMPACT_ANALYSIS.md` — files to change, risks, test impact
+      - `CONSTRAINT_CHECK.md` — conflicts, warnings, mitigations
+
+      ### 2. Design the implementation
+      Break the feature into ordered implementation steps:
+
+      ```markdown
+      ## Implementation Steps
+
+      ### Step 1: [Database/Schema Changes]
+      - Files: [list]
+      - What: [specific changes]
+      - Verification: [how to verify this step]
+
+      ### Step 2: [Business Logic]
+      - Files: [list]
+      - What: [specific changes]
+      - Verification: [how to verify this step]
+
+      ### Step N: ...
+      ```
+
+      ### 3. Define the test strategy
+      - Which existing tests need updating?
+      - What new tests are needed?
+      - Integration test considerations
+      - Edge cases to cover
+
+      ### 4. Define the rollback plan
+      - What to revert if things go wrong
+      - Feature flag recommendation (yes/no)
+
+      ## Output
+      Write `IMPLEMENTATION_PLAN.md` to the workspace root with:
+      - Ordered implementation steps with file-level specificity
+      - Test strategy
+      - Rollback plan
+      - Estimated scope (S/M/L) based on file count and risk
+
+      ## Rules
+      - Do NOT make any code changes
+      - Steps must be specific enough that a coding agent can follow them without guessing
+      - If a constraint conflict was found, the plan MUST address it
+      - Prefer incremental steps that can each be verified independently
+      """
+    },
+
+    # ── Phase 3: Implement ──
+
+    %{
+      "name" => "feature-code-implementation",
+      "description" =>
+        "Implement the feature by following the approved implementation plan. Write code, run tests.",
+      "category" => "feature-implementation",
+      "tags" => "feature,code,implementation,build",
+      "built_in" => true,
+      "content" => """
+      # Code Implementation
+
+      ## Goal
+      Implement the feature by following the approved plan step by step. Write clean, tested code.
+
+      ## Process
+
+      ### 1. Read the approved plan
+      Read `IMPLEMENTATION_PLAN.md` from the workspace. Follow it step by step.
+
+      ### 2. Implement each step
+      For each step in the plan:
+      1. Make the changes described
+      2. Run the verification command specified in the step
+      3. Fix any issues before moving to the next step
+      4. Commit after each logical unit (if using git)
+
+      ### 3. Write/update tests
+      Follow the test strategy from the plan:
+      - Update existing tests broken by the changes
+      - Write new tests for the new behavior
+      - Ensure edge cases from the plan are covered
+
+      ### 4. Final verification
+      - Run the full test suite
+      - Run linters/formatters
+      - Verify no regressions
+
+      ## Rules
+      - Follow the plan — do NOT deviate without good reason
+      - If you discover the plan is wrong or incomplete, note it but implement what you can
+      - Verify incrementally — do NOT batch all changes and test at the end
+      - Do NOT change code outside the scope of the plan
+      - Do NOT skip tests
+      """
+    },
+
+    # ── Phase 4: Verify & Document (parallel) ──
+
+    %{
+      "name" => "feature-test-verification",
+      "description" =>
+        "Write missing tests, update broken tests, and run the full test suite to verify the feature.",
+      "category" => "feature-implementation",
+      "tags" => "feature,test,verification,quality",
+      "built_in" => true,
+      "content" => """
+      # Test Verification
+
+      ## Goal
+      Ensure the feature is fully tested. Write any missing tests, fix any broken tests,
+      and produce a test coverage report.
+
+      ## Process
+
+      ### 1. Run existing tests
+      Run the full test suite and capture results. Identify:
+      - Tests that now fail due to the feature changes
+      - Tests that pass but need updating (testing old behavior)
+
+      ### 2. Fix broken tests
+      Update tests to reflect the new behavior. Do NOT delete tests — update them.
+
+      ### 3. Write new tests
+      Based on the implementation plan's test strategy:
+      - Unit tests for new functions/modules
+      - Integration tests for new flows
+      - Edge case tests identified in the plan
+      - Regression tests for risk areas
+
+      ### 4. Final suite run
+      Run the complete test suite and report:
+      - Total tests: pass/fail/skip
+      - New tests added
+      - Tests modified
+      - Coverage delta (if measurable)
+
+      ## Output
+      Write `TEST_REPORT.md` to the workspace root:
+      ```markdown
+      # Test Report: [Feature Title]
+
+      ## Suite Results
+      - Total: X tests, Y passed, Z failed, W skipped
+
+      ## New Tests Added
+      | Test File | Test Name | What it covers |
+      |-----------|-----------|----------------|
+
+      ## Modified Tests
+      | Test File | Test Name | Why modified |
+      |-----------|-----------|--------------|
+
+      ## Coverage
+      [Before/after if measurable]
+      ```
+
+      ## Rules
+      - ALL tests must pass before marking complete
+      - Do NOT skip flaky tests — fix them
+      - Do NOT change production code — only test code
+      """
+    },
+    %{
+      "name" => "feature-docs-changelog",
+      "description" =>
+        "Update documentation and changelog for the implemented feature.",
+      "category" => "feature-implementation",
+      "tags" => "feature,docs,changelog,documentation",
+      "built_in" => true,
+      "content" => """
+      # Documentation & Changelog
+
+      ## Goal
+      Update all documentation affected by the feature and add a changelog entry.
+
+      ## IMPORTANT — Where to make changes
+      All documentation changes MUST be made in the **project's source repository**
+      (the git repo where the production code lives), NOT in the `/workspace` scratch
+      directory. The `/workspace` directory is only for reports and temporary files.
+
+      - README.md → update the one in the **project repo root**, not /workspace/README.md
+      - CHANGELOG.md → update or create in the **project repo root**
+      - Inline docs → update in the **project repo source files**
+
+      If the issue has a project_id, the project path is available. Work in that directory.
+
+      ## Process
+
+      ### 1. Update inline documentation
+      - Add/update module-level docs for new or changed modules
+      - Update function docs for changed public APIs
+      - Add type specs for new functions (where the language supports it)
+
+      ### 2. Update project documentation (in the project repo, NOT /workspace)
+      - README changes (if user-facing behavior changed)
+      - API documentation (new endpoints, changed responses)
+      - Configuration documentation (new env vars, flags)
+
+      ### 3. Write changelog entry (in the project repo, NOT /workspace)
+      Add an entry to CHANGELOG.md (or equivalent):
+      ```markdown
+      ## [Unreleased]
+      ### Added
+      - [Feature description]
+
+      ### Changed
+      - [What existing behavior changed]
+      ```
+
+      ### 4. Write report to /workspace
+      After making all changes in the project repo, write a summary report to
+      `/workspace/reports/DOCS_CHANGELOG.md` listing what was updated and where.
+
+      ### 5. Update KB context
+      If the feature significantly changes architecture, business logic, or constraints,
+      note what the KB extraction pipeline should re-extract.
+
+      ## Rules
+      - Do NOT change production code — documentation only
+      - All doc changes go in the PROJECT REPO, reports go in /workspace/reports/
+      - Match the existing documentation style
+      - Changelog entries should be user-facing, not implementation details
       """
     }
   ]
@@ -1493,7 +1979,8 @@ defmodule SymphonyElixir.SkillsSeed do
     %{
       "name" => "Product Hardening",
       "description" =>
-        "Skills for the Product Health & Hardening pipeline — scan/apply pairs for lint, security, DRY, coverage, and more",
+        "Skills for the Product Health & Hardening pipeline — scan/apply pairs for lint, security," <>
+          " DRY, coverage, and more",
       "skill_names" => [
         "hardening-lint-format-scan", "hardening-lint-format-apply",
         "hardening-dead-code-scan", "hardening-dead-code-apply",
@@ -1507,6 +1994,20 @@ defmodule SymphonyElixir.SkillsSeed do
         "hardening-playwright-e2e-scan", "hardening-playwright-e2e-apply",
         "hardening-test-coverage-scan", "hardening-test-coverage-apply",
         "hardening-pipeline-summary"
+      ]
+    },
+    %{
+      "name" => "Feature Implementation",
+      "description" =>
+        "Skills for the Feature Implementation pipeline — analyze, plan, implement, verify, document",
+      "skill_names" => [
+        "feature-kb-context",
+        "feature-impact-analysis",
+        "feature-constraint-check",
+        "feature-implementation-plan",
+        "feature-code-implementation",
+        "feature-test-verification",
+        "feature-docs-changelog"
       ]
     }
   ]

@@ -5,7 +5,7 @@ defmodule SymphonyElixir.SkillsSeedTest do
 
   @store_path "test_skills_seed_#{System.unique_integer([:positive])}.json"
 
-  # 10 general + 5 extraction + 22 hardening (11 scan + 11 apply) + 1 summary = 38
+  # 10 general + 5 extraction + 22 hardening + 1 summary + 7 feature = 45
   @expected_skill_names [
     # General (merged)
     "verification",
@@ -47,7 +47,15 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "hardening-playwright-e2e-apply",
     "hardening-test-coverage-scan",
     "hardening-test-coverage-apply",
-    "hardening-pipeline-summary"
+    "hardening-pipeline-summary",
+    # Feature Implementation
+    "feature-kb-context",
+    "feature-impact-analysis",
+    "feature-constraint-check",
+    "feature-implementation-plan",
+    "feature-code-implementation",
+    "feature-test-verification",
+    "feature-docs-changelog"
   ]
 
   @expected_group_names [
@@ -57,7 +65,8 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "UI & Design",
     "Documentation",
     "Knowledge Extraction",
-    "Product Hardening"
+    "Product Hardening",
+    "Feature Implementation"
   ]
 
   setup do
