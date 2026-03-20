@@ -409,9 +409,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
             stderr_to_stdout: true
           )
 
-          System.cmd(bash, ["-lc", "#{runtime} rm -f #{name} 2>/dev/null"],
-            stderr_to_stdout: true
-          )
+          System.cmd(bash, ["-lc", "#{runtime} rm -f #{name} 2>/dev/null"], stderr_to_stdout: true)
         end)
       end
     end

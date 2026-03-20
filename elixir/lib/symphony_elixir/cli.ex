@@ -74,6 +74,7 @@ defmodule SymphonyElixir.CLI do
             SymphonyElixir.PipelineSeed.seed()
             SymphonyElixir.HardeningSeed.seed()
             SymphonyElixir.FeaturePipelineSeed.seed()
+            SymphonyElixir.UIPipelineSeed.seed()
           end
 
           {:ok, pid}

@@ -92,6 +92,8 @@ defmodule SymphonyElixir.ProjectScanner.Git do
       _ -> false
     end
   rescue
-    _ -> false
+    e ->
+      Logger.warning("Failed to check clean worktree at #{dir_path}: #{Exception.message(e)}")
+      false
   end
 end

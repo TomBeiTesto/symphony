@@ -11,8 +11,8 @@ defmodule SymphonyElixir.Integrations.RegistryTest do
     :ok
   end
 
-  describe "resolve / available_types" do
-    test "available_types returns all four integration types" do
+  describe "available_types" do
+    test "returns all four integration types" do
       types = Registry.available_types()
       assert "jira" in types
       assert "gitlab_ci" in types
@@ -97,5 +97,4 @@ defmodule SymphonyElixir.Integrations.RegistryTest do
       assert Registry.get_credentials("nonexistent") == %{}
     end
   end
-
 end

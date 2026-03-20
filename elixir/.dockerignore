@@ -1,0 +1,29 @@
+# Elixir build artifacts
+_build/
+deps/
+doc/
+cover/
+priv/plts/
+*.beam
+erl_crash.dump
+
+# Runtime-generated files
+local_board.json
+symphony_settings.json
+backups/
+
+# Node.js
+test/e2e/node_modules/
+
+# Git
+.git/
+.github/
+
+# IDE
+.elixir_ls/
+.vscode/
+.idea/
+
+# Environment secrets
+.env
+.env.*

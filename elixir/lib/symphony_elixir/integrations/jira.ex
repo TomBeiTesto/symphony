@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Integrations.Jira do
   @moduledoc """
   Jira integration for pipeline nodes.
-
+  
   Creates/updates Jira issues and syncs status bidirectionally.
   Used by integration nodes of type "jira" in the pipeline designer.
   """
@@ -10,7 +10,7 @@ defmodule SymphonyElixir.Integrations.Jira do
 
   @doc """
   Execute a Jira integration action based on node config.
-
+  
   Config fields:
   - base_url: Jira instance URL (e.g., "https://myorg.atlassian.net")
   - project_key: Jira project key (e.g., "PROJ")

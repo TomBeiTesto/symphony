@@ -5,7 +5,7 @@ defmodule SymphonyElixir.DateTimeUtils do
 
   @doc """
   Parse an ISO 8601 datetime string into a `DateTime` struct.
-
+  
   Returns `nil` for `nil` input or unparseable strings.
   """
   @spec parse_datetime(String.t() | nil) :: DateTime.t() | nil

@@ -19,9 +19,9 @@ defmodule SymphonyElixir.ProjectScanner.SummarizerTest do
   test "extracts title and description from README", %{root: root} do
     File.write!(Path.join(root, "README.md"), """
     # My Great Tool
-
+    
     A command-line tool for managing deployments.
-
+    
     ## Usage
     """)
 
@@ -33,15 +33,15 @@ defmodule SymphonyElixir.ProjectScanner.SummarizerTest do
   test "prefers About section over first paragraph", %{root: root} do
     File.write!(Path.join(root, "README.md"), """
     # Repo Name
-
+    
     [![Badge](url)]()
-
+    
     Random badges paragraph here.
-
+    
     ## About
-
+    
     This tool helps automate CI/CD pipelines for Elixir projects.
-
+    
     ## Installation
     """)
 
@@ -52,11 +52,11 @@ defmodule SymphonyElixir.ProjectScanner.SummarizerTest do
   test "prefers Overview section", %{root: root} do
     File.write!(Path.join(root, "README.md"), """
     # Library
-
+    
     ## Overview
-
+    
     A fast JSON parser written in Rust.
-
+    
     ## API
     """)
 
@@ -105,7 +105,7 @@ defmodule SymphonyElixir.ProjectScanner.SummarizerTest do
   test "rejects generic README titles", %{root: root} do
     File.write!(Path.join(root, "README.md"), """
     # README
-
+    
     Actual content here.
     """)
 
@@ -117,7 +117,7 @@ defmodule SymphonyElixir.ProjectScanner.SummarizerTest do
   test "strips badges from heading", %{root: root} do
     File.write!(Path.join(root, "README.md"), """
     # My Project ![CI](badge.svg) [![Docs](docs.svg)](url)
-
+    
     Some description.
     """)
 
@@ -130,9 +130,9 @@ defmodule SymphonyElixir.ProjectScanner.SummarizerTest do
 
     File.write!(Path.join(root, "README.md"), """
     # Project
-
+    
     #{long_text}
-
+    
     ## End
     """)
 

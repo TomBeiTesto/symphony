@@ -28,8 +28,7 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
     existing_pipelines = LocalBoard.list_pipelines()
     skill_id_map = build_skill_id_map()
 
-    already_exists? =
-      Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
+    already_exists? = Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
 
     unless already_exists? do
       create_feature_pipeline(skill_id_map)
@@ -76,68 +75,123 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
     # ── Phase 1: Analyze (3 parallel) ──
     y_p1 = 130
 
-    kb_context = issue_node("kb-context", "KB Context Retrieval",
-      "Pull relevant architecture, business logic, constraints, and workflows from the Knowledge Base.",
-      ["feature-implementation", "analysis"], "feature-kb-context", skill_id_map,
-      %{"x" => x_center - col_spacing, "y" => y_p1})
+    kb_context =
+      issue_node(
+        "kb-context",
+        "KB Context Retrieval",
+        "Pull relevant architecture, business logic, constraints, and workflows from the Knowledge Base.",
+        ["feature-implementation", "analysis"],
+        "feature-kb-context",
+        skill_id_map,
+        %{"x" => x_center - col_spacing, "y" => y_p1}
+      )
 
-    impact = issue_node("impact-analysis", "Codebase Impact Analysis",
-      "Trace through the codebase to identify every file, module, and function affected by the feature.",
-      ["feature-implementation", "analysis"], "feature-impact-analysis", skill_id_map,
-      %{"x" => x_center, "y" => y_p1})
+    impact =
+      issue_node(
+        "impact-analysis",
+        "Codebase Impact Analysis",
+        "Trace through the codebase to identify every file, module, and function affected by the feature.",
+        ["feature-implementation", "analysis"],
+        "feature-impact-analysis",
+        skill_id_map,
+        %{"x" => x_center, "y" => y_p1}
+      )
 
-    constraints = issue_node("constraint-check", "Constraint Check",
-      "Cross-reference the feature against known constraints, security boundaries, and data contracts.",
-      ["feature-implementation", "analysis"], "feature-constraint-check", skill_id_map,
-      %{"x" => x_center + col_spacing, "y" => y_p1})
+    constraints =
+      issue_node(
+        "constraint-check",
+        "Constraint Check",
+        "Cross-reference the feature against known constraints, security boundaries, and data contracts.",
+        ["feature-implementation", "analysis"],
+        "feature-constraint-check",
+        skill_id_map,
+        %{"x" => x_center + col_spacing, "y" => y_p1}
+      )
 
     # ── Phase 2: Plan (sequential, gated) ──
     y_p2 = y_p1 + row_gap
 
-    plan = issue_node("impl-plan", "Implementation Plan",
-      "Generate a step-by-step implementation plan from all analysis outputs. " <>
-        "Reads KB_CONTEXT.md, IMPACT_ANALYSIS.md, and CONSTRAINT_CHECK.md.",
-      ["feature-implementation", "plan"], "feature-implementation-plan", skill_id_map,
-      %{"x" => x_center, "y" => y_p2})
+    plan =
+      issue_node(
+        "impl-plan",
+        "Implementation Plan",
+        "Generate a step-by-step implementation plan from all analysis outputs. " <>
+          "Reads KB_CONTEXT.md, IMPACT_ANALYSIS.md, and CONSTRAINT_CHECK.md.",
+        ["feature-implementation", "plan"],
+        "feature-implementation-plan",
+        skill_id_map,
+        %{"x" => x_center, "y" => y_p2}
+      )
 
     y_plan_gate = y_p2 + row_gap
-    plan_gate = gate_node("plan-review", "Review Plan",
-      "Review the implementation plan. Approve to proceed with coding, " <>
-        "reject with feedback to re-plan.",
-      "Does the implementation plan cover all affected files, respect constraints, " <>
-        "and have a sensible execution order? Approve to begin coding, or reject with specific feedback.",
-      %{"x" => x_center, "y" => y_plan_gate}, "plan_review")
+
+    plan_gate =
+      gate_node(
+        "plan-review",
+        "Review Plan",
+        "Review the implementation plan. Approve to proceed with coding, " <>
+          "reject with feedback to re-plan.",
+        "Does the implementation plan cover all affected files, respect constraints, " <>
+          "and have a sensible execution order? Approve to begin coding, or reject with specific feedback.",
+        %{"x" => x_center, "y" => y_plan_gate},
+        "plan_review"
+      )
 
     # ── Phase 3: Implement (sequential, gated) ──
     y_p3 = y_plan_gate + row_gap
 
-    code = issue_node("code-impl", "Code Implementation",
-      "Implement the feature by following the approved plan step by step.",
-      ["feature-implementation", "implement"], "feature-code-implementation", skill_id_map,
-      %{"x" => x_center, "y" => y_p3})
+    code =
+      issue_node(
+        "code-impl",
+        "Code Implementation",
+        "Implement the feature by following the approved plan step by step.",
+        ["feature-implementation", "implement"],
+        "feature-code-implementation",
+        skill_id_map,
+        %{"x" => x_center, "y" => y_p3}
+      )
 
     y_code_gate = y_p3 + row_gap
-    code_gate = gate_node("code-review", "Code Review",
-      "Review the implementation. Approve if correct, reject with feedback to revise.",
-      "Does the code match the approved plan? Are there bugs, missing edge cases, or style issues? " <>
-        "Approve to proceed to testing, or reject with specific code review feedback.",
-      %{"x" => x_center, "y" => y_code_gate}, "code_review")
+
+    code_gate =
+      gate_node(
+        "code-review",
+        "Code Review",
+        "Review the implementation. Approve if correct, reject with feedback to revise.",
+        "Does the code match the approved plan? Are there bugs, missing edge cases, or style issues? " <>
+          "Approve to proceed to testing, or reject with specific code review feedback.",
+        %{"x" => x_center, "y" => y_code_gate},
+        "code_review"
+      )
 
     # ── Phase 4: Verify & Document (parallel) ──
     y_p4 = y_code_gate + row_gap
 
-    tests = issue_node("test-verify", "Test Verification",
-      "Write missing tests, fix broken tests, run the full test suite.",
-      ["feature-implementation", "verify"], "feature-test-verification", skill_id_map,
-      %{"x" => x_center - div(col_spacing, 2), "y" => y_p4})
+    tests =
+      issue_node(
+        "test-verify",
+        "Test Verification",
+        "Write missing tests, fix broken tests, run the full test suite.",
+        ["feature-implementation", "verify"],
+        "feature-test-verification",
+        skill_id_map,
+        %{"x" => x_center - div(col_spacing, 2), "y" => y_p4}
+      )
 
-    docs = issue_node("docs-changelog", "Documentation & Changelog",
-      "Update documentation and changelog for the implemented feature.",
-      ["feature-implementation", "docs"], "feature-docs-changelog", skill_id_map,
-      %{"x" => x_center + div(col_spacing, 2), "y" => y_p4})
+    docs =
+      issue_node(
+        "docs-changelog",
+        "Documentation & Changelog",
+        "Update documentation and changelog for the implemented feature.",
+        ["feature-implementation", "docs"],
+        "feature-docs-changelog",
+        skill_id_map,
+        %{"x" => x_center + div(col_spacing, 2), "y" => y_p4}
+      )
 
     # Quality gate after tests (auto-approve if tests pass)
     y_qgate = y_p4 + row_gap
+
     test_gate = %{
       "id" => "test-gate",
       "type" => "quality_gate",
@@ -151,6 +205,7 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
 
     # ── Phase 5: KB Sync → End ──
     y_kb = y_qgate + row_gap
+
     kb_sync = %{
       "id" => "kb-sync",
       "type" => "kb_sync",
@@ -165,15 +220,31 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
 
     # ── Assemble nodes ──
     all_nodes = [
-      %{"id" => "start", "type" => "start", "label" => "Start",
-        "config" => %{}, "position" => %{"x" => x_center, "y" => 30}},
-      kb_context, impact, constraints,
-      plan, plan_gate,
-      code, code_gate,
-      tests, docs, test_gate,
+      %{
+        "id" => "start",
+        "type" => "start",
+        "label" => "Start",
+        "config" => %{},
+        "position" => %{"x" => x_center, "y" => 30}
+      },
+      kb_context,
+      impact,
+      constraints,
+      plan,
+      plan_gate,
+      code,
+      code_gate,
+      tests,
+      docs,
+      test_gate,
       kb_sync,
-      %{"id" => "end", "type" => "end", "label" => "End",
-        "config" => %{}, "position" => %{"x" => x_center, "y" => y_end}}
+      %{
+        "id" => "end",
+        "type" => "end",
+        "label" => "End",
+        "config" => %{},
+        "position" => %{"x" => x_center, "y" => y_end}
+      }
     ]
 
     # ── Assemble edges ──

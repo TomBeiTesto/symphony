@@ -14,6 +14,7 @@ defmodule SymphonyElixir.Orchestrator.Worker do
   alias SymphonyElixir.Orchestrator.State
 
   @doc "Dispatch a single issue: claim it, add to running, and spawn a worker task."
+  @spec dispatch_issue(State.t(), Config.t(), Issue.t()) :: State.t()
   def dispatch_issue(state, config, %Issue{} = issue) do
     Logger.info("Dispatching issue=#{issue.identifier} state=#{issue.state}")
 
@@ -57,6 +58,7 @@ defmodule SymphonyElixir.Orchestrator.Worker do
   end
 
   @doc "Run the worker: set up workspace, render prompt, start agent session, run turn loop."
+  @spec run_worker(Config.t(), String.t(), Issue.t(), pid()) :: {:ok, term()} | {:error, term()}
   def run_worker(config, prompt_template, issue, orchestrator_pid) do
     with {:ok, workspace_info} <- Workspace.ensure_workspace(config, issue) do
       workspace_path = resolve_project_workspace(config, issue, workspace_info.path)
@@ -130,6 +132,8 @@ defmodule SymphonyElixir.Orchestrator.Worker do
   B2: Re-renders prompt from current issue state for continuation turns
   so that context changes (rerun_hint, labels, etc.) are picked up.
   """
+  @spec run_turn_loop(Config.t(), String.t(), Issue.t(), map(), non_neg_integer()) ::
+          {:ok, term()} | {:error, term()}
   def run_turn_loop(config, prompt_template, issue, session, turn_count) do
     client = agent_client_module()
 
@@ -185,6 +189,7 @@ defmodule SymphonyElixir.Orchestrator.Worker do
 
   Priority: issue's own project_id (most specific) > product's first project > fallback.
   """
+  @spec resolve_project_workspace(Config.t(), Issue.t(), String.t()) :: String.t()
   def resolve_project_workspace(
         %Config{tracker_kind: "local"},
         %Issue{project_id: pid} = issue,
@@ -234,6 +239,7 @@ defmodule SymphonyElixir.Orchestrator.Worker do
   For product-linked issues, return all project paths so the container
   can mount them as additional volumes alongside the primary workspace.
   """
+  @spec resolve_extra_mounts(Config.t(), Issue.t(), String.t()) :: [String.t()]
   def resolve_extra_mounts(
         %Config{tracker_kind: "local"},
         %Issue{product_id: prod_id},
@@ -354,6 +360,8 @@ defmodule SymphonyElixir.Orchestrator.Worker do
       end)
     end)
   rescue
-    _ -> :ok
+    e ->
+      Logger.warning("Failed to clean up workspace artifacts at #{workspace_path}: #{Exception.message(e)}")
+      :ok
   end
 end

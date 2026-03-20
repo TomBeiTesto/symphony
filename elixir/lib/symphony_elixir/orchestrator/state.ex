@@ -36,6 +36,12 @@ defmodule SymphonyElixir.Orchestrator.State do
           error: String.t() | nil
         }
 
+  @type partial_running_update :: %{
+          optional(:worker_pid) => pid(),
+          optional(:session_id) => String.t() | nil,
+          optional(:turn_count) => non_neg_integer()
+        }
+
   @type agent_totals :: %{
           input_tokens: non_neg_integer(),
           output_tokens: non_neg_integer(),
@@ -116,7 +122,7 @@ defmodule SymphonyElixir.Orchestrator.State do
   end
 
   @doc "Merge fields into an existing running entry."
-  @spec update_running(t(), String.t(), map()) :: t()
+  @spec update_running(t(), String.t(), partial_running_update()) :: t()
   def update_running(%__MODULE__{} = state, issue_id, fields) do
     case Map.get(state.running, issue_id) do
       nil -> state

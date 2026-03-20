@@ -1,7 +1,8 @@
+# credo:disable-for-this-file Credo.Check.Readability.MaxLineLength
 defmodule SymphonyElixir.Server.PipelineUI do
   @moduledoc """
   Pipeline designer and execution monitor UI.
-
+  
   - render_list/0: Pipeline list page at /pipeline
   - render_designer/1: Visual canvas designer for a specific pipeline
   """
@@ -30,118 +31,118 @@ defmodule SymphonyElixir.Server.PipelineUI do
   end
 
   defp list_css do
-      ~S"""
-
-      .page-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 24px; border-bottom: 1px solid var(--border);
-      }
-      .page-header h2 { font-size: 1.1rem; font-weight: 600; }
-
-      .pipeline-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 16px; padding: 24px;
-      }
-
-      .pipeline-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 20px;
-        cursor: pointer;
-        transition: border-color var(--transition), box-shadow var(--transition);
-      }
-      .pipeline-card:hover {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 1px var(--accent);
-      }
-      .pipeline-card-name {
-        font-size: 1rem; font-weight: 600; color: var(--text-primary);
-        margin-bottom: 4px;
-      }
-      .pipeline-card-desc {
-        font-size: 0.85rem; color: var(--text-muted);
-        margin-bottom: 12px;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      }
-      .pipeline-card-meta {
-        display: flex; align-items: center; gap: 12px;
-        font-size: 0.8rem; color: var(--text-muted);
-      }
-      .pipeline-card-meta .node-count {
-        background: var(--bg-tertiary); padding: 2px 8px;
-        border-radius: 10px; font-size: 0.75rem;
-      }
-      .pipeline-card-actions {
-        display: flex; gap: 6px; margin-top: 12px;
-      }
-      .run-badge {
-        display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600;
-        padding: 4px 10px; border-radius: 4px; margin-bottom: 8px;
-      }
-      .run-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-      .run-detail { font-weight: 400; color: var(--text-muted); margin-left: auto; }
-      .run-badge-running { background: rgba(88,166,255,0.12); color: var(--accent); }
-      .run-badge-running .run-dot { background: var(--accent); animation: pulse 2s infinite; }
-      .run-badge-paused { background: rgba(210,153,34,0.12); color: var(--yellow); }
-      .run-badge-paused .run-dot { background: var(--yellow); }
-
-      .mini-preview {
-        height: 48px; margin-bottom: 12px;
-        border-radius: 4px; overflow: hidden;
-        background: var(--bg-tertiary);
-      }
-      .mini-preview svg { width: 100%; height: 100%; }
-
-      .empty-state {
-        grid-column: 1 / -1;
-        text-align: center; padding: 60px 20px;
-        color: var(--text-muted);
-      }
-      .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text-secondary); }
-
-      /* Waiting gates panel */
-      .gates-panel {
-        margin: 0 24px; padding: 16px;
-        background: var(--bg-secondary); border: 1px solid var(--border);
-        border-radius: var(--radius);
-      }
-      .gates-panel-header {
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 12px;
-      }
-      .gates-panel-header h3 { font-size: 0.95rem; font-weight: 600; }
-      .gates-panel-header .gate-count {
-        background: var(--yellow); color: #000; font-size: 0.75rem; font-weight: 700;
-        padding: 2px 8px; border-radius: 10px;
-      }
-      .gate-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-      .gate-table th {
-        text-align: left; padding: 6px 8px; color: var(--text-muted);
-        font-weight: 500; border-bottom: 1px solid var(--border);
-      }
-      .gate-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
-      .gate-table tr:hover { background: var(--bg-hover); }
-      .gate-check { width: 20px; }
-      .gate-state-badge {
-        font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600;
-      }
-      .gate-state-waiting { background: rgba(210,153,34,0.15); color: var(--yellow); }
-      .gate-state-on_hold { background: rgba(249,117,131,0.15); color: #f97583; }
-      .batch-bar {
-        display: flex; align-items: center; gap: 8px; margin-top: 10px;
-        padding: 8px 0; border-top: 1px solid var(--border);
-      }
-      .batch-bar .selected-count { font-size: 0.8rem; color: var(--text-muted); margin-right: auto; }
-      """
+    ~S"""
+    
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+    }
+    .page-header h2 { font-size: 1.1rem; font-weight: 600; }
+    
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px; padding: 24px;
+    }
+    
+    .pipeline-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .pipeline-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .pipeline-card-name {
+      font-size: 1rem; font-weight: 600; color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .pipeline-card-desc {
+      font-size: 0.85rem; color: var(--text-muted);
+      margin-bottom: 12px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .pipeline-card-meta {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 0.8rem; color: var(--text-muted);
+    }
+    .pipeline-card-meta .node-count {
+      background: var(--bg-tertiary); padding: 2px 8px;
+      border-radius: 10px; font-size: 0.75rem;
+    }
+    .pipeline-card-actions {
+      display: flex; gap: 6px; margin-top: 12px;
+    }
+    .run-badge {
+      display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600;
+      padding: 4px 10px; border-radius: 4px; margin-bottom: 8px;
+    }
+    .run-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .run-detail { font-weight: 400; color: var(--text-muted); margin-left: auto; }
+    .run-badge-running { background: rgba(88,166,255,0.12); color: var(--accent); }
+    .run-badge-running .run-dot { background: var(--accent); animation: pulse 2s infinite; }
+    .run-badge-paused { background: rgba(210,153,34,0.12); color: var(--yellow); }
+    .run-badge-paused .run-dot { background: var(--yellow); }
+    
+    .mini-preview {
+      height: 48px; margin-bottom: 12px;
+      border-radius: 4px; overflow: hidden;
+      background: var(--bg-tertiary);
+    }
+    .mini-preview svg { width: 100%; height: 100%; }
+    
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center; padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text-secondary); }
+    
+    /* Waiting gates panel */
+    .gates-panel {
+      margin: 0 24px; padding: 16px;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .gates-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .gates-panel-header h3 { font-size: 0.95rem; font-weight: 600; }
+    .gates-panel-header .gate-count {
+      background: var(--yellow); color: #000; font-size: 0.75rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px;
+    }
+    .gate-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .gate-table th {
+      text-align: left; padding: 6px 8px; color: var(--text-muted);
+      font-weight: 500; border-bottom: 1px solid var(--border);
+    }
+    .gate-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    .gate-table tr:hover { background: var(--bg-hover); }
+    .gate-check { width: 20px; }
+    .gate-state-badge {
+      font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+    }
+    .gate-state-waiting { background: rgba(210,153,34,0.15); color: var(--yellow); }
+    .gate-state-on_hold { background: rgba(249,117,131,0.15); color: #f97583; }
+    .batch-bar {
+      display: flex; align-items: center; gap: 8px; margin-top: 10px;
+      padding: 8px 0; border-top: 1px solid var(--border);
+    }
+    .batch-bar .selected-count { font-size: 0.8rem; color: var(--text-muted); margin-right: auto; }
+    """
   end
 
   defp list_js do
     ~S"""
     let pipelines = [];
     let activeRuns = {};
-
+    
     async function loadPipelines() {
       const [pRes, rRes] = await Promise.all([
         fetch('/board/api/pipelines'),
@@ -154,7 +155,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       (rData.runs || []).forEach(function(r) { activeRuns[r.pipeline_id] = r; });
       renderGrid();
     }
-
+    
     function runStatusBadge(pipelineId) {
       var run = activeRuns[pipelineId];
       if (!run) return '';
@@ -171,7 +172,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         '<span class="run-dot"></span> ' + label +
         ' <span class="run-detail">' + detail + '</span></div>';
     }
-
+    
     function renderGrid() {
       const grid = document.getElementById('pipeline-grid');
       if (pipelines.length === 0) {
@@ -205,7 +206,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>`;
       }).join('');
     }
-
+    
     function renderMiniSvg(pipeline) {
       const nodes = pipeline.nodes || [];
       if (nodes.length === 0) return '';
@@ -215,15 +216,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
       const maxY = Math.max(...nodes.map(n => n.position.y)) + 60;
       const w = maxX - minX + 40;
       const h = maxY - minY + 40;
-
+    
       const colors = {
         'issue': '#58a6ff', 'human_gate': '#d29922', 'quality_gate': '#bc8cff',
         'loop': '#d18616', 'kb_sync': '#3fb950', 'integration': '#8b949e',
         'start': '#58a6ff', 'end': '#3fb950'
       };
-
+    
       let svg = `<svg viewBox="${minX - 20} ${minY - 20} ${w} ${h}" preserveAspectRatio="xMidYMid meet">`;
-
+    
       // edges
       const edges = pipeline.edges || [];
       const nodeMap = {};
@@ -236,7 +237,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             ` x2="${t.position.x + 100}" y2="${t.position.y + 30}" stroke="#30363d" stroke-width="2"/>`;
         }
       });
-
+    
       // nodes
       nodes.forEach(n => {
         const c = colors[n.type] || '#8b949e';
@@ -247,11 +248,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
             ` width="200" height="48" rx="6" fill="${c}" opacity="0.15" stroke="${c}" stroke-width="1.5"/>`;
         }
       });
-
+    
       svg += '</svg>';
       return svg;
     }
-
+    
     async function createPipeline() {
       const res = await fetch('/board/api/pipelines', {
         method: 'POST',
@@ -261,11 +262,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       const pipeline = await res.json();
       window.location.href = '/board/pipeline/' + pipeline.id;
     }
-
+    
     function openPipeline(id) {
       window.location.href = '/board/pipeline/' + id;
     }
-
+    
     async function duplicatePipeline(id) {
       const src = pipelines.find(p => p.id === id);
       if (!src) return;
@@ -287,7 +288,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         showToast('Failed to duplicate pipeline', { type: 'error' });
       }
     }
-
+    
     async function deletePipeline(id) {
       if (!confirm('Delete this pipeline?')) return;
       const res = await fetch('/board/api/pipelines/' + id, { method: 'DELETE' });
@@ -295,13 +296,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
       else showToast('Failed to delete pipeline', { type: 'error' });
       loadPipelines();
     }
-
+    
     loadPipelines();
     loadWaitingGates();
     setInterval(loadWaitingGates, 5000);
-
+    
     let waitingGates = [];
-
+    
     async function loadWaitingGates() {
       try {
         const res = await fetch('/board/api/pipeline-runs/waiting-gates');
@@ -310,7 +311,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         renderGatesPanel();
       } catch(e) { /* ignore polling errors */ }
     }
-
+    
     function renderGatesPanel() {
       const container = document.getElementById('gates-panel-container');
       if (waitingGates.length === 0) {
@@ -332,7 +333,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             '" style="color:var(--accent);text-decoration:none">Open</a></td>' +
           '</tr>';
       }).join('');
-
+    
       container.innerHTML = '<div class="gates-panel">' +
         '<div class="gates-panel-header"><h3>Waiting Gates</h3>' +
         '<span class="gate-count">' + waitingGates.length + '</span></div>' +
@@ -352,23 +353,23 @@ defmodule SymphonyElixir.Server.PipelineUI do
         ' onclick="batchGateAction(\'reject\')">Reject</button>' +
         '<button class="btn btn-sm btn-ghost" onclick="batchGateAction(\'hold\')">Hold</button>' +
         '</div></div>';
-
+    
       document.querySelectorAll('.gate-cb').forEach(function(cb) {
         cb.addEventListener('change', updateGateSelectedCount);
       });
     }
-
+    
     function toggleAllGates(checked) {
       document.querySelectorAll('.gate-cb').forEach(function(cb) { cb.checked = checked; });
       updateGateSelectedCount();
     }
-
+    
     function updateGateSelectedCount() {
       const count = document.querySelectorAll('.gate-cb:checked').length;
       const el = document.getElementById('gate-selected-count');
       if (el) el.textContent = count + ' selected';
     }
-
+    
     async function batchGateAction(action) {
       const checked = document.querySelectorAll('.gate-cb:checked');
       if (checked.length === 0) { showToast('Select at least one gate', { type: 'warning' }); return; }
@@ -407,26 +408,32 @@ defmodule SymphonyElixir.Server.PipelineUI do
         <div class="palette-item" draggable="true" data-type="start" title="Start">
           <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#58a6ff"/></svg>
         </div>
-        <div class="palette-item" draggable="true" data-type="issue" title="Issue / Task">
+        <div class="palette-item" draggable="true" data-type="issue" title="Issue / Task"
+          data-help='{"title":"Issue Node","what":"Creates an issue and dispatches an AI agent to work on it. Configure with a template title, description, and skills.","why":"The workhorse of pipelines — each issue node is one unit of AI work.","connects":"Issues, Skills, Orchestrator"}'>
           <svg viewBox="0 0 16 16" width="16" height="16">
             <rect x="2" y="2" width="12" height="12" rx="2" fill="#58a6ff"/></svg>
         </div>
-        <div class="palette-item" draggable="true" data-type="human_gate" title="Human Gate">
+        <div class="palette-item" draggable="true" data-type="human_gate" title="Human Gate"
+          data-help='{"title":"Human Gate","what":"Pauses the pipeline for human review. Shows predecessor outputs and lets you approve, reject, or hold. Set review mode: Code, Plan, or Findings.","why":"Quality control — review AI output before the pipeline continues. Reject sends feedback back.","connects":"Pipeline flow, Issues (predecessors)"}'>
           <svg viewBox="0 0 16 16" width="16" height="16"><polygon points="8,1 15,8 8,15 1,8" fill="#d29922"/></svg>
         </div>
-        <div class="palette-item" draggable="true" data-type="quality_gate" title="Quality Gate">
+        <div class="palette-item" draggable="true" data-type="quality_gate" title="Quality Gate"
+          data-help='{"title":"Quality Gate","what":"Runs automated checks (tests, lint, types) and auto-approves if they pass. Falls back to manual review on failure.","why":"Automated quality enforcement — catch regressions without manual intervention.","connects":"Pipeline flow, Check Commands, CI/CD"}'>
           <svg viewBox="0 0 16 16" width="16" height="16"><polygon points="8,1 15,8 8,15 1,8" fill="#bc8cff"/></svg>
         </div>
-        <div class="palette-item" draggable="true" data-type="loop" title="Loop">
+        <div class="palette-item" draggable="true" data-type="loop" title="Loop"
+          data-help='{"title":"Loop Node","what":"Repeats a section of the pipeline until a condition is met or max retries reached.","why":"Iterative refinement — keep running scan→fix cycles until quality targets are met.","connects":"Pipeline flow, Loop condition"}'>
           <svg viewBox="0 0 16 16" width="16" height="16">
             <path d="M4 8a4 4 0 0 1 8 0" stroke="#d18616" stroke-width="2" fill="none"/>
             <path d="M10 6l2 2-2 2" stroke="#d18616" stroke-width="2" fill="none"/></svg>
         </div>
-        <div class="palette-item" draggable="true" data-type="kb_sync" title="KB Sync">
+        <div class="palette-item" draggable="true" data-type="kb_sync" title="KB Sync"
+          data-help='{"title":"KB Sync Node","what":"Collects outputs from predecessor issues and merges them into the Knowledge Base. Uses LLM to intelligently merge, not overwrite.","why":"Preserve what agents learn. After extraction or feature work, sync findings back to the KB for future runs.","connects":"Knowledge Base, Issues, Products"}'>
           <svg viewBox="0 0 16 16" width="16" height="16">
             <rect x="2" y="2" width="12" height="12" rx="2" fill="#3fb950"/></svg>
         </div>
-        <div class="palette-item" draggable="true" data-type="integration" title="Integration">
+        <div class="palette-item" draggable="true" data-type="integration" title="Integration"
+          data-help='{"title":"Integration Node","what":"Connects to external services: GitLab CI pipelines, webhooks, or other APIs. Runs and waits for completion.","why":"Trigger real CI/CD pipelines, deploy steps, or external validations as part of your workflow.","connects":"GitLab, CI/CD, External APIs"}'>
           <svg viewBox="0 0 16 16" width="16" height="16">
             <rect x="2" y="2" width="12" height="12" rx="2" fill="#8b949e"/></svg>
         </div>
@@ -434,7 +441,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#3fb950"/></svg>
         </div>
       </div>
-
+    
       <!-- Canvas -->
       <div class="canvas-viewport" id="viewport">
         <div class="canvas-transform" id="canvas-transform">
@@ -442,13 +449,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
           <div class="node-layer" id="node-layer"></div>
         </div>
       </div>
-
+    
       <!-- Minimap -->
       <div class="minimap" id="minimap">
         <canvas id="minimap-canvas" width="160" height="100"></canvas>
         <div class="minimap-viewport" id="minimap-vp"></div>
       </div>
-
+    
       <!-- Floating controls bottom-left -->
       <div class="zoom-controls">
         <button class="btn btn-sm btn-ghost" onclick="zoomOut()">-</button>
@@ -456,7 +463,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         <button class="btn btn-sm btn-ghost" onclick="zoomIn()">+</button>
         <button class="btn btn-sm btn-ghost" onclick="zoomFit()">Fit</button>
       </div>
-
+    
       <!-- Floating actions bottom-right -->
       <div class="canvas-actions">
         <button class="btn btn-sm btn-ghost" onclick="toggleRunHistory()"
@@ -464,7 +471,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         <button class="btn btn-sm btn-ghost" onclick="toggleExecution()" id="run-btn">&#9654; Run</button>
         <button class="btn btn-sm btn-primary" onclick="savePipeline()">Save</button>
       </div>
-
+    
       <!-- Run history panel -->
       <div id="run-history-panel" class="run-history-panel" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -473,7 +480,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         </div>
         <div id="run-history-list"></div>
       </div>
-
+    
       <!-- Pipeline name / breadcrumb top-left below topbar -->
       <div class="canvas-breadcrumb">
         <a href="/board/pipeline" class="btn btn-ghost btn-sm">&larr; Pipelines</a>
@@ -490,7 +497,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         <button class="btn btn-ghost btn-sm" onclick="toggleHelpModal()"
           title="Keyboard shortcuts" style="margin-left:auto">?</button>
       </div>
-
+    
       <!-- Help modal -->
       <div class="modal-overlay" id="help-modal" style="display:none"
         onclick="if(event.target===this)closeHelpModal()">
@@ -525,12 +532,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Create Issue modal (shared) -->
-    #{UIHelpers.create_issue_modal_html(prefix: "ci", on_submit: "submitCreateIssue",
-      on_cancel: "closeCreateIssueModal", submit_label: "Create &amp; Link",
-      z_index: 1010, ai_draft: true, show_skills_picker: true)}
-
+    #{UIHelpers.create_issue_modal_html(prefix: "ci", on_submit: "submitCreateIssue", on_cancel: "closeCreateIssueModal", submit_label: "Create &amp; Link", z_index: 1010, ai_draft: true, show_skills_picker: true)}
+    
       <!-- Config modal -->
       <div class="modal-overlay" id="config-modal" style="display:none" onclick="if(event.target===this)closeConfig()">
         <div class="modal" style="max-width:520px">
@@ -545,7 +550,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           </div>
         </div>
       </div>
-
+    
       <script>
     #{UIHelpers.esc_js()}
     #{UIHelpers.toast_js()}
@@ -566,9 +571,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       UIHelpers.skill_picker_css() <>
       UIHelpers.integration_help_css() <>
       ~S"""
-
+      
       body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-
+      
       /* Floating palette */
       .palette {
         position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
@@ -593,7 +598,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         transition: opacity 150ms;
       }
       .palette-item:hover::after { opacity: 1; }
-
+      
       /* Canvas viewport */
       .canvas-viewport {
         flex: 1; overflow: hidden; position: relative;
@@ -606,7 +611,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         transform-origin: 0 0;
         width: 0; height: 0;
       }
-
+      
       /* Edge layer (SVG) */
       .edge-layer {
         position: absolute; top: 0; left: 0;
@@ -619,13 +624,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .edge-path { stroke: #58687a; stroke-width: 2; fill: none; opacity: 0.7; }
       .edge-path-reject { stroke: var(--red); stroke-width: 2; fill: none; stroke-dasharray: 6 4; opacity: 0.7; }
       .edge-arrow { fill: #58687a; }
-
+      
       /* Temp connection line while dragging */
       .temp-edge { stroke: var(--accent); stroke-width: 2; fill: none; stroke-dasharray: 6 3; }
-
+      
       /* Node layer */
       .node-layer { position: absolute; top: 0; left: 0; }
-
+      
       /* Pipeline node */
       .p-node {
         position: absolute; width: 200px;
@@ -642,7 +647,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .p-node-label { font-size: 0.85rem; font-weight: 500; color: var(--text-primary);
         margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .p-node-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
-
+      
       /* Start/End special nodes */
       .p-node-terminal {
         position: absolute; width: 40px; height: 40px;
@@ -653,7 +658,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       .p-node-terminal:hover { box-shadow: 0 0 0 3px rgba(88,166,255,0.3); }
       .p-node-terminal.selected { box-shadow: 0 0 0 3px rgba(88,166,255,0.5); }
-
+      
       /* Ports */
       .port {
         position: absolute; width: 10px; height: 10px;
@@ -667,7 +672,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .port-out { right: -5px; top: 50%; margin-top: -5px; }
       .port-in { left: -5px; top: 50%; margin-top: -5px; }
       .port-reject { bottom: -5px; left: 50%; margin-left: -5px; background: var(--red); }
-
+      
       /* Floating mini-toolbar above selected node */
       .node-toolbar {
         position: absolute; top: -36px; left: 50%; transform: translateX(-50%);
@@ -677,7 +682,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         white-space: nowrap;
       }
       .node-toolbar button { font-size: 0.75rem; padding: 3px 8px; }
-
+      
       /* Floating controls */
       .zoom-controls {
         position: fixed; bottom: 16px; left: 16px; z-index: 100;
@@ -718,7 +723,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       .pipeline-product-select:hover { border-color: var(--border); }
       .pipeline-product-select:focus { border-color: var(--accent); outline: none; color: var(--text-primary); }
-
+      
       /* Execution overlay styles */
       .p-node.exec-completed { border-color: var(--green); box-shadow: 0 0 8px rgba(63,185,80,0.3); }
       .p-node.exec-running { border-color: var(--accent); animation: pulse-node 2s infinite; }
@@ -727,7 +732,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .p-node.exec-on-hold { border-color: #f97583; animation: pulse-hold 2.5s infinite; }
       .p-node.exec-skipped { border-color: var(--text-muted); opacity: 0.5; }
       .p-node-terminal.exec-completed { box-shadow: 0 0 8px rgba(63,185,80,0.5); }
-
+      
       @keyframes pulse-node {
         0%, 100% { box-shadow: 0 0 0 0 rgba(88,166,255,0.4); }
         50% { box-shadow: 0 0 0 8px rgba(88,166,255,0); }
@@ -740,7 +745,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         0%, 100% { box-shadow: 0 0 0 0 rgba(249,117,131,0.4); }
         50% { box-shadow: 0 0 0 8px rgba(249,117,131,0); }
       }
-
+      
       /* Execution sidebar */
       .exec-sidebar {
         position: fixed; top: 48px; right: 0; bottom: 0; width: 480px;
@@ -754,14 +759,14 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .gate-feedback { width: 100%; margin-top: 8px; background: var(--bg-tertiary);
         border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);
         padding: 8px; font-size: 0.85rem; resize: vertical; min-height: 60px; }
-
+      
       /* Gate prompt banner */
       .gate-prompt-banner {
         margin-top: 12px; padding: 10px 12px;
         background: linear-gradient(135deg, rgba(56,139,253,0.08), rgba(56,139,253,0.03));
         border: 1px solid rgba(56,139,253,0.3); border-radius: 8px;
       }
-
+      
       /* Accordion styles */
       .accordion-header {
         font-size: 0.78rem; font-weight: 500; color: var(--text-secondary);
@@ -779,13 +784,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
         padding: 8px 10px; font-size: 0.8rem; color: var(--text-secondary);
         border-left: 2px solid var(--border); margin-left: 4px; margin-top: 4px;
       }
-
+      
       /* Issue accordion */
       .issue-accordion { margin-bottom: 6px; }
       .issue-accordion > .accordion-header {
         font-size: 0.8rem; padding: 8px 10px;
       }
-
+      
       /* Report sections inside accordions */
       .report-section {
         margin-top: 8px; padding: 8px; background: var(--bg-tertiary);
@@ -799,7 +804,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         font-size: 0.78rem; line-height: 1.5; color: var(--text-secondary);
         max-height: 300px; overflow-y: auto;
       }
-
+      
       /* Plan review content */
       .plan-review-content {
         font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);
@@ -812,7 +817,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         background: var(--bg-secondary); padding: 1px 4px;
         border-radius: 3px; font-size: 0.76rem;
       }
-
+      
       /* Finding cards */
       .finding-card {
         padding: 8px 10px; background: var(--bg-secondary);
@@ -847,7 +852,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         background: rgba(248,81,73,0.15); border-color: var(--red);
         color: var(--red);
       }
-
+      
       /* Minimap */
       .minimap {
         position: fixed; bottom: 56px; left: 16px; z-index: 99;
@@ -861,21 +866,21 @@ defmodule SymphonyElixir.Server.PipelineUI do
         border-radius: 2px; pointer-events: none;
         background: rgba(88,166,255,0.06);
       }
-
+      
       /* Kbd styling */
       kbd {
         background: var(--bg-tertiary); border: 1px solid var(--border);
         border-radius: 4px; padding: 1px 6px; font-size: 0.8rem;
         font-family: inherit; color: var(--text-primary);
       }
-
+      
       /* Edge animation during execution */
       .edge-flow { animation: dash-flow 1s linear infinite; }
       @keyframes dash-flow {
         from { stroke-dashoffset: 20; }
         to { stroke-dashoffset: 0; }
       }
-
+      
       /* Run history panel */
       .run-history-panel {
         position: fixed; top: 48px; right: 0; bottom: 0; width: 340px;
@@ -946,18 +951,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
     let activeRun = null;
     let pollTimer = null;
     // allSkills, allSkillGroups loaded via UIHelpers.load_skills_js()
-
+    
     // Undo/redo stack
     let undoStack = [];
     let redoStack = [];
     const MAX_UNDO = 50;
-
+    
     function pushUndo() {
       undoStack.push(JSON.stringify({ nodes, edges }));
       if (undoStack.length > MAX_UNDO) undoStack.shift();
       redoStack = [];
     }
-
+    
     function undo() {
       if (undoStack.length === 0) return;
       redoStack.push(JSON.stringify({ nodes, edges }));
@@ -967,7 +972,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       markDirty();
       render();
     }
-
+    
     function redo() {
       if (redoStack.length === 0) return;
       undoStack.push(JSON.stringify({ nodes, edges }));
@@ -977,7 +982,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       markDirty();
       render();
     }
-
+    
     const NODE_COLORS = {
       'issue': '#58a6ff', 'human_gate': '#d29922', 'quality_gate': '#bc8cff',
       'loop': '#d18616', 'kb_sync': '#3fb950', 'integration': '#8b949e',
@@ -988,12 +993,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
       'loop': 'Loop', 'kb_sync': 'KB Sync', 'integration': 'Integration',
       'start': 'Start', 'end': 'End'
     };
-
+    
     const viewport = document.getElementById('viewport');
     const transform = document.getElementById('canvas-transform');
     const edgeLayer = document.getElementById('edge-layer');
     const nodeLayer = document.getElementById('node-layer');
-
+    
     """
   end
 
@@ -1008,12 +1013,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
       renderEdges();
       if (typeof renderMinimap === 'function') renderMinimap();
     }
-
+    
     function applyTransform() {
       transform.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
       document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
     }
-
+    
     function renderNodes() {
       nodeLayer.innerHTML = '';
       nodes.forEach(n => {
@@ -1026,14 +1031,14 @@ defmodule SymphonyElixir.Server.PipelineUI do
           el.style.background = color;
           el.dataset.nodeId = n.id;
           el.textContent = n.type === 'start' ? 'S' : 'E';
-
+    
           // Ports
           if (n.type === 'start') {
             el.innerHTML += '<div class="port port-out" data-node="' + n.id + '" data-port="output"></div>';
           } else {
             el.innerHTML += '<div class="port port-in" data-node="' + n.id + '" data-port="input"></div>';
           }
-
+    
           addExecClass(el, n.id);
           nodeLayer.appendChild(el);
         } else {
@@ -1042,13 +1047,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
           el.style.left = n.position.x + 'px';
           el.style.top = n.position.y + 'px';
           el.dataset.nodeId = n.id;
-
+    
           let meta = '';
           if (n.type === 'issue' && n.issue_id) meta = '<div class="p-node-meta">Linked issue</div>';
           if (n.type === 'loop') meta =
             '<div class="p-node-meta">Max retries: ' + (n.loop_max_retries || '∞') + '</div>';
           if (n.type === 'integration') meta = '<div class="p-node-meta">' + integrationNodeMeta(n) + '</div>';
-
+    
           el.innerHTML = `
             <div class="p-node-top" style="background:${color}"></div>
             <div class="p-node-body">
@@ -1061,7 +1066,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             ${(n.type === 'human_gate' || n.type === 'quality_gate')
               ? '<div class="port port-reject" data-node="' + n.id + '" data-port="reject"></div>' : ''}
           `;
-
+    
           // Selected toolbar
           if (n.id === selectedNodeId && !execMode) {
             el.innerHTML += `
@@ -1074,13 +1079,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
                   onclick="event.stopPropagation(); deleteNode('${n.id}')">Delete</button>
               </div>`;
           }
-
+    
           addExecClass(el, n.id);
           nodeLayer.appendChild(el);
         }
       });
     }
-
+    
     function addExecClass(el, nodeId) {
       if (!execMode || !activeRun) return;
       const state = (activeRun.node_states || {})[nodeId];
@@ -1091,20 +1096,20 @@ defmodule SymphonyElixir.Server.PipelineUI do
       else if (state === 'on_hold') el.classList.add('exec-on-hold');
       else if (state === 'skipped') el.classList.add('exec-skipped');
     }
-
+    
     function renderEdges() {
       edgeLayer.innerHTML = '';
       const nodeMap = {};
       nodes.forEach(n => nodeMap[n.id] = n);
-
+    
       edges.forEach(e => {
         const src = nodeMap[e.source_node_id];
         const tgt = nodeMap[e.target_node_id];
         if (!src || !tgt) return;
-
+    
         const isTerminalSrc = src.type === 'start' || src.type === 'end';
         const isTerminalTgt = tgt.type === 'start' || tgt.type === 'end';
-
+    
         let sx, sy, tx, ty;
         if (e.source_port === 'reject') {
           sx = src.position.x + 100;
@@ -1116,7 +1121,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           sx = src.position.x + 200;
           sy = src.position.y + 35;
         }
-
+    
         if (isTerminalTgt) {
           tx = tgt.position.x;
           ty = tgt.position.y + 20;
@@ -1124,19 +1129,19 @@ defmodule SymphonyElixir.Server.PipelineUI do
           tx = tgt.position.x;
           ty = tgt.position.y + 35;
         }
-
+    
         // Smooth cubic Bezier curve
         const dx = tx - sx;
         const dy = ty - sy;
         const cpOffset = Math.min(Math.abs(dx) * 0.5, 120);
         const path = `M${sx},${sy} C${sx + cpOffset},${sy} ${tx - cpOffset},${ty} ${tx},${ty}`;
-
+    
         const cls = e.source_port === 'reject' ? 'edge-path-reject' : 'edge-path';
         const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         pathEl.setAttribute('d', path);
         pathEl.setAttribute('class', cls);
         pathEl.dataset.edgeId = e.id;
-
+    
         if (execMode && activeRun) {
           const srcState = activeRun.node_states[e.source_node_id];
           if (srcState === 'completed') {
@@ -1146,7 +1151,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             pathEl.classList.add('edge-flow');
           }
         }
-
+    
         pathEl.addEventListener('click', (ev) => {
           ev.stopPropagation();
           if (!execMode) {
@@ -1159,9 +1164,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
               undo: function() { edges.push(removedEdge); undo(); } });
           }
         });
-
+    
         edgeLayer.appendChild(pathEl);
-
+    
         // Arrowhead — arrives horizontally from the last Bezier control point
         const angle = dx >= 0 ? 0 : Math.PI;
         const arrowSize = 6;
@@ -1178,7 +1183,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         edgeLayer.appendChild(arrow);
       });
     }
-
+    
     """
   end
 
@@ -1204,7 +1209,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
       }
     });
-
+    
     window.addEventListener('mousemove', e => {
       if (isPanning) {
         const dx = e.clientX - panStartX;
@@ -1232,7 +1237,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         updateTempEdge(e.clientX, e.clientY);
       }
     });
-
+    
     window.addEventListener('mouseup', e => {
       if (isPanning) {
         isPanning = false;
@@ -1247,7 +1252,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         connectFrom = null;
       }
     });
-
+    
     viewport.addEventListener('wheel', e => {
       e.preventDefault();
       const rect = viewport.getBoundingClientRect();
@@ -1261,7 +1266,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       applyTransform();
       renderEdges();
     }, { passive: false });
-
+    
     function zoomIn() { scale = Math.min(3, scale * 1.2); applyTransform(); renderEdges(); }
     function zoomOut() { scale = Math.max(0.2, scale / 1.2); applyTransform(); renderEdges(); }
     function zoomFit() {
@@ -1282,7 +1287,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       applyTransform();
       renderEdges();
     }
-
+    
     """
   end
 
@@ -1303,13 +1308,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
         return;
       }
-
+    
       // Ignore mousedown on toolbar buttons — let onclick fire instead
       if (e.target.closest('.node-toolbar')) {
         e.stopPropagation();
         return;
       }
-
+    
       const nodeEl = e.target.closest('.p-node, .p-node-terminal');
       if (nodeEl && !execMode) {
         e.stopPropagation();
@@ -1330,7 +1335,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         showExecSidebar(nodeEl.dataset.nodeId);
       }
     });
-
+    
     nodeLayer.addEventListener('mouseup', e => {
       if (connectFrom) {
         const port = e.target.closest('.port');
@@ -1361,14 +1366,14 @@ defmodule SymphonyElixir.Server.PipelineUI do
         connectFrom = null;
       }
     });
-
+    
     nodeLayer.addEventListener('dblclick', e => {
       const nodeEl = e.target.closest('.p-node, .p-node-terminal');
       if (nodeEl && !execMode) {
         openConfig(nodeEl.dataset.nodeId);
       }
     });
-
+    
     // ══════════════════════════════════
     // Temp edge for connection drawing
     // ══════════════════════════════════
@@ -1380,7 +1385,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         y: (cy - rect.top - panY) / scale
       };
     }
-
+    
     function createTempEdge(cx, cy) {
       tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       tempLine.setAttribute('class', 'temp-edge');
@@ -1404,7 +1409,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       tempLine.setAttribute('y2', pos.y);
       edgeLayer.appendChild(tempLine);
     }
-
+    
     function updateTempEdge(cx, cy) {
       if (tempLine) {
         const pos = clientToCanvas(cx, cy);
@@ -1412,11 +1417,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
         tempLine.setAttribute('y2', pos.y);
       }
     }
-
+    
     function removeTempEdge() {
       if (tempLine) { tempLine.remove(); tempLine = null; }
     }
-
+    
     """
   end
 
@@ -1431,7 +1436,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         e.dataTransfer.effectAllowed = 'copy';
       });
     });
-
+    
     viewport.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
     viewport.addEventListener('drop', e => {
       e.preventDefault();
@@ -1442,7 +1447,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       const y = (e.clientY - rect.top - panY) / scale;
       addNode(type, Math.round(x / 12) * 12, Math.round(y / 12) * 12);
     });
-
+    
     function addNode(type, x, y) {
       pushUndo();
       const id = generateId();
@@ -1457,31 +1462,31 @@ defmodule SymphonyElixir.Server.PipelineUI do
         loop_condition: null
       };
       nodes.push(node);
-
+    
       // Auto-connect: if a node is selected and has a free output port, connect it to the new node
       autoConnect(id, type);
-
+    
       selectedNodeId = id;
       markDirty();
       render();
     }
-
+    
     function autoConnect(newNodeId, newType) {
       // Don't auto-connect TO a start node or FROM an end node
       if (newType === 'start') return;
-
+    
       // Find the best source node to connect from:
       // 1. The currently selected node (if it has a free output)
       // 2. Otherwise, the last node in the chain with a free output
       let sourceId = null;
-
+    
       if (selectedNodeId) {
         const selNode = nodes.find(n => n.id === selectedNodeId);
         if (selNode && selNode.type !== 'end' && !hasOutgoingEdge(selectedNodeId, 'output')) {
           sourceId = selectedNodeId;
         }
       }
-
+    
       if (!sourceId) {
         // Find nodes with free output ports (no outgoing 'output' edge), prefer start node first
         const freeNodes = nodes.filter(n =>
@@ -1493,7 +1498,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         const startNode = freeNodes.find(n => n.type === 'start');
         sourceId = startNode ? startNode.id : (freeNodes.length > 0 ? freeNodes[freeNodes.length - 1].id : null);
       }
-
+    
       if (sourceId) {
         edges.push({
           id: generateId(),
@@ -1504,11 +1509,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
         });
       }
     }
-
+    
     function hasOutgoingEdge(nodeId, port) {
       return edges.some(e => e.source_node_id === nodeId && e.source_port === port);
     }
-
+    
     function deleteNode(nodeId) {
       pushUndo();
       nodes = nodes.filter(n => n.id !== nodeId);
@@ -1517,7 +1522,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       markDirty();
       render();
     }
-
+    
     function duplicateNode(nodeId) {
       pushUndo();
       const orig = nodes.find(n => n.id === nodeId);
@@ -1532,7 +1537,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       markDirty();
       render();
     }
-
+    
     """
   end
 
@@ -1542,20 +1547,20 @@ defmodule SymphonyElixir.Server.PipelineUI do
     // Configuration modal
     // ══════════════════════════════════
     let configNodeId = null;
-
+    
     function openConfig(nodeId) {
       const node = nodes.find(n => n.id === nodeId);
       if (!node) return;
       configNodeId = nodeId;
       document.getElementById('config-title').textContent = 'Configure: ' + (NODE_LABELS[node.type] || node.type);
       const body = document.getElementById('config-body');
-
+    
       let html = `
         <div class="form-group">
           <label>Label</label>
           <input id="cfg-label" value="${esc(node.label)}">
         </div>`;
-
+    
       if (node.type === 'issue') {
         var cfg = node.config || {};
         html += `
@@ -1591,7 +1596,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
               onclick="openCreateIssueModal()" style="width:100%">+ Create new issue</button>
           </div>`;
       }
-
+    
       if (node.type === 'loop') {
         html += `
           <div class="form-group">
@@ -1603,7 +1608,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             <input id="cfg-loop-cond" value="${esc(node.loop_condition || '')}" placeholder="e.g., all checks pass">
           </div>`;
       }
-
+    
       if (node.type === 'human_gate') {
         const autoTimeout = (node.config || {}).auto_approve_timeout_ms || '';
         const autoCond = (node.config || {}).auto_approve_condition || '';
@@ -1641,7 +1646,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             <input id="cfg-webhook-url" value="${esc(webhookUrl)}" placeholder="https://...">
           </div>`;
       }
-
+    
       if (node.type === 'quality_gate') {
         const checks = (node.config || {}).checks || ['tests', 'lint', 'types'];
         const checkCmds = (node.config || {}).check_commands || {};
@@ -1675,7 +1680,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             <input id="cfg-qg-webhook-url" value="${esc(webhookUrl)}" placeholder="https://...">
           </div>`;
       }
-
+    
       if (node.type === 'kb_sync') {
         const kbType = (node.config || {}).kb_type || '';
         const kbVaultPath = (node.config || {}).vault_path || '';
@@ -1699,7 +1704,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             <input id="cfg-kb-subfolder" value="${esc(kbSubfolder)}" placeholder="Leave blank for default">
           </div>`;
       }
-
+    
       if (node.type === 'integration') {
         const intType = (node.config || {}).integration_type || 'jira';
         const intAction = (node.config || {}).action || '';
@@ -1723,23 +1728,23 @@ defmodule SymphonyElixir.Server.PipelineUI do
         // Defer field rendering until modal is in DOM
         setTimeout(function() { updateIntegrationFields(esc(intAction), ac); }, 0);
       }
-
+    
       body.innerHTML = html;
       document.getElementById('config-modal').style.display = 'flex';
       if (node.type === 'issue') loadIssuePicker();
     }
-
+    
     function closeConfig() {
       document.getElementById('config-modal').style.display = 'none';
       configNodeId = null;
     }
-
+    
     function applyConfig() {
       const node = nodes.find(n => n.id === configNodeId);
       if (!node) { closeConfig(); return; }
-
+    
       node.label = document.getElementById('cfg-label').value;
-
+    
       if (node.type === 'issue') {
         node.issue_id = document.getElementById('cfg-issue-id').value || null;
         var tplTitle = document.getElementById('cfg-tpl-title').value.trim();
@@ -1789,7 +1794,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         node.config.vault_path = document.getElementById('cfg-kb-vault-path').value;
         node.config.subfolder = document.getElementById('cfg-kb-subfolder').value;
       }
-
+    
       if (node.type === 'integration') {
         node.config = node.config || {};
         node.config.integration_type = document.getElementById('cfg-int-type').value;
@@ -1797,12 +1802,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
         node.config.action_config = readIntegrationActionConfig();
         node.config.max_retries = parseInt(document.getElementById('cfg-int-retries').value) || 3;
       }
-
+    
       markDirty();
       render();
       closeConfig();
     }
-
+    
     async function loadIssuePicker() {
       const res = await fetch('/board/api/issues');
       const data = await res.json();
@@ -1817,7 +1822,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         return `<button class="btn btn-sm btn-ghost" style="margin:2px;${active}" onclick="document.getElementById('cfg-issue-id').value='${i.id}'; document.querySelectorAll('#issue-picker .btn').forEach(b=>b.style.borderColor=''); this.style.borderColor='var(--accent)'">${esc(i.identifier)}: ${esc(i.title).substring(0,40)}</button>`;
       }).join('');
     }
-
+    
     // --- Integration node canvas metadata ---
     function integrationNodeMeta(n) {
       var cfg = n.config || {};
@@ -1838,9 +1843,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (type === 'gitlab_ci' && action === 'trigger') extra = ac.ref || '';
       return label + ' · ' + detail + (extra ? ' → ' + esc(extra) : '');
     }
-
+    
     // --- Integration node dynamic config forms ---
-
+    
     const INTEGRATION_META = {
       jira: {
         help: 'Creates, updates, or transitions Jira issues. Credentials are configured in <a href="/board/settings">Settings</a>.',
@@ -1932,18 +1937,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
       }
     };
-
+    
     function updateIntegrationFields(savedAction, savedConfig) {
       var type = document.getElementById('cfg-int-type').value;
       var meta = INTEGRATION_META[type];
       if (!meta) return;
-
+    
       var helpEl = document.getElementById('cfg-int-help');
       var fieldsEl = document.getElementById('cfg-int-fields');
-
+    
       // Help box
       helpEl.innerHTML = '<div class="integration-help">' + meta.help + '</div>';
-
+    
       // Action dropdown + action-specific fields
       var ac = savedConfig || {};
       var currentAction = savedAction || meta.actions[0];
@@ -1952,18 +1957,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
         h += '<option value="' + a + '"' + (currentAction === a ? ' selected' : '') + '>' + (meta.actionLabels[a]||a) + '</option>';
       });
       h += '</select></div>';
-
+    
       var selectedAction = currentAction;
       h += meta.fields(selectedAction, ac);
-
+    
       fieldsEl.innerHTML = h;
     }
-
+    
     function readIntegrationAction() {
       var el = document.getElementById('cfg-int-action');
       return el ? el.value : '';
     }
-
+    
     function readIntegrationActionConfig() {
       var type = document.getElementById('cfg-int-type').value;
       var action = readIntegrationAction();
@@ -1976,7 +1981,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
   defp modal_utils_js do
     ~S"""
     loadAllSkills();
-
+    
     function ciAiDraftApply(draft) {
       var skillIds = draft.skill_ids || [];
       if (skillIds.length > 0) {
@@ -1984,7 +1989,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         document.getElementById('ci-skills').style.display = '';
       }
     }
-
+    
     async function openCreateIssueModal() {
       ciReset();
       renderSkillPicker('ci-skills', [], []);
@@ -1993,11 +1998,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       document.getElementById('ci-modal').style.display = 'flex';
       setTimeout(() => document.getElementById('ci-title').focus(), 100);
     }
-
+    
     function closeCreateIssueModal() {
       document.getElementById('ci-modal').style.display = 'none';
     }
-
+    
     async function submitCreateIssue(e) {
       e.preventDefault();
       const d = ciCollectData();
@@ -2009,7 +2014,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         skill_ids: skills.skill_ids,
         skill_group_ids: skills.skill_group_ids
       });
-
+    
       const res = await fetch('/board/api/issues', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2018,11 +2023,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (!res.ok) { showToast('Failed to create issue', { type: 'error' }); return; }
       const issue = await res.json();
       showToast('Issue created: ' + issue.identifier, { type: 'success' });
-
+    
       // Link to the config modal's issue field
       const idField = document.getElementById('cfg-issue-id');
       if (idField) idField.value = issue.id;
-
+    
       // Update node label if still default
       const labelField = document.getElementById('cfg-label');
       if (labelField) {
@@ -2031,11 +2036,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
           labelField.value = issue.title;
         }
       }
-
+    
       closeCreateIssueModal();
       await loadIssuePicker();
     }
-
+    
     """
   end
 
@@ -2045,11 +2050,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
     // Save
     // ══════════════════════════════════
     function markDirty() { dirty = true; }
-
+    
     window.addEventListener('beforeunload', e => {
       if (dirty) { e.preventDefault(); e.returnValue = ''; }
     });
-
+    
     async function savePipeline() {
       const name = document.getElementById('pipeline-name').value;
       const description = document.getElementById('pipeline-desc').value;
@@ -2072,7 +2077,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
       }
     }
-
+    
     // Auto-save on Ctrl+S
     document.addEventListener('keydown', e => {
       const inInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
@@ -2103,7 +2108,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         toggleHelpModal();
       }
     });
-
+    
     """
   end
 
@@ -2132,14 +2137,14 @@ defmodule SymphonyElixir.Server.PipelineUI do
         render();
         return;
       }
-
+    
       // Save first
       if (dirty) await savePipeline();
-
+    
       // Show product picker dialog
       showRunProductPicker();
     }
-
+    
     async function showRunProductPicker() {
       // Fetch products and projects in parallel
       var [productsRes, projectsRes] = await Promise.all([
@@ -2150,37 +2155,40 @@ defmodule SymphonyElixir.Server.PipelineUI do
       var products = productsData.products || [];
       var projectsData = projectsRes.ok ? await projectsRes.json() : {};
       var projects = projectsData.projects || [];
-
+    
       // If pipeline has a default product, pre-select it
       var defaultProductId = pipeline.product_id || '';
-
+    
       // If nothing to pick from, still show modal for description input
-
-
+    
+    
       // Build modal
       var overlay = document.createElement('div');
       overlay.id = 'run-product-overlay';
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
-
+    
       var selectStyle = 'width:100%;padding:8px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:0.9rem;margin-bottom:16px';
-
+    
       var productOpts = '<option value="">(No product — select a project instead)</option>' +
         products.map(function(p) {
           var sel = p.id === defaultProductId ? ' selected' : '';
           return '<option value="' + p.id + '"' + sel + '>' + esc(p.name) + '</option>';
         }).join('');
-
+    
       var projectOpts = '<option value="">(No project — generic run)</option>' +
         projects.map(function(p) {
           return '<option value="' + p.id + '">' + esc(p.name) + (p.path ? ' — ' + esc(p.path) : '') + '</option>';
         }).join('');
-
+    
       var textareaStyle = 'width:100%;padding:8px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:0.85rem;margin-bottom:16px;resize:vertical;font-family:inherit';
-
+    
       overlay.innerHTML = '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:400px;max-width:560px">' +
         '<h3 style="margin:0 0 16px 0;color:var(--text-primary);font-size:1rem">Start Pipeline Run</h3>' +
-        '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">What needs to be done?</label>' +
-        '<textarea id="run-input-description" rows="5" style="' + textareaStyle + '" placeholder="Describe the feature, bug fix, or task...\n\nE.g.: Add three new boolean fields (anonymize_name, anonymize_email, anonymize_phone) to the tenant model. These come in at the start of the ETL pipeline and control whether PII is stripped before loading."></textarea>' +
+        '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">' + (pipeline.name.indexOf('UI') >= 0 ? 'Describe the UI you want' : 'What needs to be done?') + '</label>' +
+        '<textarea id="run-input-description" rows="5" style="' + textareaStyle + '" placeholder="' + (pipeline.name.indexOf('UI') >= 0 ?
+          'Describe the UI style, mood, and layout you want...\\n\\nE.g.: Build a dark glassmorphism dashboard with neon accent colors, 3D card tilt effects, asymmetric grid layout, and bold typography. Think futuristic terminal meets luxury brand.'
+          : 'Describe the feature, bug fix, or task...\\n\\nE.g.: Add three new boolean fields (anonymize_name, anonymize_email, anonymize_phone) to the tenant model. These come in at the start of the ETL pipeline and control whether PII is stripped before loading.'
+        ) + '"></textarea>' +
         '<label style="display:block;margin-bottom:4px;color:var(--text-secondary);font-size:0.85rem">Product</label>' +
         '<select id="run-product-select" style="' + selectStyle + '" onchange="window._onRunProductChange()">' + productOpts + '</select>' +
         '<div id="run-project-row">' +
@@ -2191,9 +2199,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
         '<button class="btn btn-sm btn-ghost" onclick="document.getElementById(\'run-product-overlay\').remove()">Cancel</button>' +
         '<button class="btn btn-sm btn-primary" onclick="confirmRunStart()">Start Run</button>' +
         '</div></div>';
-
+    
       document.body.appendChild(overlay);
-
+    
       // Toggle project row visibility based on product selection
       window._onRunProductChange = function() {
         var productSel = document.getElementById('run-product-select');
@@ -2206,10 +2214,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
       };
       // Set initial visibility
       window._onRunProductChange();
-
+    
       overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
     }
-
+    
     async function confirmRunStart() {
       var productSelect = document.getElementById('run-product-select');
       var projectSelect = document.getElementById('run-project-select');
@@ -2221,13 +2229,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (overlay) overlay.remove();
       startRunWithScope(productId || null, projectId || null, inputDescription || null);
     }
-
+    
     async function startRunWithScope(productId, projectId, inputDescription) {
       var body = {};
       if (productId) body.product_id = productId;
       if (projectId) body.project_id = projectId;
       if (inputDescription) body.input_description = inputDescription;
-
+    
       const res = await fetch('/board/api/pipelines/' + pipeline.id + '/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2241,7 +2249,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       activeRun = await res.json();
       var scope = productId ? '' : (projectId ? ' (project)' : ' (no scope)');
       showToast('Pipeline run started' + scope, { type: 'success' });
-
+    
       // Create exec sidebar BEFORE entering exec mode
       if (!document.getElementById('exec-sidebar')) {
         const sidebar = document.createElement('div');
@@ -2249,15 +2257,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
         sidebar.id = 'exec-sidebar';
         document.body.appendChild(sidebar);
       }
-
+    
       execMode = true;
       document.getElementById('run-btn').innerHTML = '&#9632; Stop';
       document.getElementById('palette').style.display = 'none';
-
+    
       render();
       pollTimer = setInterval(pollRunStatus, 2000);
     }
-
+    
     async function pollRunStatus() {
       if (!activeRun) return;
       try {
@@ -2281,7 +2289,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
       } catch(e) {}
     }
-
+    
     function closeExecSidebar() {
       const sidebar = document.getElementById('exec-sidebar');
       if (sidebar) sidebar.classList.remove('open');
@@ -2290,20 +2298,20 @@ defmodule SymphonyElixir.Server.PipelineUI do
       window._sidebarNodeState = null;
       render();
     }
-
+    
     function showExecSidebar(nodeId) {
       const sidebar = document.getElementById('exec-sidebar');
       if (!sidebar || !activeRun) return;
       sidebar.classList.add('open');
-
+    
       const node = nodes.find(n => n.id === nodeId);
       if (!node) { sidebar.innerHTML = ''; return; }
-
+    
       const state = (activeRun.node_states || {})[nodeId] || 'pending';
       window._sidebarNodeState = state;
       const attempts = (activeRun.node_attempts || {})[nodeId] || 0;
       const color = NODE_COLORS[node.type] || '#8b949e';
-
+    
       let html = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
           <h3 style="border-left:3px solid ${color}; padding-left:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:400px; margin:0">${esc(node.label)}</h3>
@@ -2313,7 +2321,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           State: <strong style="color:var(--text-primary)">${state}</strong><br>
           Attempts: ${attempts}
         </div>`;
-
+    
       // Gate actions: Approve/Reject/Hold
       if ((state === 'waiting_gate' || state === 'on_hold') && (node.type === 'human_gate' || node.type === 'quality_gate')) {
         html += '<div class="gate-action">';
@@ -2329,7 +2337,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         html += '</div>';
         html += '<textarea class="gate-feedback" id="gate-feedback" placeholder="Feedback (will be injected into issue on reject)" rows="3"></textarea>';
       }
-
+    
       if (state === 'waiting_gate' && node.type === 'kb_sync') {
         html += '<div class="gate-action">';
         html += '<button class="btn btn-sm btn-primary" onclick="kbSyncSendAndApprove(\'' + nodeId + '\')">Send to KB</button>';
@@ -2337,7 +2345,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         html += '</div>';
         html += '<div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">Send predecessor issue reports to Knowledge Base, or skip to continue.</div>';
       }
-
+    
       // Issue node — link to issue
       if (node.type === 'issue') {
         var issueId = node.issue_id || ((activeRun.node_issue_ids || {})[nodeId]);
@@ -2348,7 +2356,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           }
         }
       }
-
+    
       // Force-complete button for stuck/failed nodes
       if (state === 'failed' || state === 'running' || state === 'on_hold') {
         html += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">';
@@ -2356,7 +2364,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Skip this node and advance the pipeline.</div>';
         html += '</div>';
       }
-
+    
       // Load gate context asynchronously for gate nodes (only once per node)
       sidebar.innerHTML = html;
       if ((node.type === 'human_gate' || node.type === 'quality_gate') && (state === 'waiting_gate' || state === 'on_hold')) {
@@ -2368,7 +2376,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         window._gateContextLoadedFor = null;
       }
     }
-
+    
     function renderMarkdown(text) {
       if (!text) return '';
       return esc(text)
@@ -2381,7 +2389,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         .replace(/^(\d+)\. (.+)$/gm, '<div style="padding-left:12px">$1. $2</div>')
         .replace(/\n/g, '<br>');
     }
-
+    
     async function loadGateContext(nodeId) {
       try {
         var res = await fetch('/board/api/pipelines/' + pipeline.id + '/runs/' + activeRun.id + '/gate-context/' + nodeId);
@@ -2389,10 +2397,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
         var ctx = await res.json();
         var sidebar = document.getElementById('exec-sidebar');
         if (!sidebar) return;
-
+    
         var contextHtml = '';
         var mode = ctx.review_mode || 'default';
-
+    
         // Gate prompt banner — always shown
         if (ctx.gate_prompt) {
           contextHtml += '<div class="gate-prompt-banner">';
@@ -2400,7 +2408,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           contextHtml += '<div style="font-size:0.85rem;color:var(--text-primary);line-height:1.4">' + esc(ctx.gate_prompt) + '</div>';
           contextHtml += '</div>';
         }
-
+    
         // Instructions — always available but collapsible when prompt exists
         if (ctx.instructions) {
           if (ctx.gate_prompt) {
@@ -2415,7 +2423,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             contextHtml += '</div>';
           }
         }
-
+    
         // Mode-specific content
         if (mode === 'plan_review') {
           contextHtml += renderPlanReview(ctx);
@@ -2426,22 +2434,22 @@ defmodule SymphonyElixir.Server.PipelineUI do
         } else {
           contextHtml += renderDefaultReview(ctx);
         }
-
+    
         // Feedback history thread — always shown
         contextHtml += renderFeedbackHistory(ctx);
-
+    
         if (contextHtml) {
           var contextDiv = document.createElement('div');
           contextDiv.innerHTML = contextHtml;
           sidebar.appendChild(contextDiv);
         }
-
+    
         if (mode === 'findings_review' || mode === 'default') {
           updateFindingsSummary();
         }
       } catch(e) {}
     }
-
+    
     // ── Plan Review: show rendered implementation plan ──
     function renderPlanReview(ctx) {
       var html = '';
@@ -2471,7 +2479,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       return html;
     }
-
+    
     // ── Code Review: show change summaries and reports ──
     function renderCodeReview(ctx) {
       var html = '';
@@ -2488,7 +2496,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         html += '<span style="color:' + stateColor + ';font-size:0.68rem">' + esc(issue.state) + '</span>';
         html += '<a href="' + esc(issue.url) + '" class="btn btn-sm btn-ghost" style="font-size:0.68rem;text-decoration:none;margin-left:auto">Full Issue</a>';
         html += '</div>';
-
+    
         // Agent result — typically contains change summary
         if (issue.result_text) {
           html += '<div class="report-section">';
@@ -2496,7 +2504,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           html += '<div class="report-content">' + renderMarkdown(issue.result_text) + '</div>';
           html += '</div>';
         }
-
+    
         // Report files — rendered as markdown
         if (issue.reports && issue.reports.length > 0) {
           issue.reports.forEach(function(report) {
@@ -2510,12 +2518,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
       });
       return html;
     }
-
+    
     // ── Findings Review: per-finding accept/reject cards ──
     function renderFindingsReview(ctx) {
       var html = '';
       var allFindings = collectFindings(ctx);
-
+    
       if (allFindings.length === 0) {
         // Fallback: check predecessor issue reports for findings info
         if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
@@ -2533,15 +2541,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
         return html;
       }
-
+    
       html += renderFindingCards(allFindings);
       return html;
     }
-
+    
     // ── Default: show everything (backwards compatible) ──
     function renderDefaultReview(ctx) {
       var html = '';
-
+    
       // Quality checks
       if (ctx.checks && ctx.checks.length > 0) {
         html += '<div style="margin-top:8px;font-size:0.82rem">';
@@ -2551,7 +2559,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         });
         html += '</div>';
       }
-
+    
       // Predecessor issues — expandable accordions
       if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
         html += '<div style="margin-top:10px">';
@@ -2561,16 +2569,16 @@ defmodule SymphonyElixir.Server.PipelineUI do
         });
         html += '</div>';
       }
-
+    
       // Findings
       var allFindings = collectFindings(ctx);
       if (allFindings.length > 0) {
         html += renderFindingCards(allFindings);
       }
-
+    
       return html;
     }
-
+    
     // ── Shared: collect findings from predecessor outputs ──
     function collectFindings(ctx) {
       var allFindings = [];
@@ -2584,7 +2592,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       return allFindings;
     }
-
+    
     // ── Shared: render finding cards with accept/reject buttons ──
     function renderFindingCards(findings) {
       var html = '<div style="margin-top:12px">';
@@ -2614,13 +2622,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
       html += '</div>';
       return html;
     }
-
+    
     // ── Shared: render an issue as an expandable accordion ──
     function renderIssueAccordion(issue, idx) {
       var stateColor = issue.state === 'Done' ? 'var(--green)' : issue.state === 'Review' ? 'var(--yellow)' : 'var(--text-muted)';
       var hasContent = issue.result_text || (issue.reports && issue.reports.length > 0) || issue.description;
       var html = '';
-
+    
       if (hasContent) {
         html += '<details class="issue-accordion"' + (idx === 0 ? ' open' : '') + '>';
         html += '<summary class="accordion-header">';
@@ -2655,7 +2663,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       return html;
     }
-
+    
     // ── Shared: render feedback history ──
     function renderFeedbackHistory(ctx) {
       var html = '';
@@ -2675,7 +2683,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       return html;
     }
-
+    
     async function forceCompleteNode(nodeId) {
       if (!activeRun) return;
       if (!confirm('Force-complete this node? The current state will be overridden.')) return;
@@ -2694,7 +2702,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         showToast('Force-complete failed: ' + e.message, { type: 'error' });
       }
     }
-
+    
     function setFindingDecision(findingId, accepted) {
       var card = document.querySelector('.finding-card[data-finding-id="' + findingId + '"]');
       if (!card) return;
@@ -2712,13 +2720,13 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       updateFindingsSummary();
     }
-
+    
     function setAllFindings(accepted) {
       document.querySelectorAll('.finding-card').forEach(function(card) {
         setFindingDecision(card.dataset.findingId, accepted);
       });
     }
-
+    
     function updateFindingsSummary() {
       var cards = document.querySelectorAll('.finding-card');
       if (cards.length === 0) return;
@@ -2727,12 +2735,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
       var el = document.getElementById('findings-summary');
       if (el) el.innerHTML = '<span style="color:var(--green)">' + accepted + ' accepted</span> &middot; <span style="color:var(--red)">' + rejected + ' rejected</span> of ' + cards.length + ' findings';
     }
-
+    
     async function gateDecision(nodeId, action) {
       if (!activeRun) { console.warn('gateDecision: no activeRun'); return; }
-
+    
       const feedback = document.getElementById('gate-feedback')?.value || '';
-
+    
       // Collect per-finding decisions from accept/reject buttons
       var findingCards = document.querySelectorAll('.finding-card');
       var findingsDecisions = null;
@@ -2742,10 +2750,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
           findingsDecisions.push({ id: card.dataset.findingId, accepted: card.dataset.decision === 'accepted' });
         });
       }
-
+    
       var body = { action: action, feedback: feedback };
       if (findingsDecisions) body.findings_decisions = findingsDecisions;
-
+    
       try {
         var url = '/board/api/pipelines/' + pipeline.id + '/runs/' + activeRun.id + '/gate/' + nodeId;
         var res = await fetch(url, {
@@ -2769,7 +2777,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       pollRunStatus();
     }
-
+    
     function collectPredecessorIssueIds(nodeId) {
       // Walk backwards through the graph collecting all issue nodes (transitive)
       var visited = {};
@@ -2791,18 +2799,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
       });
       return issueIds;
     }
-
+    
     async function kbSyncSendAndApprove(nodeId) {
       if (!activeRun) return;
       if (!confirm('Send all predecessor issue reports to the Knowledge Base?')) return;
-
+    
       var predecessorIssueIds = collectPredecessorIssueIds(nodeId);
-
+    
       if (predecessorIssueIds.length === 0) {
         showToast('No predecessor issues found to send', { type: 'error' });
         return;
       }
-
+    
       var allPaths = [];
       var fromReports = 0;
       var fromDesc = 0;
@@ -2822,7 +2830,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           showToast('KB send failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
       if (allPaths.length > 0) {
         var msg = 'Sent ' + allPaths.length + ' note(s) to KB';
         if (fromDesc > 0) msg += ' (' + fromDesc + ' from description only)';
@@ -2830,11 +2838,11 @@ defmodule SymphonyElixir.Server.PipelineUI do
       } else {
         showToast('No notes were written', { type: 'error' });
       }
-
+    
       // Now approve the gate to advance the pipeline
       gateDecision(nodeId, 'approve');
     }
-
+    
     """
   end
 
@@ -2850,14 +2858,14 @@ defmodule SymphonyElixir.Server.PipelineUI do
     function closeHelpModal() {
       document.getElementById('help-modal').style.display = 'none';
     }
-
+    
     // ══════════════════════════════════
     // Utilities
     // ══════════════════════════════════
     function generateId() {
       return 'n' + Math.random().toString(36).substring(2, 14);
     }
-
+    
     // ══════════════════════════════════
     // ══════════════════════════════════
     // Minimap
@@ -2868,7 +2876,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       const ctx = canvas.getContext('2d');
       const W = canvas.width, H = canvas.height;
       ctx.clearRect(0, 0, W, H);
-
+    
       // Compute bounding box of all nodes
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       nodes.forEach(n => {
@@ -2883,7 +2891,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       minX -= pad; minY -= pad; maxX += pad; maxY += pad;
       const bw = maxX - minX || 1, bh = maxY - minY || 1;
       const s = Math.min(W / bw, H / bh);
-
+    
       // Draw edges
       ctx.strokeStyle = '#58687a';
       ctx.lineWidth = 1;
@@ -2899,7 +2907,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         else ctx.strokeStyle = '#58687a';
         ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
       });
-
+    
       // Draw nodes
       nodes.forEach(n => {
         const color = NODE_COLORS[n.type] || '#8b949e';
@@ -2916,7 +2924,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         }
         ctx.globalAlpha = 1;
       });
-
+    
       // Draw viewport indicator
       const vp = document.getElementById('minimap-vp');
       const viewport = document.querySelector('.canvas-viewport');
@@ -2931,7 +2939,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         vp.style.height = Math.min(H, vh * s) + 'px';
       }
     }
-
+    
     """
   end
 
@@ -2952,7 +2960,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         });
       } catch(e) {}
     }
-
+    
     // Resume execution mode if there's an active run for this pipeline
     async function resumeActiveRun() {
       try {
@@ -2964,7 +2972,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         var active = runs.filter(function(r) { return r.status === 'running' || r.status === 'paused'; });
         if (active.length === 0) return;
         activeRun = active[active.length - 1];
-
+    
         // Enter exec mode
         if (!document.getElementById('exec-sidebar')) {
           var sidebar = document.createElement('div');
@@ -2972,7 +2980,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           sidebar.id = 'exec-sidebar';
           document.body.appendChild(sidebar);
         }
-
+    
         execMode = true;
         document.getElementById('run-btn').innerHTML = '&#9632; Stop';
         document.getElementById('palette').style.display = 'none';
@@ -2980,19 +2988,19 @@ defmodule SymphonyElixir.Server.PipelineUI do
         pollTimer = setInterval(pollRunStatus, 2000);
       } catch(e) {}
     }
-
+    
     // ══════════════════════════════════
     // Run History (Fix R)
     // ══════════════════════════════════
     var runHistoryOpen = false;
-
+    
     function toggleRunHistory() {
       var panel = document.getElementById('run-history-panel');
       runHistoryOpen = !runHistoryOpen;
       panel.style.display = runHistoryOpen ? 'block' : 'none';
       if (runHistoryOpen) loadRunHistory();
     }
-
+    
     async function loadRunHistory() {
       var list = document.getElementById('run-history-list');
       list.innerHTML = '<div class="rh-empty">Loading...</div>';
@@ -3010,10 +3018,10 @@ defmodule SymphonyElixir.Server.PipelineUI do
           var done = Object.values(states).filter(function(s) { return s === 'completed'; }).length;
           var failed = Object.values(states).filter(function(s) { return s === 'failed'; }).length;
           var waiting = Object.values(states).filter(function(s) { return s === 'waiting_gate'; }).length;
-
+    
           var started = r.started_at ? new Date(r.started_at).toLocaleString() : '-';
           var ended = r.completed_at ? new Date(r.completed_at).toLocaleString() : '-';
-
+    
           var gatesHtml = '';
           if (r.gate_decisions && r.gate_decisions.length > 0) {
             gatesHtml = '<div class="rh-gates"><strong style="font-size:0.72rem">Gate decisions:</strong>';
@@ -3024,7 +3032,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
             });
             gatesHtml += '</div>';
           }
-
+    
           return '<div class="rh-item">' +
             '<div class="rh-item-header">' +
               '<span class="rh-status rh-status-' + r.status + '">' + r.status + '</span>' +
@@ -3042,7 +3050,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
         list.innerHTML = '<div class="rh-empty">Failed to load history</div>';
       }
     }
-
+    
     """
   end
 

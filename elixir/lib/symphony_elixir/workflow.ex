@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Workflow do
   @moduledoc """
   Parses `WORKFLOW.md` with YAML front matter + Markdown prompt body.
-
+  
   See SPEC Section 5.1–5.5.
   """
 
@@ -15,7 +15,7 @@ defmodule SymphonyElixir.Workflow do
 
   @doc """
   Load and parse a workflow file.
-
+  
   Returns `{:ok, workflow}` or `{:error, reason}`.
   """
   @spec load(String.t()) :: {:ok, t()} | {:error, atom() | {atom(), String.t()}}

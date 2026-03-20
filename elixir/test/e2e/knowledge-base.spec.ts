@@ -306,6 +306,134 @@ test.describe("Knowledge Base — Delete Note", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Vault API — Write Operations (F10)
+// ---------------------------------------------------------------------------
+
+test.describe("Knowledge Base — Vault Write Operations", () => {
+  test.beforeEach(async ({ request }) => {
+    await configureKB(request, testVault);
+  });
+
+  test("POST /api/vault/create creates a note file on disk", async ({
+    request,
+  }) => {
+    const res = await request.post("/board/api/vault/create", {
+      data: {
+        title: "e2e-created-note",
+        content: "# Created Note\nThis was created by the E2E test.",
+        tags: ["e2e", "test"],
+      },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(typeof body.path).toBe("string");
+    expect(body.path.length).toBeGreaterThan(0);
+
+    // Verify the file was created on disk
+    expect(fs.existsSync(body.path)).toBe(true);
+    const content = fs.readFileSync(body.path, "utf-8");
+    expect(content).toContain("Created Note");
+  });
+
+  test("POST /api/vault/append appends content to an existing note", async ({
+    request,
+  }) => {
+    // First create a note
+    const createRes = await request.post("/board/api/vault/create", {
+      data: {
+        title: "appendable-note",
+        content: "# Original Content\nLine one.",
+      },
+    });
+    expect(createRes.ok()).toBeTruthy();
+    const created = await createRes.json();
+
+    // Derive the relative path from the absolute path
+    const relPath = path.relative(testVault, created.path);
+
+    // Append to it
+    const appendRes = await request.post("/board/api/vault/append", {
+      data: {
+        path: relPath,
+        content: "\n\n## Appended Section\nAppended by E2E test.",
+      },
+    });
+    expect(appendRes.ok()).toBeTruthy();
+    const appendBody = await appendRes.json();
+    expect(appendBody.ok).toBe(true);
+
+    // Verify content was appended on disk
+    const fileContent = fs.readFileSync(created.path, "utf-8");
+    expect(fileContent).toContain("Original Content");
+    expect(fileContent).toContain("Appended Section");
+  });
+
+  test("POST /api/vault/append returns 404 for nonexistent note", async ({
+    request,
+  }) => {
+    const res = await request.post("/board/api/vault/append", {
+      data: {
+        path: "symphony/nonexistent-note.md",
+        content: "Some content",
+      },
+    });
+    expect(res.status()).toBe(404);
+  });
+
+  test("POST /api/vault/send-batch sends multiple issues to vault", async ({
+    request,
+  }) => {
+    // Create two issues
+    const issue1 = await createIssue(request, {
+      title: "Batch Issue One",
+      state: "Done",
+      description: "First batch issue for KB testing.",
+    });
+    const issue2 = await createIssue(request, {
+      title: "Batch Issue Two",
+      state: "Done",
+      description: "Second batch issue for KB testing.",
+    });
+    createdIssueIds.push(issue1.id, issue2.id);
+
+    const res = await request.post("/board/api/vault/send-batch", {
+      data: { issue_ids: [issue1.id, issue2.id] },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body).toHaveProperty("results");
+    expect(Array.isArray(body.results)).toBe(true);
+    expect(body.results.length).toBe(2);
+    expect(body).toHaveProperty("total_notes_written");
+  });
+
+  test("POST /api/vault/send-batch returns 400 for empty issue_ids", async ({
+    request,
+  }) => {
+    const res = await request.post("/board/api/vault/send-batch", {
+      data: { issue_ids: [] },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test("POST /api/vault/restore returns error for nonexistent version", async ({
+    request,
+  }) => {
+    const res = await request.post("/board/api/vault/restore", {
+      data: {
+        version_path: "symphony/.versions/nonexistent-note/v1.md",
+        note_path: "symphony/nonexistent-note.md",
+      },
+    });
+    // Should fail — version doesn't exist
+    expect(res.status()).toBeGreaterThanOrEqual(400);
+    expect(res.status()).toBeLessThan(600);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Product Hub — KB Tab
 // ---------------------------------------------------------------------------
 

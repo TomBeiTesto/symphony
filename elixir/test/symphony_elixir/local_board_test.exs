@@ -288,7 +288,6 @@ defmodule SymphonyElixir.LocalBoardTest do
       identifier = issue.identifier
 
       GenServer.stop(pid)
-      Process.sleep(50)
 
       {:ok, pid2} = LocalBoard.start_link(store_path: store, project_prefix: "PER")
 
@@ -376,11 +375,9 @@ defmodule SymphonyElixir.LocalBoardTest do
     test "cascade deletes project issues" do
       {:ok, project} = LocalBoard.create_project(%{"name" => "Cascade"})
 
-      {:ok, _} =
-        LocalBoard.create_issue(%{"title" => "Linked A", "project_id" => project.id})
+      {:ok, _} = LocalBoard.create_issue(%{"title" => "Linked A", "project_id" => project.id})
 
-      {:ok, _} =
-        LocalBoard.create_issue(%{"title" => "Linked B", "project_id" => project.id})
+      {:ok, _} = LocalBoard.create_issue(%{"title" => "Linked B", "project_id" => project.id})
 
       {:ok, _} = LocalBoard.create_issue(%{"title" => "Unlinked"})
 
@@ -446,7 +443,6 @@ defmodule SymphonyElixir.LocalBoardTest do
       {:ok, proj} = LocalBoard.create_project(%{"name" => "Persisted"})
       proj_id = proj.id
       GenServer.stop(pid)
-      Process.sleep(50)
 
       {:ok, pid2} = LocalBoard.start_link(store_path: store, project_prefix: "PP")
       projects = LocalBoard.list_projects()
@@ -523,8 +519,7 @@ defmodule SymphonyElixir.LocalBoardTest do
       {:ok, p1} = LocalBoard.create_project(%{"name" => "Proj A"})
       {:ok, product} = LocalBoard.create_product(%{"name" => "Test"})
 
-      {:ok, updated} =
-        LocalBoard.update_product(product.id, %{"project_ids" => [p1.id]})
+      {:ok, updated} = LocalBoard.update_product(product.id, %{"project_ids" => [p1.id]})
 
       assert updated.project_ids == [p1.id]
     end
@@ -557,8 +552,7 @@ defmodule SymphonyElixir.LocalBoardTest do
           "project_ids" => [p1.id, p2.id]
         })
 
-      {:ok, updated} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
+      {:ok, updated} = LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
 
       assert length(updated.features) == 1
       feature = hd(updated.features)
@@ -568,8 +562,7 @@ defmodule SymphonyElixir.LocalBoardTest do
     end
 
     test "returns not_found for missing product" do
-      assert {:error, :not_found} =
-               LocalBoard.add_product_feature("bogus", %{"name" => "X"})
+      assert {:error, :not_found} = LocalBoard.add_product_feature("bogus", %{"name" => "X"})
     end
   end
 
@@ -583,13 +576,11 @@ defmodule SymphonyElixir.LocalBoardTest do
           "project_ids" => [proj.id]
         })
 
-      {:ok, product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Feature A"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Feature A"})
 
       feature = hd(product.features)
 
-      {:ok, updated} =
-        LocalBoard.set_feature_status(product.id, feature.id, proj.id, "done")
+      {:ok, updated} = LocalBoard.set_feature_status(product.id, feature.id, proj.id, "done")
 
       updated_feature = hd(updated.features)
       assert updated_feature.statuses[proj.id] == "done"
@@ -600,8 +591,7 @@ defmodule SymphonyElixir.LocalBoardTest do
     test "removes a feature from a product" do
       {:ok, product} = LocalBoard.create_product(%{"name" => "Test"})
 
-      {:ok, product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Remove Me"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Remove Me"})
 
       feature = hd(product.features)
       {:ok, updated} = LocalBoard.delete_product_feature(product.id, feature.id)
@@ -642,12 +632,10 @@ defmodule SymphonyElixir.LocalBoardTest do
           "project_ids" => [proj.id]
         })
 
-      {:ok, _} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Auth Feature"})
+      {:ok, _} = LocalBoard.add_product_feature(product.id, %{"name" => "Auth Feature"})
 
       product_id = product.id
       GenServer.stop(pid)
-      Process.sleep(50)
 
       {:ok, pid2} = LocalBoard.start_link(store_path: store, project_prefix: "PP")
       products = LocalBoard.list_products()

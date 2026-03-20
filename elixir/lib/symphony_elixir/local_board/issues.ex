@@ -6,6 +6,7 @@ defmodule SymphonyElixir.LocalBoard.Issues do
   pure (aside from persistence side-effects delegated to `Persistence`).
   """
 
+  alias SymphonyElixir.Issue
   alias SymphonyElixir.LocalBoard.Persistence
 
   import SymphonyElixir.LocalBoard.Helpers
@@ -187,8 +188,6 @@ defmodule SymphonyElixir.LocalBoard.Issues do
 
   @doc "Convert an internal issue record to an `Issue` struct."
   def to_issue_struct(record) do
-    alias SymphonyElixir.Issue
-
     %Issue{
       id: record.id,
       identifier: record.identifier,

@@ -91,6 +91,50 @@ defmodule SymphonyElixir.LocalBoard do
           updated_at: String.t()
         }
 
+  @type pipeline_node :: %{
+          id: String.t(),
+          type: String.t(),
+          label: String.t() | nil,
+          issue_id: String.t() | nil,
+          config: map() | nil,
+          loop_max_retries: non_neg_integer() | nil
+        }
+
+  @type pipeline_edge :: %{
+          source_node_id: String.t(),
+          target_node_id: String.t(),
+          source_port: String.t()
+        }
+
+  @type pipeline_record :: %{
+          id: String.t(),
+          name: String.t(),
+          product_id: String.t() | nil,
+          nodes: [pipeline_node()],
+          edges: [pipeline_edge()],
+          created_at: String.t(),
+          updated_at: String.t()
+        }
+
+  @type gate_decision :: %{
+          node_id: String.t(),
+          action: String.t(),
+          feedback: String.t() | nil,
+          decided_at: String.t()
+        }
+
+  @type pipeline_run_record :: %{
+          id: String.t(),
+          pipeline_id: String.t(),
+          status: String.t(),
+          node_states: %{String.t() => String.t()},
+          node_issue_ids: %{String.t() => String.t()},
+          node_outputs: %{String.t() => map()},
+          gate_decisions: [gate_decision()],
+          started_at: String.t() | nil,
+          completed_at: String.t() | nil
+        }
+
   @default_states ["Backlog", "Todo", "In Progress", "Review", "Done", "Archived", "Cancelled"]
   @default_store_path "local_board.json"
 
@@ -331,78 +375,102 @@ defmodule SymphonyElixir.LocalBoard do
 
   # --- Backup & Restore ---
 
+  @spec list_backups() :: [String.t()]
   def list_backups do
     GenServer.call(__MODULE__, :list_backups)
   end
 
+  @spec restore_backup(String.t()) :: {:ok, term()} | {:error, term()}
   def restore_backup(filename) do
     GenServer.call(__MODULE__, {:restore_backup, filename})
   end
 
   # --- Pipeline API ---
 
+  @spec list_pipelines() :: [map()]
   def list_pipelines do
     GenServer.call(__MODULE__, :list_pipelines)
   end
 
+  @spec get_pipeline(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_pipeline(id) do
     GenServer.call(__MODULE__, {:get_pipeline, id})
   end
 
+  @spec create_pipeline(map()) :: {:ok, map()}
   def create_pipeline(attrs) do
     GenServer.call(__MODULE__, {:create_pipeline, attrs})
   end
 
+  @spec update_pipeline(String.t(), map()) :: {:ok, map()} | {:error, :not_found}
   def update_pipeline(id, attrs) do
     GenServer.call(__MODULE__, {:update_pipeline, id, attrs})
   end
 
+  @spec delete_pipeline(String.t()) :: :ok | {:error, :not_found}
   def delete_pipeline(id) do
     GenServer.call(__MODULE__, {:delete_pipeline, id})
   end
 
   # --- Pipeline Run API ---
 
+  @spec create_pipeline_run(String.t(), map()) :: {:ok, map()}
   def create_pipeline_run(pipeline_id, opts \\ %{}) do
     GenServer.call(__MODULE__, {:create_pipeline_run, pipeline_id, opts})
   end
 
+  @spec get_pipeline_run(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_pipeline_run(pipeline_id, run_id) do
     GenServer.call(__MODULE__, {:get_pipeline_run, pipeline_id, run_id})
   end
 
+  @spec get_pipeline_run_by_id(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_pipeline_run_by_id(run_id) do
     GenServer.call(__MODULE__, {:get_pipeline_run_by_id, run_id})
   end
 
+  @spec update_pipeline_run_status(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def update_pipeline_run_status(run_id, status) do
     GenServer.call(__MODULE__, {:update_pipeline_run_status, run_id, status})
   end
 
+  @spec update_node_state(String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, :not_found}
   def update_node_state(run_id, node_id, state) do
     GenServer.call(__MODULE__, {:update_node_state, run_id, node_id, state})
   end
 
+  @spec set_run_node_issue_id(String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, :not_found}
   def set_run_node_issue_id(run_id, node_id, issue_id) do
     GenServer.call(__MODULE__, {:set_run_node_issue_id, run_id, node_id, issue_id})
   end
 
+  @spec set_node_output(String.t(), String.t(), map()) :: {:ok, map()} | {:error, :not_found}
   def set_node_output(run_id, node_id, output) do
     GenServer.call(__MODULE__, {:set_node_output, run_id, node_id, output})
   end
 
+  @spec get_predecessor_outputs(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_predecessor_outputs(run_id, node_id) do
     GenServer.call(__MODULE__, {:get_predecessor_outputs, run_id, node_id})
   end
 
+  @spec record_gate_decision(String.t(), String.t(), String.t(), String.t() | nil, term()) ::
+          {:ok, map()} | {:error, :not_found}
   def record_gate_decision(run_id, node_id, action, feedback \\ nil, findings_decisions \\ nil) do
-    GenServer.call(__MODULE__, {:record_gate_decision, run_id, node_id, action, feedback, findings_decisions})
+    GenServer.call(
+      __MODULE__,
+      {:record_gate_decision, run_id, node_id, action, feedback, findings_decisions}
+    )
   end
 
+  @spec list_pipeline_runs(String.t()) :: [map()]
   def list_pipeline_runs(pipeline_id) do
     GenServer.call(__MODULE__, {:list_pipeline_runs, pipeline_id})
   end
 
+  @spec list_all_active_runs() :: [map()]
   def list_all_active_runs do
     GenServer.call(__MODULE__, :list_all_active_runs)
   end
@@ -610,8 +678,20 @@ defmodule SymphonyElixir.LocalBoard do
   def handle_call({:get_predecessor_outputs, run_id, node_id}, _from, board),
     do: Pipelines.get_predecessor_outputs(board, run_id, node_id)
 
-  def handle_call({:record_gate_decision, run_id, node_id, action, feedback, findings_decisions}, _from, board),
-    do: Pipelines.record_gate_decision(board, run_id, node_id, action, feedback, findings_decisions)
+  def handle_call(
+        {:record_gate_decision, run_id, node_id, action, feedback, findings_decisions},
+        _from,
+        board
+      ),
+      do:
+        Pipelines.record_gate_decision(
+          board,
+          run_id,
+          node_id,
+          action,
+          feedback,
+          findings_decisions
+        )
 
   def handle_call({:list_pipeline_runs, pipeline_id}, _from, board),
     do: Pipelines.list_pipeline_runs(board, pipeline_id)

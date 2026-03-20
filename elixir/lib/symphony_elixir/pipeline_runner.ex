@@ -21,36 +21,43 @@ defmodule SymphonyElixir.PipelineRunner do
 
   # --- Client API ---
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @doc "Start executing a pipeline run. The run must already exist in LocalBoard."
+  @spec start_run(String.t(), String.t()) :: :ok
   def start_run(pipeline_id, run_id) do
     GenServer.cast(__MODULE__, {:start_run, pipeline_id, run_id})
   end
 
   @doc "Notify the runner that a gate decision was made (called after LocalBoard update)."
+  @spec gate_decided(String.t(), String.t(), String.t()) :: :ok
   def gate_decided(run_id, node_id, action) do
     GenServer.cast(__MODULE__, {:gate_decided, run_id, node_id, action})
   end
 
   @doc "Re-register a run with the runner (used by resume)."
+  @spec resume_run(String.t(), String.t()) :: :ok
   def resume_run(pipeline_id, run_id) do
     GenServer.cast(__MODULE__, {:start_run, pipeline_id, run_id})
   end
 
   @doc "Force-complete a node (skip it). Used to unblock stuck pipelines."
+  @spec force_complete_node(String.t(), String.t()) :: :ok
   def force_complete_node(run_id, node_id) do
     GenServer.cast(__MODULE__, {:force_complete, run_id, node_id})
   end
 
   @doc "Cancel a running pipeline run. Stops agent containers and marks run cancelled."
+  @spec cancel_run(String.t(), String.t()) :: :ok
   def cancel_run(pipeline_id, run_id) do
     GenServer.call(__MODULE__, {:cancel_run, pipeline_id, run_id})
   end
 
   @doc "Get status of all tracked runs."
+  @spec list_active() :: [String.t()]
   def list_active do
     GenServer.call(__MODULE__, :list_active)
   end
@@ -119,9 +126,26 @@ defmodule SymphonyElixir.PipelineRunner do
                 e.source_node_id == node_id and e.source_port == "reject"
               end)
 
-            Enum.each(reject_edges, fn edge ->
-              reset_node_and_downstream(run_id, edge.target_node_id, pipeline)
-            end)
+            if reject_edges != [] do
+              # Explicit reject edges exist — follow them
+              Enum.each(reject_edges, fn edge ->
+                reset_node_and_downstream(run_id, edge.target_node_id, pipeline)
+              end)
+            else
+              # No explicit reject edges — reset predecessor issue nodes so they
+              # re-run with the injected feedback, then reset the gate itself
+              predecessor_node_ids =
+                pipeline.edges
+                |> Enum.filter(fn e -> e.target_node_id == node_id end)
+                |> Enum.map(& &1.source_node_id)
+
+              Enum.each(predecessor_node_ids, fn pred_id ->
+                reset_node_and_downstream(run_id, pred_id, pipeline)
+              end)
+
+              # Also reset the gate node itself so it waits for new results
+              LocalBoard.update_node_state(run_id, node_id, "pending")
+            end
 
             # Re-advance to pick up the newly pending nodes
             advance_run(run_state.pipeline_id, run_id, pipeline)
@@ -431,7 +455,9 @@ defmodule SymphonyElixir.PipelineRunner do
       end)
 
     if running_issue_ids != [] do
-      Logger.info("PipelineRunner: cancelling #{length(running_issue_ids)} running issues: #{inspect(running_issue_ids)}")
+      Logger.info(
+        "PipelineRunner: cancelling #{length(running_issue_ids)} running issues: #{inspect(running_issue_ids)}"
+      )
 
       try do
         SymphonyElixir.Orchestrator.cancel_issues(running_issue_ids)
@@ -692,7 +718,8 @@ defmodule SymphonyElixir.PipelineRunner do
                 _ -> {nil, pipeline.product_id}
               end
 
-            output = maybe_read_findings(issue, base_output, run_project_id, run_product_id, node.id)
+            output =
+              maybe_read_findings(issue, base_output, run_project_id, run_product_id, node.id)
 
             LocalBoard.set_node_output(run_id, node.id, output)
 
@@ -749,8 +776,7 @@ defmodule SymphonyElixir.PipelineRunner do
 
             start_time ->
               # Use per-node timeout from config, or default
-              timeout =
-                get_in(node, [:config, "timeout_ms"]) || @node_timeout_ms
+              timeout = get_in(node, [:config, "timeout_ms"]) || @node_timeout_ms
 
               if now - start_time > timeout do
                 Logger.warning("PipelineRunner: node #{node.id} timed out")
@@ -842,16 +868,20 @@ defmodule SymphonyElixir.PipelineRunner do
         case LocalBoard.get_pipeline_run(pipeline.id, run_id) do
           {:ok, run} ->
             {run[:product_id] || pipeline.product_id, run[:project_id], run[:input_description]}
+
           _ ->
             {pipeline.product_id, nil, nil}
         end
 
-      # Prepend the run's input description (feature request) to every issue
+      # Prepend the run's input description to every issue
       node_desc = config["description"] || config[:description] || ""
+
+      is_ui_pipeline = String.contains?(pipeline.name || "", "UI")
+      input_header = if is_ui_pipeline, do: "## Design Direction", else: "## Feature Request"
 
       description =
         if input_description && input_description != "" do
-          "## Feature Request\n#{input_description}\n\n---\n\n#{node_desc}"
+          "#{input_header}\n#{input_description}\n\n---\n\n#{node_desc}"
         else
           node_desc
         end
@@ -934,7 +964,10 @@ defmodule SymphonyElixir.PipelineRunner do
 
   defp collect_and_sync_predecessor_reports(node, pipeline, run_id, config) do
     predecessor_issue_ids = get_predecessor_issue_ids(node, pipeline, run_id)
-    Logger.info("KB sync node #{node.id}: predecessor issue IDs = #{inspect(predecessor_issue_ids)}")
+
+    Logger.info(
+      "KB sync node #{node.id}: predecessor issue IDs = #{inspect(predecessor_issue_ids)}"
+    )
 
     if predecessor_issue_ids == [] do
       Logger.info("KB sync node #{node.id}: no predecessor issues found, skipping")
@@ -943,8 +976,7 @@ defmodule SymphonyElixir.PipelineRunner do
       product_name = resolve_run_product_name(pipeline, run_id)
       Logger.info("KB sync node #{node.id}: product_name = #{inspect(product_name)}")
 
-      kb_config =
-        SymphonyElixir.Integrations.Registry.build_config("knowledge_base", config)
+      kb_config = SymphonyElixir.Integrations.Registry.build_config("knowledge_base", config)
 
       issues =
         predecessor_issue_ids
@@ -1048,8 +1080,14 @@ defmodule SymphonyElixir.PipelineRunner do
         Logger.info("KB sync: merging '#{item.title}' into existing note '#{note_title}'")
 
         merge_into_note(
-          note_title, item.content, "Updated from pipeline agent #{item.source}",
-          node, pipeline, run_id, product_name, kb_config
+          note_title,
+          item.content,
+          "Updated from pipeline agent #{item.source}",
+          node,
+          pipeline,
+          run_id,
+          product_name,
+          kb_config
         )
       end)
 
@@ -1080,8 +1118,14 @@ defmodule SymphonyElixir.PipelineRunner do
           merge_results =
             Enum.flat_map(notes_to_update, fn note_title ->
               merge_into_note(
-                note_title, combined, "Pipeline output from: #{Enum.join(unmatched_note_titles, ", ")}",
-                node, pipeline, run_id, product_name, kb_config
+                note_title,
+                combined,
+                "Pipeline output from: #{Enum.join(unmatched_note_titles, ", ")}",
+                node,
+                pipeline,
+                run_id,
+                product_name,
+                kb_config
               )
             end)
 
@@ -1094,8 +1138,14 @@ defmodule SymphonyElixir.PipelineRunner do
 
           Enum.flat_map(unmatched, fn item ->
             write_kb_note_content(
-              item.title, item.content, node, pipeline, run_id, product_name,
-              write_config, ["symphony", "extraction"]
+              item.title,
+              item.content,
+              node,
+              pipeline,
+              run_id,
+              product_name,
+              write_config,
+              ["symphony", "extraction"]
             )
           end)
         end
@@ -1106,7 +1156,16 @@ defmodule SymphonyElixir.PipelineRunner do
     matched_results ++ unmatched_results
   end
 
-  defp merge_into_note(note_title, content, merge_context, node, pipeline, run_id, product_name, kb_config) do
+  defp merge_into_note(
+         note_title,
+         content,
+         merge_context,
+         node,
+         pipeline,
+         run_id,
+         product_name,
+         kb_config
+       ) do
     merge_config = Map.put(kb_config, "action", "merge_note")
 
     context = %{
@@ -1198,7 +1257,16 @@ defmodule SymphonyElixir.PipelineRunner do
     end)
   end
 
-  defp write_kb_note_content(title, content, node, pipeline, run_id, product_name, kb_config, tags) do
+  defp write_kb_note_content(
+         title,
+         content,
+         node,
+         pipeline,
+         run_id,
+         product_name,
+         kb_config,
+         tags
+       ) do
     context = %{
       "node_id" => node.id,
       "pipeline_id" => pipeline.id,
@@ -1256,6 +1324,7 @@ defmodule SymphonyElixir.PipelineRunner do
             nil ->
               node_def = Enum.find(pipeline.nodes, &(&1.id == pid))
               if node_def && node_def.issue_id, do: node_def.issue_id, else: nil
+
             id ->
               id
           end
@@ -1313,8 +1382,7 @@ defmodule SymphonyElixir.PipelineRunner do
       predecessor_issue_ids = collect_predecessor_issue_ids(gate_node_id, pipeline, run_id)
 
       Enum.each(predecessor_issue_ids, fn issue_id ->
-        hint =
-          "[Pipeline gate rejected]\n#{feedback}"
+        hint = "[Pipeline gate rejected]\n#{feedback}"
 
         LocalBoard.update_issue(issue_id, %{"rerun_hint" => hint})
 
@@ -1600,8 +1668,8 @@ defmodule SymphonyElixir.PipelineRunner do
     # Resolve project paths: issue's own > run-level > product's projects
     project_paths =
       (resolve_issue_project_paths(issue) ++
-        resolve_project_id_paths(run_project_id) ++
-        resolve_product_project_paths(run_product_id))
+         resolve_project_id_paths(run_project_id) ++
+         resolve_product_project_paths(run_product_id))
       |> Enum.uniq()
 
     workspace_root =
@@ -1647,7 +1715,10 @@ defmodule SymphonyElixir.PipelineRunner do
           {:ok, json} ->
             case Jason.decode(json) do
               {:ok, findings} when is_list(findings) ->
-                Logger.info("FINDINGS.json: parsed #{length(findings)} findings for #{workspace_key}")
+                Logger.info(
+                  "FINDINGS.json: parsed #{length(findings)} findings for #{workspace_key}"
+                )
+
                 Map.put(base_output, "findings", findings)
 
               _ ->
@@ -1663,6 +1734,7 @@ defmodule SymphonyElixir.PipelineRunner do
   end
 
   defp resolve_project_id_paths(nil), do: []
+
   defp resolve_project_id_paths(project_id) do
     case LocalBoard.get_project(project_id) do
       {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
@@ -1671,6 +1743,7 @@ defmodule SymphonyElixir.PipelineRunner do
   end
 
   defp resolve_product_project_paths(nil), do: []
+
   defp resolve_product_project_paths(product_id) do
     case LocalBoard.get_product(product_id) do
       {:ok, product} ->
@@ -1681,7 +1754,9 @@ defmodule SymphonyElixir.PipelineRunner do
             _ -> []
           end
         end)
-      _ -> []
+
+      _ ->
+        []
     end
   end
 

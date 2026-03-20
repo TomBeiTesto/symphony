@@ -1,13 +1,14 @@
 defmodule SymphonyElixir.Orchestrator.Snapshot do
   @moduledoc """
   Snapshot and issue detail building for the orchestrator.
-
+  
   Produces dashboard-ready data structures from the orchestrator state.
   """
 
   alias SymphonyElixir.Orchestrator.{Lifecycle, State}
 
   @doc "Build a full snapshot of the orchestrator state for the dashboard."
+  @spec build_snapshot(State.t()) :: map()
   def build_snapshot(state) do
     now = DateTime.utc_now()
     totals = State.live_seconds_running(state)
@@ -55,6 +56,7 @@ defmodule SymphonyElixir.Orchestrator.Snapshot do
   end
 
   @doc "Find and build issue detail by identifier, checking running, retrying, and completed."
+  @spec find_issue_detail(State.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def find_issue_detail(state, identifier) do
     # Check running
     running_entry =
@@ -93,6 +95,7 @@ defmodule SymphonyElixir.Orchestrator.Snapshot do
   end
 
   @doc "Build an issue detail map from running and/or retry entries."
+  @spec build_issue_detail(String.t(), map() | nil, map() | nil, atom()) :: map()
   def build_issue_detail(identifier, running_entry, retry_entry, status) do
     %{
       issue_identifier: identifier,

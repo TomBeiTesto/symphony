@@ -5,6 +5,8 @@ defmodule SymphonyElixir.Config do
   See SPEC Section 6.
   """
 
+  alias SymphonyElixir.ParseUtils
+
   @default_active_states ["Todo", "In Progress"]
   @default_terminal_states [
     "Closed",
@@ -120,7 +122,7 @@ defmodule SymphonyElixir.Config do
       active_states: parse_state_list(Map.get(tracker, "active_states"), @default_active_states),
       terminal_states:
         parse_state_list(Map.get(tracker, "terminal_states"), @default_terminal_states),
-      poll_interval_ms: parse_int(Map.get(polling, "interval_ms"), @default_poll_interval_ms),
+      poll_interval_ms: ParseUtils.parse_positive_int(Map.get(polling, "interval_ms"), @default_poll_interval_ms),
       workspace_root: resolve_workspace_root(Map.get(workspace, "root")),
       hooks: %{
         after_create: Map.get(hooks_raw, "after_create"),
@@ -128,15 +130,15 @@ defmodule SymphonyElixir.Config do
         after_run: Map.get(hooks_raw, "after_run"),
         before_remove: Map.get(hooks_raw, "before_remove"),
         shell: Map.get(hooks_raw, "shell"),
-        timeout_ms: parse_positive_int(Map.get(hooks_raw, "timeout_ms"), @default_hook_timeout_ms)
+        timeout_ms: ParseUtils.parse_positive_int(Map.get(hooks_raw, "timeout_ms"), @default_hook_timeout_ms)
       },
       max_concurrent_agents:
-        parse_int(Map.get(agent, "max_concurrent_agents"), @default_max_concurrent),
-      max_turns: parse_int(Map.get(agent, "max_turns"), @default_max_turns),
+        ParseUtils.parse_positive_int(Map.get(agent, "max_concurrent_agents"), @default_max_concurrent),
+      max_turns: ParseUtils.parse_positive_int(Map.get(agent, "max_turns"), @default_max_turns),
       max_total_tokens:
-        parse_non_neg_int(Map.get(agent, "max_total_tokens"), @default_max_total_tokens),
+        ParseUtils.parse_non_neg_int(Map.get(agent, "max_total_tokens"), @default_max_total_tokens),
       max_retry_backoff_ms:
-        parse_int(Map.get(agent, "max_retry_backoff_ms"), @default_max_retry_backoff_ms),
+        ParseUtils.parse_positive_int(Map.get(agent, "max_retry_backoff_ms"), @default_max_retry_backoff_ms),
       max_concurrent_agents_by_state:
         parse_state_concurrency(Map.get(agent, "max_concurrent_agents_by_state")),
       agent_command: Map.get(agent_proc, "command", @default_agent_command),
@@ -147,12 +149,12 @@ defmodule SymphonyElixir.Config do
       thread_sandbox: Map.get(agent_proc, "thread_sandbox"),
       turn_sandbox_policy: Map.get(agent_proc, "turn_sandbox_policy"),
       turn_timeout_ms:
-        parse_int(Map.get(agent_proc, "turn_timeout_ms"), @default_turn_timeout_ms),
+        ParseUtils.parse_positive_int(Map.get(agent_proc, "turn_timeout_ms"), @default_turn_timeout_ms),
       read_timeout_ms:
-        parse_int(Map.get(agent_proc, "read_timeout_ms"), @default_read_timeout_ms),
+        ParseUtils.parse_positive_int(Map.get(agent_proc, "read_timeout_ms"), @default_read_timeout_ms),
       stall_timeout_ms:
-        parse_non_neg_int(Map.get(agent_proc, "stall_timeout_ms"), @default_stall_timeout_ms),
-      server_port: parse_optional_int(Map.get(server, "port"))
+        ParseUtils.parse_non_neg_int(Map.get(agent_proc, "stall_timeout_ms"), @default_stall_timeout_ms),
+      server_port: ParseUtils.parse_optional_int(Map.get(server, "port"))
     }
 
     {:ok, config}
@@ -258,55 +260,6 @@ defmodule SymphonyElixir.Config do
 
   defp parse_state_list(_, default), do: default
 
-  defp parse_int(nil, default), do: default
-  defp parse_int(val, _default) when is_integer(val) and val > 0, do: val
-
-  defp parse_int(val, default) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} when n > 0 -> n
-      _ -> default
-    end
-  end
-
-  defp parse_int(_, default), do: default
-
-  defp parse_non_neg_int(nil, default), do: default
-  defp parse_non_neg_int(val, _default) when is_integer(val) and val >= 0, do: val
-
-  defp parse_non_neg_int(val, default) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} when n >= 0 -> n
-      _ -> default
-    end
-  end
-
-  defp parse_non_neg_int(_, default), do: default
-
-  defp parse_positive_int(nil, default), do: default
-
-  defp parse_positive_int(val, default) when is_integer(val),
-    do: if(val > 0, do: val, else: default)
-
-  defp parse_positive_int(val, default) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} when n > 0 -> n
-      _ -> default
-    end
-  end
-
-  defp parse_positive_int(_, default), do: default
-
-  defp parse_optional_int(nil), do: nil
-  defp parse_optional_int(val) when is_integer(val), do: val
-
-  defp parse_optional_int(val) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} -> n
-      _ -> nil
-    end
-  end
-
-  defp parse_optional_int(_), do: nil
 
   defp parse_state_concurrency(nil), do: %{}
 

@@ -67,8 +67,7 @@ defmodule SymphonyElixir.PipelineSeed do
     existing_pipelines = LocalBoard.list_pipelines()
     skill_id_map = build_skill_id_map()
 
-    already_exists? =
-      Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
+    already_exists? = Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
 
     unless already_exists? do
       create_extraction_pipeline(skill_id_map)

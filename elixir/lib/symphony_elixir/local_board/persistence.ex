@@ -84,10 +84,10 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       backup_name = "#{base}_#{timestamp}.json"
       backup_path = Path.join(dir, backup_name)
 
-      case File.cp(store_path, backup_path) do
-        :ok ->
-          prune_old_backups(dir, base)
-
+      with {:ok, contents} <- File.read(store_path),
+           :ok <- File.write(backup_path, contents) do
+        prune_old_backups(dir, base)
+      else
         {:error, reason} ->
           Logger.warning("Failed to create backup: #{inspect(reason)}")
       end
@@ -101,7 +101,12 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
         |> Enum.filter(&String.starts_with?(&1, base))
         |> Enum.sort(:desc)
         |> Enum.drop(@max_backups)
-        |> Enum.each(fn f -> File.rm(Path.join(dir, f)) end)
+        |> Enum.each(fn f ->
+          case File.rm(Path.join(dir, f)) do
+            :ok -> :ok
+            {:error, reason} -> Logger.warning("Failed to prune backup #{f}: #{inspect(reason)}")
+          end
+        end)
 
       {:error, _} ->
         :ok
@@ -532,7 +537,7 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       project_id: raw["project_id"],
       input_description: raw["input_description"],
       status: raw["status"] || "running",
-      node_states: atomize_map_values(raw["node_states"] || %{}),
+      node_states: raw["node_states"] || %{},
       node_attempts: raw["node_attempts"] || %{},
       node_issue_ids: raw["node_issue_ids"] || %{},
       node_outputs: raw["node_outputs"] || %{},
@@ -550,10 +555,6 @@ defmodule SymphonyElixir.LocalBoard.Persistence do
       completed_at: raw["completed_at"]
     }
   end
-
-  # Keep string values as-is for node_states (they are string enum values)
-  defp atomize_map_values(map) when is_map(map), do: map
-  defp atomize_map_values(_), do: %{}
 
   # Ensure any new default states are inserted in the correct position.
   # Persisted states take priority; missing defaults are spliced in

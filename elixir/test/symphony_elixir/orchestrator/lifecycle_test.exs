@@ -38,7 +38,7 @@ defmodule SymphonyElixir.Orchestrator.LifecycleTest do
     test "parses valid follow-ups block" do
       result_text = """
       Done.
-
+      
       ```follow-ups
       [
         {"title": "Add tests", "description": "Cover edge cases", "labels": ["test"], "priority": 2},

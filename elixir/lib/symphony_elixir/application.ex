@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Application do
   @moduledoc """
   OTP Application for Symphony Elixir.
-
+  
   Starts the supervision tree for development/runtime.
   In escript mode, `CLI.startup/2` builds the tree directly.
   """

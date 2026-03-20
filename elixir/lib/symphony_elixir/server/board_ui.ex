@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Server.BoardUI do
   @moduledoc """
   Server-rendered Kanban board UI with drag-and-drop.
-
+  
   Renders a single-page HTML application that communicates with
   the board API endpoints. Styled to look like a modern project
   management tool.
@@ -59,12 +59,12 @@ defmodule SymphonyElixir.Server.BoardUI do
           </button>
         </div>
       </div>
-
+    
       <!-- Metrics bar -->
       <div class="metrics-bar" id="metrics-bar"></div>
-
+    
       <main class="board" id="board"></main>
-
+    
       <!-- Create/Edit Modal -->
       <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
         <div class="modal" onclick="event.stopPropagation()">
@@ -134,7 +134,7 @@ defmodule SymphonyElixir.Server.BoardUI do
           </form>
         </div>
       </div>
-
+    
       <!-- Issue Detail Modal -->
       <div class="modal-overlay" id="detail-overlay" onclick="closeDetailModal()">
         <div class="modal modal-wide" onclick="event.stopPropagation()">
@@ -162,9 +162,9 @@ defmodule SymphonyElixir.Server.BoardUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Project Modal -->
-
+    
       <script>
     #{UIHelpers.esc_js()}
     #{UIHelpers.toast_js()}
@@ -186,7 +186,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       UIHelpers.page_actions_css() <>
       UIHelpers.dropdown_css() <>
       ~S"""
-
+      
       body {
         height: 100vh;
         display: flex;
@@ -194,7 +194,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         overflow: hidden;
       }
       .page-actions-bar { padding: 8px 20px; }
-
+      
       /* --- Metrics Bar (#6) --- */
       .metrics-bar {
         display: flex;
@@ -211,7 +211,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       .metric { display: flex; align-items: center; gap: 4px; }
       .metric-val { font-weight: 600; color: var(--text-secondary); }
       .metric-dot { width: 6px; height: 6px; border-radius: 50%; }
-
+      
       /* --- Auto-add popover (#2) --- */
       .auto-add-popover { min-width: 240px; padding: 8px 0; }
       .popover-section { padding: 8px 14px; border-bottom: 1px solid var(--border-light); }
@@ -226,7 +226,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         border: 1px solid var(--border); border-radius: var(--radius-sm);
         padding: 2px 6px; font-size: 0.82rem; cursor: pointer;
       }
-
+      
       /* --- Project group headers --- */
       .project-group-header {
         font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
@@ -236,13 +236,13 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .project-group-header .pg-dot {
         width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-
+      
       /* --- Board (#7,#8) --- */
       .board {
         display: flex; gap: 0; padding: 0;
         flex: 1; overflow-x: auto; overflow-y: hidden;
       }
-
+      
       .column {
         flex: 1 1 0; min-width: 180px;
         display: flex; flex-direction: column;
@@ -262,7 +262,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .column.collapsed .column-title-group { flex-direction: column; gap: 8px; }
       .column.collapsed .column-count { writing-mode: horizontal-tb; }
-
+      
       /* --- Column header (#15,#16) --- */
       .column-header {
         padding: 10px 12px 8px;
@@ -289,7 +289,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       .wip-badge { font-size: 0.65rem; color: var(--text-muted);
         padding: 1px 5px; border-radius: 8px; background: var(--bg-tertiary); }
       .wip-badge.over-limit { color: var(--red); background: rgba(248,81,73,0.15); }
-
+      
       .btn-collapse {
         background: none; border: none; color: var(--text-muted);
         cursor: pointer; padding: 2px; border-radius: 4px;
@@ -297,13 +297,13 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .column-header:hover .btn-collapse { opacity: 1; }
       .btn-collapse:hover { color: var(--text-primary); background: var(--bg-tertiary); }
-
+      
       .column-body { flex: 1; overflow-y: auto; padding: 6px; min-height: 60px; }
       .column-body.drag-over {
         background: rgba(88,166,255,0.06);
         outline: 2px dashed var(--accent); outline-offset: -4px; border-radius: 4px;
       }
-
+      
       /* --- Cards (#9,#10,#19,#20,#22,#23) --- */
       .card {
         background: var(--bg-secondary); border: 1px solid var(--border);
@@ -319,7 +319,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       .card.kb-focused { outline: 2px solid var(--accent); outline-offset: -2px; border-left-color: var(--accent); }
       /* P1/P2 visual weight (#20) */
       .card.priority-high { box-shadow: inset 0 0 0 1px rgba(248,81,73,0.2); }
-
+      
       .card-identifier {
         font-size: 0.65rem; color: var(--text-muted); font-weight: 500;
         margin-bottom: 2px;
@@ -340,19 +340,19 @@ defmodule SymphonyElixir.Server.BoardUI do
       .card-plan-badge.approved { color: var(--green); background: rgba(63,185,80,0.12); }
       .card-age { font-size: 0.6rem; color: var(--text-muted); opacity: 0.6; margin-left: auto; }
       .card-age.stale { color: var(--red); opacity: 0.8; }
-
+      
       .priority-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
       .priority-1 { background: var(--red); }
       .priority-2 { background: var(--orange); }
       .priority-3 { background: var(--yellow); }
       .priority-4 { background: var(--accent); }
       .priority-0 { background: var(--text-muted); }
-
+      
       .label-tag {
         font-size: 0.65rem; padding: 1px 5px; border-radius: 8px;
         background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border);
       }
-
+      
       /* --- Detail Modal (#11) --- */
       .detail-id { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
       .detail-actions { display: flex; gap: 6px; align-items: center; }
@@ -362,7 +362,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         line-height: 1.6; margin-bottom: 16px; white-space: pre-wrap; }
       .detail-labels { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
       .detail-timestamps { display: flex; gap: 16px; color: var(--text-muted); font-size: 0.75rem; }
-
+      
       /* --- Form overrides for board --- */
       .form-checkbox label { display: flex; align-items: center; gap: 8px;
         cursor: pointer; font-size: 13px; color: var(--text-secondary); }
@@ -382,14 +382,14 @@ defmodule SymphonyElixir.Server.BoardUI do
         font-size: 0.8rem; padding: 0 2px; opacity: 0.6; line-height: 1;
       }
       .form-skill-pill button:hover { opacity: 1; }
-
+      
       /* --- Empty State --- */
       .empty-column {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         padding: 24px 12px; color: var(--text-muted); font-size: 0.78rem; min-height: 80px;
       }
       .empty-column-icon { width: 28px; height: 28px; margin-bottom: 6px; opacity: 0.3; }
-
+      
       /* --- Quick Add (#26) --- */
       .quick-add { padding: 4px 6px 6px; border-top: 1px solid var(--border-light);
         flex-shrink: 0; background: var(--bg-secondary); }
@@ -401,7 +401,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .quick-add-input:focus { border-color: var(--accent); border-style: solid; background: var(--bg-primary); }
       .quick-add-input::placeholder { color: var(--text-muted); }
-
+      
       /* --- Project Select --- */
       .project-select {
         padding: 4px 8px; background: var(--bg-primary); border: 1px solid var(--border);
@@ -409,7 +409,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         font-size: 0.78rem; outline: none; cursor: pointer;
       }
       .project-select:focus { border-color: var(--accent); }
-
+      
       /* --- Project List --- */
       .project-filter { width: 100%; padding: 6px 10px; margin-bottom: 8px;
         border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -433,14 +433,14 @@ defmodule SymphonyElixir.Server.BoardUI do
       .project-info .project-meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .project-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
       .project-empty { color: var(--text-muted); font-style: italic; padding: 20px; text-align: center; }
-
+      
       .btn-clear-col {
         background: none; border: none; color: var(--text-muted);
         cursor: pointer; padding: 2px 4px; border-radius: 4px;
         opacity: 0.6; transition: all var(--transition);
       }
       .btn-clear-col:hover { opacity: 1; color: var(--red); background: rgba(248,81,73,0.1); }
-
+      
       .card-delete {
         position: absolute; top: 3px; right: 3px;
         background: none; border: none; color: var(--text-muted);
@@ -449,20 +449,20 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       .card:hover .card-delete { opacity: 0.6; }
       .card-delete:hover { opacity: 1; color: var(--red); background: rgba(248,81,73,0.15); }
-
+      
       .scan-list { max-height: 400px; overflow-y: auto; }
       .scan-card {
         padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
         margin-bottom: 6px; background: var(--bg-primary);
       }
       .scan-card:hover { background: var(--bg-hover); }
-
+      
       /* --- Card project badge --- */
       .card-project {
         font-size: 0.62rem; padding: 1px 5px; border-radius: 8px;
         background: rgba(88,166,255,0.1); color: var(--accent); border: 1px solid rgba(88,166,255,0.2);
       }
-
+      
       /* --- Mobile (#44,#45) --- */
       @media (max-width: 768px) {
         .topbar-nav a span { display: none; }
@@ -478,7 +478,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         .column.collapsed .column-title-group { flex-direction: row; }
         .metrics-bar { overflow-x: auto; white-space: nowrap; }
       }
-
+      
       """
   end
 
@@ -492,7 +492,7 @@ defmodule SymphonyElixir.Server.BoardUI do
     let draggedCard = null;
     let currentProjectFilter = '';
     let segregateByProject = false;
-
+    
     // Configure shared kanban drag-drop helpers
     window._kanbanOpts = {
       cardSelector: '.card',
@@ -512,14 +512,14 @@ defmodule SymphonyElixir.Server.BoardUI do
     let allGroupsCache = [];
     let formSkillIds = [];
     let formGroupIds = [];
-
+    
     // --- Fetch & Render (#27 skeleton, #28 loading, #29 debounce, #31 scroll preserve) ---
     async function loadBoard() {
       var now = Date.now();
       if (loadPending || (now - lastLoadTime < 500)) return; // debounce
       loadPending = true;
       lastLoadTime = now;
-
+    
       // Show skeleton on first load
       if (!boardData) {
         var board = document.getElementById('board');
@@ -530,14 +530,14 @@ defmodule SymphonyElixir.Server.BoardUI do
             '<div class="skeleton skeleton-card"></div></div>'
           ).join('') + '</div>';
       }
-
+    
       try {
         // Preserve scroll positions (#31)
         var scrollPositions = {};
         document.querySelectorAll('.column-body').forEach(function(el) {
           if (el.scrollTop > 0) scrollPositions[el.dataset.state] = el.scrollTop;
         });
-
+    
         const [snapRes, projRes] = await Promise.all([
           fetch(`${API}/snapshot`),
           fetch(`${API}/projects`)
@@ -549,7 +549,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         renderMetricsBar();
         populateProjectFilter();
         populateTemplateMenu();
-
+    
         // Restore scroll positions
         document.querySelectorAll('.column-body').forEach(function(el) {
           if (scrollPositions[el.dataset.state]) el.scrollTop = scrollPositions[el.dataset.state];
@@ -560,32 +560,32 @@ defmodule SymphonyElixir.Server.BoardUI do
         loadPending = false;
       }
     }
-
+    
     const BADGE_CLASSES = {
       'backlog': 'badge-backlog', 'todo': 'badge-todo',
       'in progress': 'badge-in-progress', 'review': 'badge-review',
       'done': 'badge-done', 'cancelled': 'badge-cancelled',
       'archived': 'badge-archived'
     };
-
+    
     // Terminal columns: default collapsed (#17)
     const TERMINAL_STATES = ['Done', 'Archived', 'Cancelled'];
-
+    
     function getColumnColor(state) { return stateColor(state); }
-
+    
     // Collapse state with localStorage persistence (#18)
     var collapsedColumns = JSON.parse(localStorage.getItem('symphony_collapsed') || 'null');
     if (!collapsedColumns) {
       collapsedColumns = {};
       TERMINAL_STATES.forEach(function(s) { collapsedColumns[s] = true; });
     }
-
+    
     function toggleColumn(state) {
       collapsedColumns[state] = !collapsedColumns[state];
       localStorage.setItem('symphony_collapsed', JSON.stringify(collapsedColumns));
       renderBoard();
     }
-
+    
     // --- Metrics bar (#6, #37) ---
     function renderMetricsBar() {
       var bar = document.getElementById('metrics-bar');
@@ -600,7 +600,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       var done = byState['Done'] || 0;
       var todo = byState['Todo'] || 0;
       var backlog = byState['Backlog'] || 0;
-
+    
       bar.innerHTML =
         '<span class="metric"><span class="metric-val">' + total + '</span> total</span>' +
         '<span class="metric"><span class="metric-dot" style="background:var(--accent)"></span>' +
@@ -611,7 +611,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         '<span class="metric-val">' + done + '</span> done</span>' +
         (backlog > 0 ? '<span class="metric"><span class="metric-val">' + backlog + '</span> backlog</span>' : '');
     }
-
+    
     // --- Auto-add popover toggle ---
     function toggleAutoAddDropdown() {
       document.getElementById('auto-add-menu').classList.toggle('open');
@@ -621,37 +621,37 @@ defmodule SymphonyElixir.Server.BoardUI do
         document.getElementById('auto-add-menu').classList.remove('open');
       }
     });
-
+    
     function renderBoard() {
       const board = document.getElementById('board');
       board.innerHTML = '';
       var totalIssues = 0;
       boardData.columns.forEach(function(col) { totalIssues += col.issues.length; });
-
+    
       boardData.columns.forEach(col => {
         let issues = col.issues;
         if (currentProjectFilter) {
           issues = issues.filter(i => i.project_id === currentProjectFilter);
         }
-
+    
         const color = getColumnColor(col.state);
         const isCollapsed = !!collapsedColumns[col.state];
         const column = document.createElement('div');
         column.className = 'column' + (isCollapsed ? ' collapsed' : '');
         column.style.setProperty('--column-accent', color);
-
+    
         if (isCollapsed) {
           column.onclick = function() { toggleColumn(col.state); };
           column.title = 'Click to expand ' + col.state;
         }
-
+    
         // Column completion bar (#33)
         var pctFill = totalIssues > 0 ? Math.round(issues.length / totalIssues * 100) : 0;
         var progressHtml = !isCollapsed
           ? '<div class="column-progress"><div class="column-progress-fill" style="width:' +
             pctFill + '%;background:' + color + '"></div></div>'
           : '';
-
+    
         column.innerHTML = `
           <div class="column-header">
             <div class="column-title-group">
@@ -707,7 +707,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         board.appendChild(column);
       });
     }
-
+    
     function renderColumnCards(issues) {
       if (!segregateByProject) {
         return issues.map(renderCard).join('');
@@ -746,15 +746,15 @@ defmodule SymphonyElixir.Server.BoardUI do
       });
       return html;
     }
-
-
+    
+    
     const DELETABLE_STATES = ['Backlog', 'Cancelled', 'Archived'];
-
+    
     function renderCard(issue) {
       const labels = (issue.labels || []).slice(0, 3).map(l =>
         `<span class="label-tag">${esc(l)}</span>`
       ).join('');
-
+    
       const priorityClass = `priority-${issue.priority || 0}`;
       const proj = issue.project_id ? projects.find(p => p.id === issue.project_id) : null;
       const projBadge = proj ? `<span class="card-project">${esc(proj.name)}</span>` : '';
@@ -765,7 +765,7 @@ defmodule SymphonyElixir.Server.BoardUI do
           onclick="event.stopPropagation(); deleteIssue('${issue.id}', '${esc(issue.identifier)}')"
           title="Delete">&#215;</button>`
         : '';
-
+    
       // Age indicator (#23)
       var ageHtml = '';
       if (issue.created_at) {
@@ -776,13 +776,13 @@ defmodule SymphonyElixir.Server.BoardUI do
           ageHtml = '<span class="card-age">' + days + 'd</span>';
         }
       }
-
+    
       // Skills indicator
       var skillCount = (issue.skill_ids || []).length + (issue.skill_group_ids || []).length;
       var skillBadge = skillCount > 0
         ? '<span class="card-skills" title="' + skillCount + ' skill(s) assigned">&#9889; ' + skillCount + '</span>'
         : '';
-
+    
       // Plan status badge
       var planBadge = '';
       if (issue.plan_status === 'planning')
@@ -792,7 +792,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       else if (issue.plan_status === 'approved')
         planBadge = '<span class="card-plan-badge approved"' +
           ' title="Plan approved, executing">&#128203; Executing</span>';
-
+    
       return `
         <div class="card${highPriority}" draggable="true" data-id="${issue.id}"
              style="border-left-color: ${borderColor}"
@@ -813,7 +813,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         </div>
       `;
     }
-
+    
     // --- Project Filter ---
     function populateProjectFilter() {
       const sel = document.getElementById('project-filter');
@@ -827,14 +827,14 @@ defmodule SymphonyElixir.Server.BoardUI do
         sel.appendChild(opt);
       });
     }
-
+    
     function handleProjectFilter() {
       currentProjectFilter = document.getElementById('project-filter').value;
       renderBoard();
     }
-
+    
     // Drag & Drop and Quick Add — provided by shared kanban_drag_drop_js()
-
+    
     // --- Create/Edit Modal ---
     function openCreateModal(defaultState) {
       document.getElementById('form-id').value = '';
@@ -846,18 +846,18 @@ defmodule SymphonyElixir.Server.BoardUI do
       document.getElementById('form-plan-first').checked = false;
       document.getElementById('modal-title').textContent = 'New Issue';
       document.getElementById('form-submit').textContent = 'Create Issue';
-
+    
       formSkillIds = [];
       formGroupIds = [];
       renderFormSkillPills();
-
+    
       populateStateSelect(defaultState || (boardData?.states?.[0]));
       populateProjectSelect(currentProjectFilter);
-
+    
       document.getElementById('modal-overlay').classList.add('active');
       setTimeout(() => document.getElementById('form-title').focus(), 100);
     }
-
+    
     function openEditModal(issue) {
       document.getElementById('form-id').value = issue.id;
       document.getElementById('form-title').value = issue.title || '';
@@ -869,18 +869,18 @@ defmodule SymphonyElixir.Server.BoardUI do
         issue.plan_status === 'planning' || issue.plan_status === 'plan_review';
       document.getElementById('modal-title').textContent = `Edit ${issue.identifier}`;
       document.getElementById('form-submit').textContent = 'Save Changes';
-
+    
       formSkillIds = (issue.skill_ids || []).slice();
       formGroupIds = (issue.skill_group_ids || []).slice();
       renderFormSkillPills();
-
+    
       populateStateSelect(issue.state);
       populateProjectSelect(issue.project_id || '');
-
+    
       document.getElementById('modal-overlay').classList.add('active');
       setTimeout(() => document.getElementById('form-title').focus(), 100);
     }
-
+    
     function populateStateSelect(selected) {
       const sel = document.getElementById('form-state');
       sel.innerHTML = '';
@@ -892,7 +892,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         sel.appendChild(opt);
       });
     }
-
+    
     function populateProjectSelect(selected) {
       const sel = document.getElementById('form-project');
       sel.innerHTML = '<option value="">No project</option>';
@@ -904,7 +904,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         sel.appendChild(opt);
       });
     }
-
+    
     // --- Skills in Create/Edit form ---
     async function loadSkillsCache() {
       try {
@@ -915,7 +915,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         if (gr.ok) { var d = await gr.json(); allGroupsCache = d.skill_groups || []; }
       } catch(e) {}
     }
-
+    
     function populateFormSkillSelect() {
       var sel = document.getElementById('form-add-skill');
       sel.innerHTML = '<option value="">+ Add skill or group...</option>';
@@ -942,7 +942,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       });
       sel.appendChild(optGroups);
     }
-
+    
     function renderFormSkillPills() {
       var container = document.getElementById('form-skill-pills');
       var pills = [];
@@ -959,7 +959,7 @@ defmodule SymphonyElixir.Server.BoardUI do
       container.innerHTML = pills.join('');
       populateFormSkillSelect();
     }
-
+    
     function formAddSkill(val) {
       if (!val) return;
       if (val.startsWith('skill:')) {
@@ -971,21 +971,21 @@ defmodule SymphonyElixir.Server.BoardUI do
       }
       renderFormSkillPills();
     }
-
+    
     function formRemoveSkill(sid) {
       formSkillIds = formSkillIds.filter(function(id) { return id !== sid; });
       renderFormSkillPills();
     }
-
+    
     function formRemoveGroup(gid) {
       formGroupIds = formGroupIds.filter(function(id) { return id !== gid; });
       renderFormSkillPills();
     }
-
+    
     function closeModal() {
       document.getElementById('modal-overlay').classList.remove('active');
     }
-
+    
     async function handleSubmit(e) {
       e.preventDefault();
       const id = document.getElementById('form-id').value;
@@ -1001,7 +1001,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         skill_ids: formSkillIds,
         skill_group_ids: formGroupIds
       };
-
+    
       try {
         var res;
         if (id) {
@@ -1029,17 +1029,17 @@ defmodule SymphonyElixir.Server.BoardUI do
         showToast('Save failed: ' + esc(err.message || 'network error'), { type: 'error' });
       }
     }
-
+    
     // --- Detail Modal ---
     async function openDetail(issueId) {
       if (draggedCard) return;
-
+    
       try {
         const res = await fetch(`${API}/issues/${issueId}`);
         if (!res.ok) return;
         const issue = await res.json();
         currentDetailIssue = issue;
-
+    
         document.getElementById('detail-identifier').textContent = issue.identifier;
         document.getElementById('detail-title').textContent = issue.title;
         var stateEl = document.getElementById('detail-state');
@@ -1053,39 +1053,39 @@ defmodule SymphonyElixir.Server.BoardUI do
           issue.description || 'No description';
         document.getElementById('detail-labels').innerHTML =
           (issue.labels || []).map(l => `<span class="label-tag">${esc(l)}</span>`).join('');
-
+    
         const proj = issue.project_id ? projects.find(p => p.id === issue.project_id) : null;
         const projHtml = proj ?
           `<span class="card-project" style="font-size: 0.8rem; padding: 2px 8px;">${esc(proj.name)}</span>` :
           '';
         document.getElementById('detail-labels').innerHTML += projHtml;
-
+    
         document.getElementById('detail-created').textContent =
           issue.created_at ? `Created: ${formatDate(issue.created_at)}` : '';
         document.getElementById('detail-updated').textContent =
           issue.updated_at ? `Updated: ${formatDate(issue.updated_at)}` : '';
-
+    
         document.getElementById('detail-overlay').classList.add('active');
       } catch (err) {
         console.error('Failed to load issue:', err);
       }
     }
-
+    
     function closeDetailModal() {
       document.getElementById('detail-overlay').classList.remove('active');
       currentDetailIssue = null;
     }
-
+    
     function editFromDetail() {
       if (!currentDetailIssue) return;
       closeDetailModal();
       openEditModal(currentDetailIssue);
     }
-
+    
     async function deleteFromDetail() {
       if (!currentDetailIssue) return;
       if (!confirm(`Delete ${currentDetailIssue.identifier}?`)) return;
-
+    
       try {
         await fetch(`${API}/issues/${currentDetailIssue.id}`, { method: 'DELETE' });
         closeDetailModal();
@@ -1094,7 +1094,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         console.error('Delete failed:', err);
       }
     }
-
+    
     // --- Issue Deletion with undo toast (#25) ---
     async function deleteIssue(id, identifier) {
       // Find the issue data first for potential undo
@@ -1125,7 +1125,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         console.error('Delete failed:', err);
       }
     }
-
+    
     async function clearColumn(state) {
       const colIssues = boardData.columns.find(c => c.state === state)?.issues || [];
       if (colIssues.length === 0) return;
@@ -1138,18 +1138,18 @@ defmodule SymphonyElixir.Server.BoardUI do
         console.error('Clear column failed:', err);
       }
     }
-
+    
     // --- Helpers ---
     function priorityLabel(p) {
       return { 1: 'Urgent', 2: 'High', 3: 'Medium', 4: 'Low' }[p] || 'None';
     }
-
+    
     function formatDate(iso) {
       try {
         return new Date(iso).toLocaleString();
       } catch { return iso; }
     }
-
+    
     // --- Auto Add & Board settings ---
     async function loadAutoAddSettings() {
       try {
@@ -1167,7 +1167,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         console.error('Failed to load auto-add settings:', e);
       }
     }
-
+    
     async function handleAutoAddToggle() {
       const enabled = document.getElementById('auto-add-toggle').checked;
       await fetch(`${API}/settings/auto-add`, {
@@ -1176,7 +1176,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         body: JSON.stringify({ auto_add_enabled: enabled ? 'true' : 'false' })
       });
     }
-
+    
     async function handleMaxTodoChange() {
       const val = document.getElementById('max-todo-select').value;
       await fetch(`${API}/settings/auto-add`, {
@@ -1185,7 +1185,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         body: JSON.stringify({ max_todo_parallel: val })
       });
     }
-
+    
     async function handleSegregateToggle() {
       segregateByProject = document.getElementById('segregate-toggle').checked;
       await fetch(`${API}/settings/auto-add`, {
@@ -1195,14 +1195,14 @@ defmodule SymphonyElixir.Server.BoardUI do
       });
       renderBoard();
     }
-
+    
     // --- Keyboard card navigation (#24) ---
     var kbFocusedIdx = -1;
-
+    
     function getVisibleCards() {
       return Array.from(document.querySelectorAll('.card[data-id]'));
     }
-
+    
     function setCardFocus(idx) {
       var cards = getVisibleCards();
       if (cards.length === 0) return;
@@ -1213,12 +1213,12 @@ defmodule SymphonyElixir.Server.BoardUI do
       card.classList.add('kb-focused');
       card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-
+    
     function clearCardFocus() {
       kbFocusedIdx = -1;
       document.querySelectorAll('.card.kb-focused').forEach(function(c) { c.classList.remove('kb-focused'); });
     }
-
+    
     document.addEventListener('keydown', (e) => {
       var inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
       if (e.key === 'Escape') {
@@ -1266,7 +1266,7 @@ defmodule SymphonyElixir.Server.BoardUI do
         showToast('j/k=Navigate  Enter=Open  n=New  p=Projects  r=Refresh  Esc=Close', { duration: 3000 });
       }
     });
-
+    
     // --- Init ---
     loadBoard();
     loadAutoAddSettings();

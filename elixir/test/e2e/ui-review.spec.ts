@@ -219,14 +219,14 @@ test.describe("3. Pipeline Designer", () => {
   test.beforeEach(async ({ request }) => { await cleanupAll(request); });
 
   test("11 pipelines - list empty", async ({ page }) => {
-    await page.goto("/board/pipelines");
+    await page.goto("/board/pipeline");
     await shot(page, "11-pipelines-list-empty");
   });
 
   test("12 pipelines - list with pipeline", async ({ page, request }) => {
     const p = await seedPipeline(request);
     pipelineIds.push(p.id);
-    await page.goto("/board/pipelines");
+    await page.goto("/board/pipeline");
     await shot(page, "12-pipelines-list-populated");
   });
 
@@ -234,7 +234,7 @@ test.describe("3. Pipeline Designer", () => {
     const p = await seedPipeline(request);
     pipelineIds.push(p.id);
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`/board/pipelines/${p.id}`);
+    await page.goto(`/board/pipeline/${p.id}`);
     await page.waitForTimeout(1500);
     await shot(page, "13-pipeline-designer-canvas");
   });
@@ -243,7 +243,7 @@ test.describe("3. Pipeline Designer", () => {
     const p = await seedPipeline(request);
     pipelineIds.push(p.id);
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`/board/pipelines/${p.id}`);
+    await page.goto(`/board/pipeline/${p.id}`);
     await page.waitForTimeout(1500);
     // Click on a node to open config
     const node = page.locator(".pipeline-node, [data-node-id]").first();
@@ -258,7 +258,7 @@ test.describe("3. Pipeline Designer", () => {
     const p = await seedPipeline(request);
     pipelineIds.push(p.id);
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto(`/board/pipelines/${p.id}`);
+    await page.goto(`/board/pipeline/${p.id}`);
     await page.waitForTimeout(1500);
     await shot(page, "15-pipeline-designer-mobile");
   });

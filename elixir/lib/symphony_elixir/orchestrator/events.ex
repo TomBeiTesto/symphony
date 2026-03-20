@@ -8,6 +8,8 @@ defmodule SymphonyElixir.Orchestrator.Events do
 
   require Logger
 
+  alias SymphonyElixir.Orchestrator.State
+
   @max_event_log 100
 
   @doc """
@@ -18,6 +20,7 @@ defmodule SymphonyElixir.Orchestrator.Events do
 
   Returns the updated state.
   """
+  @spec handle_agent_event(State.t(), String.t(), map()) :: State.t()
   # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   def handle_agent_event(state, issue_id, event) do
     now_mono = System.monotonic_time(:millisecond)

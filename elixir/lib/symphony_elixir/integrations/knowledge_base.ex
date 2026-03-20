@@ -11,7 +11,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
   require Logger
 
-  alias SymphonyElixir.Integrations.KBIndex
+  alias SymphonyElixir.{Integrations.KBIndex, PathUtils}
 
   @max_search_results 50
   @max_versions 50
@@ -450,7 +450,15 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
             existing_raw = File.read!(target_path)
             {_fm, existing_body} = parse_frontmatter(existing_raw)
 
-            do_llm_merge(existing_body, new_content, title, merge_context, config, context, target_path)
+            do_llm_merge(
+              existing_body,
+              new_content,
+              title,
+              merge_context,
+              config,
+              context,
+              target_path
+            )
           else
             # No existing note — just write a new one
             Logger.info("KB merge_note: no existing '#{title}', creating new note")
@@ -461,7 +469,15 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
     end
   end
 
-  defp do_llm_merge(existing_body, new_content, title, merge_context, config, context, target_path) do
+  defp do_llm_merge(
+         existing_body,
+         new_content,
+         title,
+         merge_context,
+         config,
+         context,
+         target_path
+       ) do
     context_hint =
       if merge_context != "",
         do: "\n\nContext about the changes: #{merge_context}",
@@ -498,7 +514,9 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
     Return ONLY the updated note content (no frontmatter, no code fences).
     """
 
-    case SymphonyElixir.LLM.call(prompt, system: "You are a knowledge base editor. Be precise and factual.") do
+    case SymphonyElixir.LLM.call(prompt,
+           system: "You are a knowledge base editor. Be precise and factual."
+         ) do
       {:ok, merged_body} ->
         # Rebuild the note with updated frontmatter
         tags = Map.get(context, "tags", [])
@@ -543,7 +561,10 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
         {:ok, %{path: target_path, merged: true}}
 
       {:error, reason} ->
-        Logger.warning("KB merge_note: LLM merge failed (#{inspect(reason)}), falling back to write_note")
+        Logger.warning(
+          "KB merge_note: LLM merge failed (#{inspect(reason)}), falling back to write_note"
+        )
+
         write_note(config, context)
     end
   end
@@ -714,15 +735,9 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
   end
 
   defp path_traversal?(target, base) do
-    expanded_target = target |> Path.expand() |> normalize_path()
-    expanded_base = base |> Path.expand() |> normalize_path()
+    expanded_target = PathUtils.normalize_path(target)
+    expanded_base = PathUtils.normalize_path(base)
     not String.starts_with?(expanded_target, expanded_base)
-  end
-
-  defp normalize_path(path) do
-    path
-    |> String.replace("\\", "/")
-    |> String.downcase()
   end
 
   defp quote_value(value) when is_binary(value) do
@@ -740,50 +755,6 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
   # Simple YAML parser for frontmatter (handles flat key-value + list items)
   defp parse_simple_yaml(yaml_block) do
-    yaml_block
-    |> String.split("\n")
-    |> Enum.reject(&(String.trim(&1) == ""))
-    |> parse_yaml_lines(%{}, nil)
-  end
-
-  defp parse_yaml_lines([], acc, _current_list_key), do: acc
-
-  defp parse_yaml_lines([line | rest], acc, current_list_key) do
-    trimmed = String.trim(line)
-
-    cond do
-      # List item: "  - value"
-      String.starts_with?(trimmed, "- ") and current_list_key != nil ->
-        value = String.trim_leading(trimmed, "- ") |> String.trim()
-        existing = Map.get(acc, current_list_key, [])
-
-        parse_yaml_lines(
-          rest,
-          Map.put(acc, current_list_key, existing ++ [value]),
-          current_list_key
-        )
-
-      # Key with empty value (list follows): "key:"
-      String.ends_with?(trimmed, ":") ->
-        key = String.trim_trailing(trimmed, ":")
-        parse_yaml_lines(rest, acc, key)
-
-      # Key-value pair: "key: value"
-      String.contains?(trimmed, ": ") ->
-        [key | value_parts] = String.split(trimmed, ": ", parts: 2)
-        value = Enum.join(value_parts, ": ") |> String.trim() |> unquote_value()
-        parse_yaml_lines(rest, Map.put(acc, key, value), nil)
-
-      true ->
-        parse_yaml_lines(rest, acc, current_list_key)
-    end
-  end
-
-  defp unquote_value(value) do
-    case value do
-      "\"" <> rest -> String.trim_trailing(rest, "\"")
-      "'" <> rest -> String.trim_trailing(rest, "'")
-      other -> other
-    end
+    SymphonyElixir.YamlParser.parse(yaml_block)
   end
 end

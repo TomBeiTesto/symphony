@@ -1,0 +1,37 @@
+# Elixir build artifacts
+/_build/
+/deps/
+/doc/
+/cover/
+
+# Elixir crash dump
+erl_crash.dump
+
+# Dialyzer PLTs
+/priv/plts/
+
+# Mix archives
+*.ez
+
+# Compiled BEAM files (should not exist at project root)
+*.beam
+
+# Runtime-generated files
+local_board.json
+symphony_settings.json
+
+# Node.js (E2E test deps)
+/test/e2e/node_modules/
+
+# Runtime backups (test and operational artifacts)
+/backups/
+
+# IDE
+.elixir_ls/
+.vscode/
+.idea/
+
+# Environment secrets
+.env
+.env.*
+!.env.example

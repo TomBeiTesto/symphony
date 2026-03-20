@@ -80,6 +80,7 @@ defmodule SymphonyElixir.Orchestrator do
   end
 
   @doc "Cancel running workers for the given issue IDs. Kills tasks and moves issues to Canceled."
+  @spec cancel_issues([String.t()]) :: :ok | {:error, term()}
   def cancel_issues(issue_ids) when is_list(issue_ids) do
     GenServer.call(__MODULE__, {:cancel_issues, issue_ids})
   end

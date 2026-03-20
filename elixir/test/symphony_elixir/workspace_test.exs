@@ -91,8 +91,7 @@ defmodule SymphonyElixir.WorkspaceTest do
             |> String.replace("\\", "/")
             |> String.downcase()
 
-          path_normalized =
-            path |> String.replace("\\", "/") |> String.downcase()
+          path_normalized = path |> String.replace("\\", "/") |> String.downcase()
 
           assert String.starts_with?(path_normalized, root_normalized)
 

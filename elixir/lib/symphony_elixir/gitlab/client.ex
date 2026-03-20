@@ -19,10 +19,17 @@ defmodule SymphonyElixir.GitLab.Client do
 
   @behaviour SymphonyElixir.Tracker.Behaviour
 
-  alias SymphonyElixir.{Config, DateTimeUtils, Issue}
+  alias SymphonyElixir.{Config, DateTimeUtils, Issue, ParseUtils}
 
   @page_size 100
   @network_timeout 30_000
+
+  @priority_keywords [
+    {1, ["critical", "urgent"]},
+    {2, ["high"]},
+    {3, ["medium"]},
+    {4, ["low"]}
+  ]
 
   # ---------------------------------------------------------------------------
   # Public API — Behaviour callbacks
@@ -142,7 +149,6 @@ defmodule SymphonyElixir.GitLab.Client do
     "/projects/#{URI.encode(project, &URI.char_unreserved?/1)}/issues"
   end
 
-
   # ---------------------------------------------------------------------------
   # Normalization — GitLab JSON → Issue struct
   # ---------------------------------------------------------------------------
@@ -190,14 +196,12 @@ defmodule SymphonyElixir.GitLab.Client do
   end
 
   defp priority_from_labels(labels) do
-    cond do
-      Enum.any?(labels, &String.contains?(String.downcase(&1), "critical")) -> 1
-      Enum.any?(labels, &String.contains?(String.downcase(&1), "urgent")) -> 1
-      Enum.any?(labels, &String.contains?(String.downcase(&1), "high")) -> 2
-      Enum.any?(labels, &String.contains?(String.downcase(&1), "medium")) -> 3
-      Enum.any?(labels, &String.contains?(String.downcase(&1), "low")) -> 4
-      true -> nil
-    end
+    Enum.find_value(@priority_keywords, fn {priority, keywords} ->
+      if Enum.any?(keywords, fn kw ->
+           Enum.any?(labels, &String.contains?(String.downcase(&1), kw))
+         end),
+         do: priority
+    end)
   end
 
   defp extract_iid(id_string) when is_binary(id_string) do
@@ -210,14 +214,8 @@ defmodule SymphonyElixir.GitLab.Client do
 
   defp extract_trailing_number(str) do
     case Regex.run(~r/-(\d+)$/, str) do
-      [_, num] ->
-        case Integer.parse(num) do
-          {n, ""} -> n
-          _ -> nil
-        end
-
-      _ ->
-        nil
+      [_, num] -> ParseUtils.parse_optional_int(num)
+      _ -> nil
     end
   end
 
@@ -238,10 +236,7 @@ defmodule SymphonyElixir.GitLab.Client do
         nil
 
       val when is_binary(val) ->
-        case Integer.parse(val) do
-          {n, ""} when n > 0 -> n
-          _ -> nil
-        end
+        ParseUtils.parse_positive_int(val, nil)
 
       val when is_list(val) ->
         val |> List.first() |> next_page_value()
@@ -250,11 +245,5 @@ defmodule SymphonyElixir.GitLab.Client do
 
   defp next_page_value(nil), do: nil
   defp next_page_value(""), do: nil
-
-  defp next_page_value(val) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} when n > 0 -> n
-      _ -> nil
-    end
-  end
+  defp next_page_value(val) when is_binary(val), do: ParseUtils.parse_positive_int(val, nil)
 end

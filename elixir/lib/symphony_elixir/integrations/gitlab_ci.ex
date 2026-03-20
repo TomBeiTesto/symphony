@@ -64,8 +64,7 @@ defmodule SymphonyElixir.Integrations.GitlabCI do
     ref = config["ref"] || "main"
     variables = config["variables"] || %{}
 
-    url =
-      "#{base_url}/api/v4/projects/#{URI.encode_www_form(project_id)}/trigger/pipeline"
+    url = "#{base_url}/api/v4/projects/#{URI.encode_www_form(project_id)}/trigger/pipeline"
 
     form_data =
       Map.merge(

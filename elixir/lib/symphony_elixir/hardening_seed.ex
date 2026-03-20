@@ -30,37 +30,45 @@ defmodule SymphonyElixir.HardeningSeed do
     {"dead-code", "hardening-dead-code-scan", "hardening-dead-code-apply", "Dead Code Removal",
      "Find and remove unused functions, modules, imports, unreachable branches, and stale files" <>
        " across all subprojects."},
-    {"dep-audit", "hardening-dependency-audit-scan", "hardening-dependency-audit-apply", "Dependency Audit",
+    {"dep-audit", "hardening-dependency-audit-scan", "hardening-dependency-audit-apply",
+     "Dependency Audit",
      "Audit all dependencies for vulnerabilities, outdated versions, and unused packages."},
-    {"security-scan", "hardening-security-scan-scan", "hardening-security-scan-apply", "Security Scan",
+    {"security-scan", "hardening-security-scan-scan", "hardening-security-scan-apply",
+     "Security Scan",
      "Scan for OWASP top 10 vulnerabilities: injection, path traversal, hardcoded secrets, auth gaps."}
   ]
 
   @phase_2 [
-    {"dry-analysis", "hardening-dry-analysis-scan", "hardening-dry-analysis-apply", "DRY Analysis",
+    {"dry-analysis", "hardening-dry-analysis-scan", "hardening-dry-analysis-apply",
+     "DRY Analysis",
      "Find and eliminate code duplication. Extract shared modules and reduce copy-paste across all subprojects."},
-    {"error-handling", "hardening-error-handling-scan", "hardening-error-handling-apply", "Error Handling Audit",
+    {"error-handling", "hardening-error-handling-scan", "hardening-error-handling-apply",
+     "Error Handling Audit",
      "Fix bare rescues, swallowed errors, missing error tuples, and inconsistent error patterns."},
     {"type-safety", "hardening-type-safety-scan", "hardening-type-safety-apply", "Type Safety",
      "Add missing type annotations, fix type errors, improve type coverage (dialyzer, mypy, tsc strict, etc.)."}
   ]
 
   @phase_3 [
-    {"test-style", "hardening-test-style-scan", "hardening-test-style-apply", "Test Style & Consistency",
+    {"test-style", "hardening-test-style-scan", "hardening-test-style-apply",
+     "Test Style & Consistency",
      "Audit and fix test naming conventions, setup patterns, assertion style, and helper usage."},
-    {"infra-review", "hardening-infrastructure-scan", "hardening-infrastructure-apply", "Infrastructure Review",
+    {"infra-review", "hardening-infrastructure-scan", "hardening-infrastructure-apply",
+     "Infrastructure Review",
      "Review and fix CI/CD, Dockerfiles, Makefiles, config files, .gitignore, and deployment scripts."},
-    {"playwright-e2e", "hardening-playwright-e2e-scan", "hardening-playwright-e2e-apply", "Frontend E2E (Playwright)",
+    {"playwright-e2e", "hardening-playwright-e2e-scan", "hardening-playwright-e2e-apply",
+     "Frontend E2E (Playwright)",
      "Fix broken Playwright tests, add missing E2E coverage. Marks as N/A if no frontend exists."}
   ]
 
   @phase_4 [
-    {"test-coverage", "hardening-test-coverage-scan", "hardening-test-coverage-apply", "Test Coverage Audit",
+    {"test-coverage", "hardening-test-coverage-scan", "hardening-test-coverage-apply",
+     "Test Coverage Audit",
      "Find coverage gaps, remove duplicate tests, add missing unit tests. Runs last after all code changes."}
   ]
 
   @summary {"summary-report", "hardening-pipeline-summary", "Pipeline Summary Report",
-   "Summarize everything done across all phases: metrics, accepted/rejected findings, final state."}
+            "Summarize everything done across all phases: metrics, accepted/rejected findings, final state."}
 
   @doc """
   Seed the Product Health & Hardening pipeline template (once, not per product).
@@ -72,8 +80,7 @@ defmodule SymphonyElixir.HardeningSeed do
     existing_pipelines = LocalBoard.list_pipelines()
     skill_id_map = build_skill_id_map()
 
-    already_exists? =
-      Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
+    already_exists? = Enum.any?(existing_pipelines, fn p -> p.name == @pipeline_name end)
 
     unless already_exists? do
       create_hardening_pipeline(skill_id_map)
@@ -124,22 +131,34 @@ defmodule SymphonyElixir.HardeningSeed do
 
     # ── Phase 1: 4 parallel scan→gate→apply triplets ──
     y_base_p1 = 130
-    {p1_nodes, p1_edges} = build_phase(@phase_1, y_base_p1, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
+    {p1_nodes, p1_edges} =
+      build_phase(@phase_1, y_base_p1, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
     p1_start_edges = fan_out_to_scans("start", @phase_1, "p1-start")
 
     # ── Phase 2 ──
     y_base_p2 = y_base_p1 + step_height + phase_gap
-    {p2_nodes, p2_edges} = build_phase(@phase_2, y_base_p2, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
+    {p2_nodes, p2_edges} =
+      build_phase(@phase_2, y_base_p2, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
     p2_from_p1 = fan_apply_to_scans(@phase_1, @phase_2, "p1p2")
 
     # ── Phase 3 ──
     y_base_p3 = y_base_p2 + step_height + phase_gap
-    {p3_nodes, p3_edges} = build_phase(@phase_3, y_base_p3, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
+    {p3_nodes, p3_edges} =
+      build_phase(@phase_3, y_base_p3, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
     p3_from_p2 = fan_apply_to_scans(@phase_2, @phase_3, "p2p3")
 
     # ── Phase 4 ──
     y_base_p4 = y_base_p3 + step_height + phase_gap
-    {p4_nodes, p4_edges} = build_phase(@phase_4, y_base_p4, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
+    {p4_nodes, p4_edges} =
+      build_phase(@phase_4, y_base_p4, scan_to_gate, gate_to_apply, col_spacing, skill_id_map)
+
     p4_from_p3 = fan_apply_to_scans(@phase_3, @phase_4, "p3p4")
 
     # ── Summary issue node ──
@@ -148,22 +167,30 @@ defmodule SymphonyElixir.HardeningSeed do
     y_summary = y_base_p4 + step_height + phase_gap
 
     summary_node =
-      node_def(sum_id, "issue", sum_label, %{
-        "title" => sum_label,
-        "description" => sum_desc,
-        "labels" => ["hardening", "summary"],
-        "skill_ids" => sum_skill_ids,
-        "priority" => 4
-      }, %{"x" => 500, "y" => y_summary})
+      node_def(
+        sum_id,
+        "issue",
+        sum_label,
+        %{
+          "title" => sum_label,
+          "description" => sum_desc,
+          "labels" => ["hardening", "summary"],
+          "skill_ids" => sum_skill_ids,
+          "priority" => 4
+        },
+        %{"x" => 500, "y" => y_summary}
+      )
 
     # Edge: P4 apply → summary
     {p4_id, _, _, _, _} = hd(@phase_4)
+
     p4_to_summary = [
       edge_def("e-apply-#{p4_id}-#{sum_id}", "apply-#{p4_id}", sum_id, "output")
     ]
 
     # ── End node ──
     end_node = node_def("end", "end", "End", %{}, %{"x" => 500, "y" => y_summary + 150})
+
     summary_to_end = [
       edge_def("e-#{sum_id}-end", sum_id, "end", "output")
     ]
@@ -171,14 +198,21 @@ defmodule SymphonyElixir.HardeningSeed do
     # ── Assemble ──
     all_nodes =
       [start] ++
-        p1_nodes ++ p2_nodes ++ p3_nodes ++ p4_nodes ++
+        p1_nodes ++
+        p2_nodes ++
+        p3_nodes ++
+        p4_nodes ++
         [summary_node, end_node]
 
     all_edges =
-      p1_start_edges ++ p1_edges ++
-        p2_from_p1 ++ p2_edges ++
-        p3_from_p2 ++ p3_edges ++
-        p4_from_p3 ++ p4_edges ++
+      p1_start_edges ++
+        p1_edges ++
+        p2_from_p1 ++
+        p2_edges ++
+        p3_from_p2 ++
+        p3_edges ++
+        p4_from_p3 ++
+        p4_edges ++
         p4_to_summary ++ summary_to_end
 
     {all_nodes, all_edges}
@@ -191,7 +225,8 @@ defmodule SymphonyElixir.HardeningSeed do
 
     phase_specs
     |> Enum.with_index()
-    |> Enum.reduce({[], []}, fn {{node_id, scan_skill, apply_skill, label, desc}, idx}, {nodes, edges} ->
+    |> Enum.reduce({[], []}, fn {{node_id, scan_skill, apply_skill, label, desc}, idx},
+                                {nodes, edges} ->
       x = x_start + idx * col_spacing
       scan_skill_ids = skill_ids_for(scan_skill, skill_id_map)
       apply_skill_ids = skill_ids_for(apply_skill, skill_id_map)
@@ -201,36 +236,57 @@ defmodule SymphonyElixir.HardeningSeed do
       apply_id = "apply-#{node_id}"
 
       scan_node =
-        node_def(scan_id, "issue", "Scan: #{label}", %{
-          "title" => "Scan: #{label}",
-          "description" => "SCAN ONLY — analyze and report findings. Do NOT make code changes.\n\n#{desc}",
-          "labels" => ["hardening", "scan"],
-          "skill_ids" => scan_skill_ids,
-          "priority" => 3
-        }, %{"x" => x, "y" => y_base})
+        node_def(
+          scan_id,
+          "issue",
+          "Scan: #{label}",
+          %{
+            "title" => "Scan: #{label}",
+            "description" =>
+              "SCAN ONLY — analyze and report findings. Do NOT make code changes.\n\n#{desc}",
+            "labels" => ["hardening", "scan"],
+            "skill_ids" => scan_skill_ids,
+            "priority" => 3
+          },
+          %{"x" => x, "y" => y_base}
+        )
 
       gate_node =
-        node_def(gate_id, "human_gate", "Review: #{label}", %{
-          "instructions" => "Review each finding individually. Accept the ones you want applied, discard the rest.",
-          "gate_prompt" =>
-            "Review the #{label} scan results below. Check each finding you want applied and" <>
-              " uncheck the ones to skip. Then approve to apply accepted findings, or reject to re-scan.",
-          "review_mode" => "findings_review"
-        }, %{
-          "x" => x,
-          "y" => y_base + scan_to_gate
-        })
+        node_def(
+          gate_id,
+          "human_gate",
+          "Review: #{label}",
+          %{
+            "instructions" =>
+              "Review each finding individually. Accept the ones you want applied, discard the rest.",
+            "gate_prompt" =>
+              "Review the #{label} scan results below. Check each finding you want applied and" <>
+                " uncheck the ones to skip. Then approve to apply accepted findings, or reject to re-scan.",
+            "review_mode" => "findings_review"
+          },
+          %{
+            "x" => x,
+            "y" => y_base + scan_to_gate
+          }
+        )
 
       apply_node =
-        node_def(apply_id, "issue", "Apply: #{label}", %{
-          "title" => "Apply: #{label}",
-          "description" => "Apply ONLY the accepted findings from the review gate.\n\n#{desc}",
-          "labels" => ["hardening", "apply"],
-          "skill_ids" => apply_skill_ids,
-          "priority" => 3
-        }, %{"x" => x, "y" => y_base + scan_to_gate + gate_to_apply})
+        node_def(
+          apply_id,
+          "issue",
+          "Apply: #{label}",
+          %{
+            "title" => "Apply: #{label}",
+            "description" => "Apply ONLY the accepted findings from the review gate.\n\n#{desc}",
+            "labels" => ["hardening", "apply"],
+            "skill_ids" => apply_skill_ids,
+            "priority" => 3
+          },
+          %{"x" => x, "y" => y_base + scan_to_gate + gate_to_apply}
+        )
 
       new_nodes = [scan_node, gate_node, apply_node]
+
       new_edges = [
         edge_def("e-#{scan_id}-#{gate_id}", scan_id, gate_id, "output"),
         edge_def("e-#{gate_id}-#{apply_id}", gate_id, apply_id, "output")
@@ -251,7 +307,12 @@ defmodule SymphonyElixir.HardeningSeed do
   defp fan_apply_to_scans(prev_phase, next_phase, prefix) do
     for {prev_id, _, _, _, _} <- prev_phase,
         {next_id, _, _, _, _} <- next_phase do
-      edge_def("e-#{prefix}-#{prev_id}-#{next_id}", "apply-#{prev_id}", "scan-#{next_id}", "output")
+      edge_def(
+        "e-#{prefix}-#{prev_id}-#{next_id}",
+        "apply-#{prev_id}",
+        "scan-#{next_id}",
+        "output"
+      )
     end
   end
 

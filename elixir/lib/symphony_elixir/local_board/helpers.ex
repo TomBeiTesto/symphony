@@ -5,19 +5,14 @@ defmodule SymphonyElixir.LocalBoard.Helpers do
   Provides ID generation, parsing utilities, and common map-update helpers.
   """
 
+  alias SymphonyElixir.ParseUtils
+
   def generate_id do
     :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
   end
 
   def parse_priority(val) when is_integer(val), do: val
-
-  def parse_priority(val) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, ""} -> n
-      _ -> 0
-    end
-  end
-
+  def parse_priority(val) when is_binary(val), do: ParseUtils.parse_optional_int(val) || 0
   def parse_priority(_), do: 0
 
   def parse_labels(val) when is_list(val), do: Enum.map(val, &to_string/1)
@@ -35,6 +30,9 @@ defmodule SymphonyElixir.LocalBoard.Helpers do
   def sort_issues(issues) do
     Enum.sort_by(issues, fn i -> {-(i.priority || 0), i.created_at || ""} end)
   end
+
+  def maybe_put(map, _key, nil), do: map
+  def maybe_put(map, key, value), do: Map.put(map, key, value)
 
   def maybe_update(record, key, attrs) do
     str_key = Atom.to_string(key)

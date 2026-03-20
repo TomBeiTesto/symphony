@@ -1,5 +1,5 @@
 defmodule SymphonyElixir.Orchestrator.SnapshotTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   alias SymphonyElixir.Issue
   alias SymphonyElixir.Orchestrator.{Snapshot, State}

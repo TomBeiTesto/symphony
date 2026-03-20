@@ -1,9 +1,7 @@
 defmodule SymphonyElixir.SkillsSeedTest do
-  use ExUnit.Case, async: false
+  use SymphonyElixir.BoardCase, project_prefix: "SEED"
 
-  alias SymphonyElixir.{LocalBoard, SkillsSeed}
-
-  @store_path "test_skills_seed_#{System.unique_integer([:positive])}.json"
+  alias SymphonyElixir.SkillsSeed
 
   # 10 general + 5 extraction + 22 hardening + 1 summary + 7 feature = 45
   @expected_skill_names [
@@ -55,7 +53,17 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "feature-implementation-plan",
     "feature-code-implementation",
     "feature-test-verification",
-    "feature-docs-changelog"
+    "feature-docs-changelog",
+    # UI & Layout Design Pipeline
+    "ui-design-system-audit",
+    "ui-ux-research",
+    "ui-accessibility-audit",
+    "ui-layout-architecture",
+    "ui-component-implementation",
+    "ui-responsive-mobile",
+    "ui-interaction-motion",
+    "ui-visual-polish",
+    "ui-accessibility-compliance"
   ]
 
   @expected_group_names [
@@ -66,14 +74,10 @@ defmodule SymphonyElixir.SkillsSeedTest do
     "Documentation",
     "Knowledge Extraction",
     "Product Hardening",
-    "Feature Implementation"
+    "Feature Implementation",
+    "UI & Layout Design Pipeline"
   ]
 
-  setup do
-    start_supervised!({LocalBoard, store_path: @store_path, project_prefix: "SEED"})
-    on_exit(fn -> File.rm(@store_path) end)
-    :ok
-  end
 
   describe "seed/0 creates all built-in skills" do
     test "all expected skills exist after seeding" do

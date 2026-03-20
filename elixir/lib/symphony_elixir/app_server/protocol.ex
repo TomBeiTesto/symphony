@@ -5,6 +5,8 @@ defmodule SymphonyElixir.AppServer.Protocol do
   See SPEC Section 10.2 - 10.5.
   """
 
+  alias SymphonyElixir.LocalBoard.Helpers
+
   @type message :: map()
 
   @doc "Build an `initialize` request."
@@ -41,7 +43,7 @@ defmodule SymphonyElixir.AppServer.Protocol do
           "sandbox" => opts[:thread_sandbox] || "stateless",
           "cwd" => opts[:cwd]
         }
-        |> maybe_put("tools", opts[:tools])
+        |> Helpers.maybe_put("tools", opts[:tools])
     }
   end
 
@@ -181,8 +183,4 @@ defmodule SymphonyElixir.AppServer.Protocol do
   def extract_rate_limits(%{"params" => %{"rate_limits" => rl}}) when is_map(rl), do: rl
   def extract_rate_limits(_), do: nil
 
-  # ---  Private helpers ---
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

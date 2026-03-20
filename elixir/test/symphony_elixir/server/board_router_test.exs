@@ -513,8 +513,7 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     test "adds a feature to a product" do
       {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
 
-      {:ok, product} =
-        LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
+      {:ok, product} = LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
 
       conn =
         call(:post, "/api/products/#{product.id}/features", %{
@@ -533,8 +532,7 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     test "adds a feature with category" do
       {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
 
-      {:ok, product} =
-        LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
+      {:ok, product} = LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
 
       conn =
         call(:post, "/api/products/#{product.id}/features", %{
@@ -630,8 +628,7 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
       {:ok, product} =
         LocalBoard.create_product(%{"name" => "History Test", "project_ids" => [proj.id]})
 
-      {:ok, product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
 
       feature = hd(product.features)
 
@@ -662,8 +659,7 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
       {:ok, product} =
         LocalBoard.create_product(%{"name" => "History Test", "project_ids" => [proj.id]})
 
-      {:ok, product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
 
       feature = hd(product.features)
 
@@ -697,11 +693,9 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     test "updates feature status for a project" do
       {:ok, proj} = LocalBoard.create_project(%{"name" => "API"})
 
-      {:ok, product} =
-        LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
+      {:ok, product} = LocalBoard.create_product(%{"name" => "Test", "project_ids" => [proj.id]})
 
-      {:ok, product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Auth"})
 
       feature = hd(product.features)
 
@@ -723,8 +717,7 @@ defmodule SymphonyElixir.Server.BoardRouterTest do
     test "removes a feature" do
       {:ok, product} = LocalBoard.create_product(%{"name" => "Test"})
 
-      {:ok, product} =
-        LocalBoard.add_product_feature(product.id, %{"name" => "Remove Me"})
+      {:ok, product} = LocalBoard.add_product_feature(product.id, %{"name" => "Remove Me"})
 
       feature = hd(product.features)
 

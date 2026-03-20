@@ -179,6 +179,8 @@ defmodule SymphonyElixir.LocalBoard.Projects do
       ""
     end
   rescue
-    _ -> ""
+    e ->
+      Logger.warning("Failed to get setting #{key}: #{Exception.message(e)}")
+      ""
   end
 end

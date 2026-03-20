@@ -1,14 +1,14 @@
 defmodule SymphonyElixir.AppServer.Events do
   @moduledoc """
   Shared event emission for app-server adapters.
-
+  
   Both `AppServer.Client` and `AppServer.ClaudeAdapter` use the same
   event structure; this module provides a single implementation.
   """
 
   @doc """
   Emit a structured event via the session callback.
-
+  
   The session map must contain `:callback`, `:os_pid`, and `:session_id`.
   """
   @spec emit_event(map(), atom(), map()) :: :ok

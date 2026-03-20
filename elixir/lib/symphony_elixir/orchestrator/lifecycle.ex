@@ -11,6 +11,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   alias SymphonyElixir.Orchestrator.{Retry, State}
 
   @doc "Handle a worker result (success or failure) and update state accordingly."
+  @spec handle_worker_result(State.t(), String.t(), {:ok, term()} | {:error, term()}) :: State.t()
   def handle_worker_result(state, issue_id, result) do
     running_entry = Map.get(state.running, issue_id)
 
@@ -36,6 +37,8 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Handle a successful worker completion."
+  @spec handle_worker_success(State.t(), String.t(), String.t(), map() | nil, {:ok, term()}) ::
+          State.t()
   def handle_worker_success(state, issue_id, identifier, running_entry, result) do
     Logger.info("Worker completed issue=#{identifier} result=#{inspect(result)}")
 
@@ -87,6 +90,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Handle a worker failure, scheduling retries or handling token exhaustion."
+  @spec handle_worker_failure(State.t(), String.t(), String.t(), term()) :: State.t()
   def handle_worker_failure(state, issue_id, identifier, reason) do
     Logger.error("Worker failed issue=#{identifier} error=#{inspect(reason)}")
 
@@ -115,6 +119,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Handle token/quota exhaustion by moving issues to Backlog and disabling polling."
+  @spec handle_token_exhaustion(State.t(), String.t(), String.t(), term()) :: State.t()
   def handle_token_exhaustion(state, issue_id, identifier, reason) do
     Logger.warning(
       "Token exhaustion detected for #{identifier}: #{inspect(reason)}. " <>
@@ -142,6 +147,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Detect if an error indicates the LLM token quota/budget is exhausted."
+  @spec token_exhaustion_error?(term()) :: boolean()
   def token_exhaustion_error?(reason) do
     msg = inspect(reason) |> String.downcase()
 
@@ -166,6 +172,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Resolve whether an issue should go to Done or Review based on follow-ups."
+  @spec resolve_done_state(String.t()) :: String.t()
   def resolve_done_state(issue_id) do
     case SymphonyElixir.LocalBoard.get_issue(issue_id) do
       {:ok, issue} ->
@@ -243,6 +250,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Extract a product-definition block from agent result text."
+  @spec extract_product_definition(String.t()) :: {:ok, map()} | :error
   def extract_product_definition(result_text) when is_binary(result_text) do
     case Regex.run(~r/```product-definition\s*\n([\s\S]*?)```/, result_text) do
       [_, json_str] ->
@@ -275,6 +283,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   def extract_product_definition(_), do: :error
 
   @doc "Extract a status verdict block from agent result text."
+  @spec extract_status_verdict(String.t()) :: {:ok, map()} | :error
   def extract_status_verdict(result_text) when is_binary(result_text) do
     case Regex.run(~r/```status-verdict\s*\n([\s\S]*?)```/, result_text) do
       [_, json_str] ->
@@ -302,6 +311,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Extract follow-up items from agent result text."
+  @spec extract_follow_ups(String.t()) :: [map()]
   def extract_follow_ups(result_text) when is_binary(result_text) do
     case Regex.run(~r/```follow-ups\s*\n([\s\S]*?)```/, result_text) do
       [_, json_str] ->
@@ -334,6 +344,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   def extract_follow_ups(_), do: []
 
   @doc "Persist the agent run data (event log, tokens, follow-ups) to the local board."
+  @spec persist_agent_run(String.t(), map()) :: :ok
   def persist_agent_run(issue_id, running_entry) do
     event_log = Enum.map(running_entry[:event_log] || [], &event_to_json/1)
     tokens = normalize_tokens(running_entry[:tokens])
@@ -357,6 +368,9 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
 
     try do
       SymphonyElixir.LocalBoard.save_agent_run(issue_id, run_data)
+    rescue
+      e ->
+        Logger.warning("Failed to persist agent run: #{Exception.message(e)}")
     catch
       kind, reason ->
         Logger.warning("Failed to persist agent run: #{kind} #{inspect(reason)}")
@@ -364,6 +378,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Load follow-ups for an issue from the local board."
+  @spec load_follow_ups(map() | nil) :: [map()]
   def load_follow_ups(nil), do: []
 
   def load_follow_ups(running_entry) do
@@ -415,6 +430,7 @@ defmodule SymphonyElixir.Orchestrator.Lifecycle do
   end
 
   @doc "Normalize token counts to a string-keyed map."
+  @spec normalize_tokens(map() | nil) :: map()
   def normalize_tokens(nil),
     do: %{"input_tokens" => 0, "output_tokens" => 0, "total_tokens" => 0}
 

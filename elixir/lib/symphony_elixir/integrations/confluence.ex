@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Integrations.Confluence do
   @moduledoc """
   Confluence integration for pipeline nodes.
-
+  
   Creates/updates Confluence pages for knowledge base sync.
   Used by kb_sync and integration nodes in the pipeline designer.
   """
@@ -10,7 +10,7 @@ defmodule SymphonyElixir.Integrations.Confluence do
 
   @doc """
   Execute a Confluence integration action based on node config.
-
+  
   Config fields:
   - base_url: Confluence instance URL
   - space_key: Confluence space key

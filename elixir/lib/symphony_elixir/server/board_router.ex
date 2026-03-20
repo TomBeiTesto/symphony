@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Readability.MaxLineLength
 defmodule SymphonyElixir.Server.BoardRouter do
   @moduledoc """
   HTTP router for the local Kanban board.
@@ -24,7 +25,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   use Plug.Router
   require Logger
 
-  alias SymphonyElixir.{LocalBoard, Settings}
+  alias SymphonyElixir.{LocalBoard, ParseUtils, Settings}
 
   plug(:match)
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
@@ -74,6 +75,12 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
   get "/settings" do
     html = SymphonyElixir.Server.SettingsUI.render()
+
+    html_resp(conn, html)
+  end
+
+  get "/guide" do
+    html = SymphonyElixir.Server.GuideUI.render()
 
     html_resp(conn, html)
   end
@@ -174,7 +181,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
               orchestrator: orchestrator_detail
             })
           rescue
-            _ -> Jason.encode!(%{issue: Map.drop(issue, [:agent_run]), orchestrator: nil})
+            e ->
+              Logger.warning("Failed to serialize orchestrator data for issue #{issue.id}: #{Exception.message(e)}")
+              Jason.encode!(%{issue: Map.drop(issue, [:agent_run]), orchestrator: nil})
           end
 
         conn
@@ -314,8 +323,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         end
 
       # Update follow-up status with created entity info
-      updated_run =
-        update_follow_up_status(agent_run, fu_id, "accepted", result)
+      updated_run = update_follow_up_status(agent_run, fu_id, "accepted", result)
 
       LocalBoard.save_agent_run(id, updated_run)
       maybe_move_to_done(id, updated_run)
@@ -551,9 +559,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
       {:error, :duplicate_name} ->
         json_resp(conn, 409, %{
-            error: "duplicate_name",
-            message: "A product with that name already exists"
-          })
+          error: "duplicate_name",
+          message: "A product with that name already exists"
+        })
 
       {:error, reason} ->
         json_resp(conn, 400, %{error: "create_failed", detail: inspect(reason)})
@@ -590,9 +598,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
       {:error, :duplicate_name} ->
         json_resp(conn, 409, %{
-            error: "duplicate_name",
-            message: "A feature with that name already exists in this product"
-          })
+          error: "duplicate_name",
+          message: "A feature with that name already exists in this product"
+        })
     end
   end
 
@@ -653,9 +661,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
         {:error, :invalid_status} ->
           json_resp(conn, 400, %{
-              error: "invalid_status",
-              message: "Status must be one of: missing, planned, in_progress, done, n_a"
-            })
+            error: "invalid_status",
+            message: "Status must be one of: missing, planned, in_progress, done, n_a"
+          })
       end
     end
   end
@@ -712,10 +720,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           })
 
         json_created(conn, %{
-            issue: issue,
-            message:
-              "Issue #{issue.identifier} created. The agent will analyze codebases and identify gaps."
-          })
+          issue: issue,
+          message:
+            "Issue #{issue.identifier} created. The agent will analyze codebases and identify gaps."
+        })
 
       {:error, :not_found} ->
         json_not_found(conn)
@@ -738,7 +746,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
               "title" => "#{feature_name}",
               "description" =>
                 "## Gap Analysis — #{prod.name}\n\n**Feature:** #{feature_name}\n" <>
-                "**Reason:** #{reason}\n\nIdentified by cross-project product review.",
+                  "**Reason:** #{reason}\n\nIdentified by cross-project product review.",
               "labels" => ["gap-analysis"],
               "priority" => 2,
               "state" => "Backlog",
@@ -828,10 +836,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             })
 
           json_created(conn, %{
-              issue: issue,
-              message:
-                "Issue #{issue.identifier} created. The agent will pick it up and propose features as follow-ups."
-            })
+            issue: issue,
+            message:
+              "Issue #{issue.identifier} created. The agent will pick it up and propose features as follow-ups."
+          })
         end
 
       {:error, :not_found} ->
@@ -916,10 +924,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
       end)
 
       json_created(conn, %{
-          issues: issues_created,
-          message:
-            "Created #{length(issues_created)} check issue(s). Agents will verify the feature in each project."
-        })
+        issues: issues_created,
+        message:
+          "Created #{length(issues_created)} check issue(s). Agents will verify the feature in each project."
+      })
     else
       {:error, :not_found} ->
         json_not_found(conn)
@@ -993,10 +1001,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           })
 
         json_created(conn, %{
-            issue: issue,
-            message:
-              "Issue #{issue.identifier} created. The agent will scan the codebases and discover implemented features."
-          })
+          issue: issue,
+          message:
+            "Issue #{issue.identifier} created. The agent will scan the codebases and discover implemented features."
+        })
 
       {:error, :not_found} ->
         json_not_found(conn)
@@ -1058,10 +1066,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           })
 
         json_created(conn, %{
-            issue: issue,
-            message:
-              "Issue #{issue.identifier} created. The agent will review all project codebases and report findings."
-          })
+          issue: issue,
+          message:
+            "Issue #{issue.identifier} created. The agent will review all project codebases and report findings."
+        })
 
       {:error, :not_found} ->
         json_not_found(conn)
@@ -1122,10 +1130,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           })
 
         json_created(conn, %{
-            issue: issue,
-            message:
-              "Issue #{issue.identifier} created. The agent will analyze codebases and propose a product definition."
-          })
+          issue: issue,
+          message:
+            "Issue #{issue.identifier} created. The agent will analyze codebases and propose a product definition."
+        })
 
       {:error, :not_found} ->
         json_not_found(conn)
@@ -1177,10 +1185,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             })
 
           json_created(conn, %{
-              issue: issue,
-              message:
-                "Issue #{issue.identifier} created. The agent will pick it up and work on it."
-            })
+            issue: issue,
+            message:
+              "Issue #{issue.identifier} created. The agent will pick it up and work on it."
+          })
         end
 
       {:error, :not_found} ->
@@ -1264,10 +1272,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
       {:error, :built_in} ->
         json_resp(conn, 400, %{
-            error: "cannot_delete_built_in",
-            message:
-              "Built-in skills cannot be deleted. Duplicate it to create a customizable copy."
-          })
+          error: "cannot_delete_built_in",
+          message:
+            "Built-in skills cannot be deleted. Duplicate it to create a customizable copy."
+        })
     end
   end
 
@@ -1478,12 +1486,12 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
             {:error, _} ->
               json_ok(conn, %{
-                  title: hint,
-                  description: clean,
-                  priority: 3,
-                  labels: [],
-                  skill_ids: []
-                })
+                title: hint,
+                description: clean,
+                priority: 3,
+                labels: [],
+                skill_ids: []
+              })
           end
 
         {:error, reason} ->
@@ -1504,13 +1512,24 @@ defmodule SymphonyElixir.Server.BoardRouter do
               case LocalBoard.get_project(id) do
                 {:ok, proj} ->
                   lines = ["  - Name: #{proj.name}"]
-                  lines = if proj[:description] && proj.description != "",
-                    do: lines ++ ["    Description: #{proj.description}"], else: lines
-                  lines = if proj[:path] && proj.path != "",
-                    do: lines ++ ["    Path: #{proj.path}"], else: lines
-                  lines = if proj[:labels] && proj.labels != [],
-                    do: lines ++ ["    Labels: #{Enum.join(proj.labels, ", ")}"], else: lines
+
+                  lines =
+                    if proj[:description] && proj.description != "",
+                      do: lines ++ ["    Description: #{proj.description}"],
+                      else: lines
+
+                  lines =
+                    if proj[:path] && proj.path != "",
+                      do: lines ++ ["    Path: #{proj.path}"],
+                      else: lines
+
+                  lines =
+                    if proj[:labels] && proj.labels != [],
+                      do: lines ++ ["    Labels: #{Enum.join(proj.labels, ", ")}"],
+                      else: lines
+
                   [Enum.join(lines, "\n")]
+
                 _ ->
                   []
               end
@@ -1634,8 +1653,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   @board_settings_keys ["auto_add_enabled", "max_todo_parallel", "segregate_by_project"]
 
   get "/api/settings/auto-add" do
-    payload =
-      Map.new(@board_settings_keys, fn k -> {k, Settings.get(k)} end)
+    payload = Map.new(@board_settings_keys, fn k -> {k, Settings.get(k)} end)
 
     json_ok(conn, payload)
   end
@@ -1650,8 +1668,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     :ok = Settings.update(attrs)
 
-    payload =
-      Map.new(@board_settings_keys, fn k -> {k, Settings.get(k)} end)
+    payload = Map.new(@board_settings_keys, fn k -> {k, Settings.get(k)} end)
 
     json_ok(conn, payload)
   end
@@ -1881,8 +1898,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     bash = SymphonyElixir.ShellUtils.find_bash_path()
     unless bash, do: throw({:error, :bash_not_found})
 
-    prompt_file =
-      Path.join(System.tmp_dir!(), "symphony_draft_#{:rand.uniform(999_999)}.txt")
+    prompt_file = Path.join(System.tmp_dir!(), "symphony_draft_#{:rand.uniform(999_999)}.txt")
 
     try do
       File.write!(prompt_file, prompt)
@@ -1983,8 +1999,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   end
 
   defp open_folder_dialog_windows do
-    script_path =
-      Path.join(System.tmp_dir!(), "symphony_browse_#{:rand.uniform(999_999)}.ps1")
+    script_path = Path.join(System.tmp_dir!(), "symphony_browse_#{:rand.uniform(999_999)}.ps1")
 
     ps_script = ~S"""
     Add-Type -AssemblyName System.Windows.Forms
@@ -2130,9 +2145,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
     if has_active_run and
          (Map.has_key?(conn.body_params, "nodes") or Map.has_key?(conn.body_params, "edges")) do
       json_resp(conn, 409, %{
-          error: "pipeline_running",
-          message: "Cannot edit pipeline graph while a run is active. Stop the run first."
-        })
+        error: "pipeline_running",
+        message: "Cannot edit pipeline graph while a run is active. Stop the run first."
+      })
     else
       case LocalBoard.update_pipeline(id, conn.body_params) do
         {:ok, pipeline} ->
@@ -2161,12 +2176,21 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
   post "/api/pipelines/:id/run" do
     opts = %{}
-    opts = if conn.body_params["product_id"],
-      do: Map.put(opts, "product_id", conn.body_params["product_id"]), else: opts
-    opts = if conn.body_params["project_id"],
-      do: Map.put(opts, "project_id", conn.body_params["project_id"]), else: opts
-    opts = if conn.body_params["input_description"],
-      do: Map.put(opts, "input_description", conn.body_params["input_description"]), else: opts
+
+    opts =
+      if conn.body_params["product_id"],
+        do: Map.put(opts, "product_id", conn.body_params["product_id"]),
+        else: opts
+
+    opts =
+      if conn.body_params["project_id"],
+        do: Map.put(opts, "project_id", conn.body_params["project_id"]),
+        else: opts
+
+    opts =
+      if conn.body_params["input_description"],
+        do: Map.put(opts, "input_description", conn.body_params["input_description"]),
+        else: opts
 
     case LocalBoard.create_pipeline_run(id, opts) do
       {:ok, run} ->
@@ -2242,9 +2266,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     if action not in ["approve", "reject", "hold"] do
       json_resp(conn, 400, %{
-          error: "invalid_action",
-          message: "action must be 'approve', 'reject', or 'hold'"
-        })
+        error: "invalid_action",
+        message: "action must be 'approve', 'reject', or 'hold'"
+      })
     else
       case LocalBoard.record_gate_decision(run_id, node_id, action, feedback, findings_decisions) do
         {:ok, run} ->
@@ -2303,7 +2327,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
               predecessor_outputs = collect_predecessor_outputs(node_id, pipeline, run)
 
               # Fallback: if no findings in node_outputs, try reading FINDINGS.json from workspace
-              predecessor_outputs = maybe_enrich_findings_from_workspace(predecessor_outputs, node_id, pipeline, run)
+              predecessor_outputs =
+                maybe_enrich_findings_from_workspace(predecessor_outputs, node_id, pipeline, run)
 
               context = %{
                 node_id: node_id,
@@ -2546,7 +2571,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/vault/search-by-tags" do
     tags_param = conn.query_params["tags"] || ""
     tags = String.split(tags_param, ",", trim: true) |> Enum.map(&String.trim/1)
-    limit = parse_int_param(conn.query_params["limit"], 50)
+    limit = ParseUtils.parse_int(conn.query_params["limit"], 50)
     kb_type = Settings.get("kb_type") || "local"
     vault_path = Settings.get("kb_vault_path") || ""
     subfolder = Settings.get("kb_subfolder") || "symphony"
@@ -2586,7 +2611,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     kb_type = Settings.get("kb_type") || "local"
     vault_path = Settings.get("kb_vault_path") || ""
     subfolder = Settings.get("kb_subfolder") || "symphony"
-    limit = parse_int_param(conn.query_params["limit"], 50)
+    limit = ParseUtils.parse_int(conn.query_params["limit"], 50)
 
     # Build filters from query params (exclude reserved params)
     reserved = ~w(limit)
@@ -2640,7 +2665,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{frontmatter: result.frontmatter, content: result.content})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, :file_not_found} ->
         json_not_found(conn)
@@ -2664,7 +2689,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{ok: true})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, :file_not_found} ->
         json_not_found(conn)
@@ -2702,7 +2727,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{ok: true, path: path})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, reason} ->
         json_resp(conn, 500, %{error: inspect(reason)})
@@ -2810,7 +2835,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{versions: serialized})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, reason} ->
         json_resp(conn, 500, %{error: inspect(reason)})
@@ -2830,7 +2855,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{frontmatter: result.frontmatter, content: result.content})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, :file_not_found} ->
         json_not_found(conn)
@@ -2854,7 +2879,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{ok: true, path: result.path, restored_from: result.restored_from})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, :file_not_found} ->
         json_not_found(conn)
@@ -2877,7 +2902,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         json_ok(conn, %{ok: true})
 
       {:error, :path_traversal} ->
-        json_error(conn, 403, "path_traversal")
+        kb_path_traversal_error(conn)
 
       {:error, :file_not_found} ->
         json_not_found(conn)
@@ -2918,11 +2943,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
                   find_issue_reports(issue)
                   |> Enum.map(fn path ->
                     name = Path.basename(path)
+
                     content =
                       case File.read(path) do
                         {:ok, data} -> String.slice(data, 0, 8000)
                         _ -> ""
                       end
+
                     %{name: name, content: content}
                   end)
 
@@ -2987,7 +3014,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     Logger.info(
       "Gate #{gate_node_id}: predecessor_outputs keys=#{inspect(Map.keys(predecessor_outputs))}," <>
-      " has_findings=#{has_findings?}"
+        " has_findings=#{has_findings?}"
     )
 
     if has_findings? do
@@ -3012,7 +3039,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
               # Enrich issue with run-level IDs for workspace lookup
               issue_with_run_ctx =
                 issue
-                |> then(fn i -> if i[:product_id], do: i, else: Map.put(i, :product_id, run_product_id) end)
+                |> then(fn i ->
+                  if i[:product_id], do: i, else: Map.put(i, :product_id, run_product_id)
+                end)
 
               findings = read_findings_from_workspace(issue_with_run_ctx, run_project_id, pid)
 
@@ -3048,7 +3077,9 @@ defmodule SymphonyElixir.Server.BoardRouter do
             {:ok, %{path: path}} when is_binary(path) and path != "" -> [path]
             _ -> []
           end
-        _ -> []
+
+        _ ->
+          []
       end
 
     # Also check product's project paths as fallback
@@ -3064,9 +3095,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
                   _ -> []
                 end
               end)
-            _ -> []
+
+            _ ->
+              []
           end
-        _ -> []
+
+        _ ->
+          []
       end
 
     workspace_key = issue[:identifier] || issue.id
@@ -3099,8 +3134,8 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     Logger.info(
       "FINDINGS.json gate-context lookup for #{workspace_key}: " <>
-      "effective_project_id=#{inspect(effective_project_id)}, " <>
-      "candidates=#{inspect(Enum.take(candidates, 4))}"
+        "effective_project_id=#{inspect(effective_project_id)}, " <>
+        "candidates=#{inspect(Enum.take(candidates, 4))}"
     )
 
     case Enum.find(candidates, &File.exists?/1) do
@@ -3117,9 +3152,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
               {:ok, findings} when is_list(findings) ->
                 Logger.info("FINDINGS.json gate-context: parsed #{length(findings)} findings")
                 findings
-              _ -> []
+
+              _ ->
+                []
             end
-          _ -> []
+
+          _ ->
+            []
         end
     end
   end
@@ -3236,15 +3275,6 @@ defmodule SymphonyElixir.Server.BoardRouter do
     json_not_found(conn)
   end
 
-  defp parse_int_param(nil, default), do: default
+  defp kb_path_traversal_error(conn), do: json_error(conn, 403, "path_traversal")
 
-  defp parse_int_param(val, default) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, _} -> n
-      :error -> default
-    end
-  end
-
-  defp parse_int_param(val, _default) when is_integer(val), do: val
-  defp parse_int_param(_, default), do: default
 end

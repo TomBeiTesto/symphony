@@ -333,8 +333,8 @@ test.describe("Products — Interaction", () => {
     await page.goto("/board");
     await page.waitForTimeout(500);
 
-    // With no products, spec tab is disabled; call switchTab directly to verify welcome screen
-    await page.evaluate(() => switchTab('spec'));
+    // With no products, click the spec tab to verify welcome screen
+    await page.click('[data-tab="spec"]');
     await page.waitForTimeout(300);
     await expect(page.locator(".empty-state")).toBeVisible();
     await expect(page.locator(".empty-state")).toContainText("Welcome to Symphony");

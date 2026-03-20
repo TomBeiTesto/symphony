@@ -1,7 +1,7 @@
 defmodule SymphonyElixir.Server.SkillsUI do
   @moduledoc """
   Server-rendered Skills Library UI page.
-
+  
   Browse, create, edit, duplicate, and delete skills.
   Manage skill groups (collections of skills).
   """
@@ -25,7 +25,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           <button class="btn btn-primary" onclick="openCreateSkillModal()">+ New Skill</button>
         </div>
       </div>
-
+    
       <main class="skills-page">
         <aside class="sidebar">
           <div class="filter-section">
@@ -49,12 +49,12 @@ defmodule SymphonyElixir.Server.SkillsUI do
             <span id="skill-count">0 skills</span>
           </div>
         </aside>
-
+    
         <div class="skills-grid" id="skills-grid">
           <div class="loading">Loading skills...</div>
         </div>
       </main>
-
+    
       <!-- Create/Edit Skill Modal -->
       <div class="modal-overlay" id="skill-modal">
         <div class="modal modal-wide">
@@ -104,7 +104,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Skill Groups Modal -->
       <div class="modal-overlay" id="groups-modal">
         <div class="modal modal-wide">
@@ -145,9 +145,9 @@ defmodule SymphonyElixir.Server.SkillsUI do
           </div>
         </div>
       </div>
-
+    
       <div id="toast-container" class="toast-container"></div>
-
+    
       <script>
     #{js()}
       </script>
@@ -189,7 +189,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
       }
       .search-input:focus { border-color: var(--accent); }
       .stats { font-size: 0.75rem; color: var(--text-muted); }
-
+      
       .skills-grid {
         flex: 1; padding: 20px; overflow-y: auto;
         display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -229,7 +229,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
         font-size: 0.6rem; color: var(--purple); border: 1px solid rgba(188,140,255,0.3);
         padding: 1px 5px; border-radius: 6px;
       }
-
+      
       .editor-tabs { display: flex; gap: 0; margin-bottom: 0; }
       .editor-tab {
         padding: 5px 14px; font-size: 0.78rem; cursor: pointer;
@@ -251,7 +251,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
         color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6;
         overflow-y: auto; white-space: pre-wrap;
       }
-
+      
       .groups-layout { display: flex; gap: 16px; min-height: 300px; }
       .groups-list {
         width: 200px; flex-shrink: 0; border-right: 1px solid var(--border);
@@ -291,25 +291,25 @@ defmodule SymphonyElixir.Server.SkillsUI do
       var editingSkillId = null;
       var editingGroupId = null;
       var currentGroupSkillIds = [];
-
+      
       document.addEventListener('DOMContentLoaded', function() {
         loadSkills();
         loadGroups();
       });
-
+      
       function loadSkills() {
         fetch('/board/api/skills').then(r => r.json()).then(data => {
           skills = data.skills || [];
           renderSkills();
         });
       }
-
+      
       function loadGroups() {
         fetch('/board/api/skill-groups').then(r => r.json()).then(data => {
           skillGroups = data.skill_groups || [];
         });
       }
-
+      
       function renderSkills() {
         var grid = document.getElementById('skills-grid');
         var search = (document.getElementById('search-input').value || '').toLowerCase();
@@ -320,15 +320,15 @@ defmodule SymphonyElixir.Server.SkillsUI do
               (s.tags || []).join(' ').toLowerCase().indexOf(search) === -1) return false;
           return true;
         });
-
+      
         document.getElementById('skill-count').textContent =
           filtered.length + ' skill' + (filtered.length !== 1 ? 's' : '');
-
+      
         if (filtered.length === 0) {
           grid.innerHTML = '<div class="loading">No skills found. Create one to get started.</div>';
           return;
         }
-
+      
         grid.innerHTML = filtered.map(function(s) {
           var catClass = 'cat-' + (s.category || 'custom');
           var tags = (s.tags || []).map(function(t) {
@@ -355,7 +355,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           '</div>';
         }).join('');
       }
-
+      
       function filterCategory(cat) {
         currentCategory = cat;
         document.querySelectorAll('.filter-item').forEach(function(el) {
@@ -363,11 +363,11 @@ defmodule SymphonyElixir.Server.SkillsUI do
         });
         renderSkills();
       }
-
+      
       function filterSkills() { renderSkills(); }
-
+      
       // --- Skill Modal ---
-
+      
       function openCreateSkillModal() {
         editingSkillId = null;
         document.getElementById('skill-modal-title').textContent = 'New Skill';
@@ -381,7 +381,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
         switchEditorTab('edit');
         document.getElementById('skill-modal').classList.add('active');
       }
-
+      
       function openEditSkillModal(id) {
         var s = skills.find(function(sk) { return sk.id === id; });
         if (!s) return;
@@ -401,12 +401,12 @@ defmodule SymphonyElixir.Server.SkillsUI do
         switchEditorTab('edit');
         document.getElementById('skill-modal').classList.add('active');
       }
-
+      
       function closeSkillModal() {
         document.getElementById('skill-modal').classList.remove('active');
         editingSkillId = null;
       }
-
+      
       function switchEditorTab(tab) {
         var editTab = document.querySelector('.editor-tab:first-child');
         var previewTab = document.querySelector('.editor-tab:last-child');
@@ -421,11 +421,11 @@ defmodule SymphonyElixir.Server.SkillsUI do
           preview.textContent = editor.value;
         }
       }
-
+      
       function saveSkill() {
         var name = document.getElementById('skill-name').value.trim();
         if (!name) { showToast('Name is required', {type: 'error'}); return; }
-
+      
         var body = {
           name: name,
           category: document.getElementById('skill-category').value,
@@ -433,7 +433,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           description: document.getElementById('skill-description').value,
           content: document.getElementById('skill-content').value
         };
-
+      
         if (editingSkillId) {
           var existing = skills.find(function(s) { return s.id === editingSkillId; });
           if (existing && existing.built_in) {
@@ -478,7 +478,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           });
         }
       }
-
+      
       function duplicateSkill(id) {
         fetch('/board/api/skills/' + id + '/duplicate', { method: 'POST' })
           .then(r => r.json())
@@ -487,7 +487,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
             showToast('Skill duplicated', {type: 'success'});
           });
       }
-
+      
       function deleteSkill(id) {
         if (!confirm('Delete this skill? It will be removed from all issues and groups.')) return;
         fetch('/board/api/skills/' + id, { method: 'DELETE' })
@@ -500,20 +500,20 @@ defmodule SymphonyElixir.Server.SkillsUI do
             }
           });
       }
-
+      
       // --- Skill Groups Modal ---
-
+      
       function openGroupsModal() {
         loadGroups();
         setTimeout(renderGroups, 200);
         document.getElementById('groups-modal').classList.add('active');
       }
-
+      
       function closeGroupsModal() {
         document.getElementById('groups-modal').classList.remove('active');
         editingGroupId = null;
       }
-
+      
       function renderGroups() {
         var list = document.getElementById('groups-list');
         if (skillGroups.length === 0) {
@@ -529,7 +529,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           '</div>';
         }).join('');
       }
-
+      
       function selectGroup(id) {
         var g = skillGroups.find(function(gr) { return gr.id === id; });
         if (!g) return;
@@ -541,7 +541,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
         document.getElementById('group-detail').style.display = '';
         renderGroups();
       }
-
+      
       function renderGroupSkills() {
         var container = document.getElementById('group-skills');
         container.innerHTML = currentGroupSkillIds.map(function(sid) {
@@ -552,7 +552,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
             '<button class="group-skill-remove" onclick="removeSkillFromGroup(\'' + sid + '\')">&times;</button>' +
           '</div>';
         }).join('');
-
+      
         // Update "add" dropdown
         var select = document.getElementById('add-skill-to-group');
         select.innerHTML = '<option value="">+ Add a skill...</option>';
@@ -562,7 +562,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           }
         });
       }
-
+      
       function addSkillToGroup() {
         var select = document.getElementById('add-skill-to-group');
         var sid = select.value;
@@ -571,12 +571,12 @@ defmodule SymphonyElixir.Server.SkillsUI do
         select.value = '';
         renderGroupSkills();
       }
-
+      
       function removeSkillFromGroup(sid) {
         currentGroupSkillIds = currentGroupSkillIds.filter(function(id) { return id !== sid; });
         renderGroupSkills();
       }
-
+      
       function saveGroup() {
         var name = document.getElementById('group-name').value.trim();
         if (!name) { showToast('Group name is required', {type: 'error'}); return; }
@@ -585,7 +585,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           description: document.getElementById('group-description').value,
           skill_ids: currentGroupSkillIds
         };
-
+      
         if (editingGroupId) {
           fetch('/board/api/skill-groups/' + editingGroupId, {
             method: 'PATCH',
@@ -608,7 +608,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
           });
         }
       }
-
+      
       function createGroup() {
         editingGroupId = null;
         currentGroupSkillIds = [];
@@ -618,7 +618,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
         document.getElementById('group-detail').style.display = '';
         renderGroups();
       }
-
+      
       function deleteGroup() {
         if (!editingGroupId) return;
         if (!confirm('Delete this group?')) return;
@@ -633,7 +633,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
             }
           });
       }
-
+      
       // Close modals on overlay click
       document.addEventListener('click', function(e) {
         if (e.target.classList.contains('modal-overlay')) {

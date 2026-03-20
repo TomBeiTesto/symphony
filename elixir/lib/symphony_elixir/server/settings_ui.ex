@@ -12,9 +12,9 @@ defmodule SymphonyElixir.Server.SettingsUI do
     body = """
       <main class="settings-page">
         <div class="settings-container">
-
+    
           <div class="settings-saved" id="saved-banner">Settings saved</div>
-
+    
           <!-- Git Provider -->
           <section class="settings-section">
             <h2>
@@ -30,7 +30,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Configure which git host to use for cloning repositories
               and how to authenticate.</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="git_provider">Provider</label>
@@ -64,7 +64,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
                 Personal Access Token (read_repository scope). For GitHub use a Fine-grained PAT.</small>
             </div>
           </section>
-
+    
           <!-- AI / Agent -->
           <section class="settings-section">
             <h2>
@@ -78,7 +78,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Choose which AI model to use as the coding agent.
               The agent command is what Symphony invokes for each issue.</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="ai_provider">AI Provider</label>
@@ -146,7 +146,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
               </div>
             </div>
           </section>
-
+    
           <!-- Default Skills -->
           <section class="settings-section">
             <h2>
@@ -159,7 +159,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             <p class="section-desc">Skills and skill groups auto-assigned to every new issue.
               Manage your skills library at
               <a href="/board/skills" style="color:var(--accent);">Skills Library</a>.</p>
-
+    
             <div class="form-group">
               <label>Default Skills</label>
               <div class="default-skill-pills" id="default-skill-pills"></div>
@@ -169,7 +169,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <small class="help-text">These skills are automatically assigned to all newly created issues.</small>
             </div>
           </section>
-
+    
           <!-- Knowledge Base -->
           <section class="settings-section">
             <h2>
@@ -182,7 +182,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Configure where research reports and business logic
               extractions are stored. Agents can read from the KB during implementation tasks.</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="kb_type">KB Type</label>
@@ -210,7 +210,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <span id="kb-test-result" style="margin-left:8px;font-size:0.82rem"></span>
             </div>
           </section>
-
+    
           <!-- Jira Integration -->
           <section class="settings-section">
             <h2>
@@ -224,7 +224,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Connect to Jira for creating/updating issues and syncing
               status. Used by pipeline integration nodes of type "Jira".</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="jira_base_url">Base URL</label>
@@ -266,7 +266,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <span id="integration-test-jira" style="margin-left:8px;font-size:0.82rem"></span>
             </div>
           </section>
-
+    
           <!-- GitLab CI Integration -->
           <section class="settings-section">
             <h2>
@@ -279,7 +279,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Trigger GitLab CI pipelines and poll for results.
               Use as quality gates in pipeline nodes.</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="gitlab_ci_base_url">GitLab URL</label>
@@ -318,7 +318,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <span id="integration-test-gitlab_ci" style="margin-left:8px;font-size:0.82rem"></span>
             </div>
           </section>
-
+    
           <!-- Confluence Integration -->
           <section class="settings-section">
             <h2>
@@ -334,7 +334,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Create and update Confluence pages for documentation sync.
               Also available as a Knowledge Base backend.</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="confluence_base_url">Base URL</label>
@@ -373,7 +373,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
               <span id="integration-test-confluence" style="margin-left:8px;font-size:0.82rem"></span>
             </div>
           </section>
-
+    
           <!-- Tracker -->
           <section class="settings-section">
             <h2>
@@ -387,7 +387,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
             </h2>
             <p class="section-desc">Override the tracker configured in your Workflow.md.
               These settings take effect on the next restart.</p>
-
+    
             <div class="form-row">
               <div class="form-group">
                 <label for="tracker_kind">Tracker Type</label>
@@ -422,16 +422,16 @@ defmodule SymphonyElixir.Server.SettingsUI do
               </div>
             </div>
           </section>
-
+    
           <!-- Actions -->
           <div class="settings-actions">
             <button class="btn btn-ghost" onclick="resetSettings()">Reset to Defaults</button>
             <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
           </div>
-
+    
         </div>
       </main>
-
+    
       <script>
     #{UIHelpers.esc_js()}
     #{javascript()}
@@ -444,15 +444,15 @@ defmodule SymphonyElixir.Server.SettingsUI do
   defp css do
     SymphonyElixir.Server.UIHelpers.form_css() <>
       ~S"""
-
+      
       body { min-height: 100vh; }
-
+      
       .topbar { position: sticky; top: 0; }
-
+      
       .settings-page {
         max-width: 760px; margin: 0 auto; padding: 32px 24px 64px;
       }
-
+      
       .settings-saved {
         display: none; padding: 10px 16px; background: #1a3a2a;
         border: 1px solid var(--green); border-radius: var(--radius-sm);
@@ -460,12 +460,12 @@ defmodule SymphonyElixir.Server.SettingsUI do
         margin-bottom: 24px; text-align: center;
       }
       .settings-saved.show { display: block; animation: fadeIn 0.2s ease; }
-
+      
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-4px); }
         to { opacity: 1; transform: translateY(0); }
       }
-
+      
       .settings-section {
         background: var(--bg-secondary); border: 1px solid var(--border);
         border-radius: var(--radius); padding: 24px; margin-bottom: 24px;
@@ -478,20 +478,20 @@ defmodule SymphonyElixir.Server.SettingsUI do
       .section-desc {
         font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;
       }
-
+      
       /* Form overrides for settings — base from UIHelpers */
       .form-row { gap: 16px; }
-
+      
       .token-input-wrap {
         display: flex; align-items: center; gap: 4px;
       }
       .token-input-wrap input { flex: 1; }
-
+      
       .settings-actions {
         display: flex; justify-content: flex-end; gap: 10px;
         padding-top: 8px;
       }
-
+      
       .default-skill-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; min-height: 24px; }
       .ds-pill {
         display: inline-flex; align-items: center; gap: 3px;
@@ -504,11 +504,11 @@ defmodule SymphonyElixir.Server.SettingsUI do
         font-size: 0.8rem; padding: 0 2px; opacity: 0.6; line-height: 1;
       }
       .ds-pill button:hover { opacity: 1; }
-
+      
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
+      
       @media (max-width: 600px) {
         .form-row { flex-direction: column; gap: 0; }
         .settings-page { padding: 16px 12px 48px; }
@@ -519,7 +519,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
   defp javascript do
     ~S"""
     const API = '/board/api';
-
+    
     const FIELDS = [
       'git_provider', 'git_token', 'git_host',
       'ai_provider', 'ai_model', 'agent_provider', 'agent_command', 'agent_shell',
@@ -530,7 +530,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
       'gitlab_ci_base_url', 'gitlab_ci_project_id', 'gitlab_ci_trigger_token', 'gitlab_ci_ref',
       'confluence_base_url', 'confluence_auth_token', 'confluence_space_key', 'confluence_parent_page_id'
     ];
-
+    
     // Provider → default host mapping
     const DEFAULT_HOSTS = {
       gitlab: 'https://gitlab.com',
@@ -538,7 +538,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
       bitbucket: 'https://bitbucket.org',
       other: ''
     };
-
+    
     // AI provider → default model mapping
     const DEFAULT_MODELS = {
       claude: 'claude-sonnet-4-20250514',
@@ -547,7 +547,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
       ollama: 'llama3',
       custom: ''
     };
-
+    
     // Auto-update host when provider changes
     document.getElementById('git_provider').addEventListener('change', (e) => {
       const host = document.getElementById('git_host');
@@ -555,7 +555,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
         host.value = DEFAULT_HOSTS[e.target.value] || '';
       }
     });
-
+    
     // Auto-update model when AI provider changes
     document.getElementById('ai_provider').addEventListener('change', (e) => {
       const model = document.getElementById('ai_model');
@@ -563,25 +563,25 @@ defmodule SymphonyElixir.Server.SettingsUI do
         model.value = DEFAULT_MODELS[e.target.value] || '';
       }
     });
-
+    
     // Default commands per agent backend
     const DEFAULT_AGENT_COMMANDS = {
       'claude-code': 'claude --print --output-format stream-json --verbose',
       'codex': 'codex app-server',
       'custom': ''
     };
-
+    
     // Auto-update command placeholder when agent backend changes
     document.getElementById('agent_provider').addEventListener('change', (e) => {
       const cmd = document.getElementById('agent_command');
       cmd.placeholder = DEFAULT_AGENT_COMMANDS[e.target.value] || '';
     });
-
+    
     function toggleTokenVisibility(fieldId) {
       const input = document.getElementById(fieldId);
       input.type = input.type === 'password' ? 'text' : 'password';
     }
-
+    
     async function loadSettings() {
       try {
         const res = await fetch(`${API}/settings`);
@@ -596,21 +596,21 @@ defmodule SymphonyElixir.Server.SettingsUI do
         console.error('Failed to load settings:', e);
       }
     }
-
+    
     async function saveSettings() {
       const data = {};
       FIELDS.forEach(key => {
         const el = document.getElementById(key);
         if (el) data[key] = el.value;
       });
-
+    
       try {
         const res = await fetch(`${API}/settings`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
-
+    
         if (res.ok) {
           const banner = document.getElementById('saved-banner');
           banner.classList.add('show');
@@ -621,10 +621,10 @@ defmodule SymphonyElixir.Server.SettingsUI do
         alert('Failed to save settings. Check console.');
       }
     }
-
+    
     async function resetSettings() {
       if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
-
+    
       try {
         const res = await fetch(`${API}/settings/reset`, { method: 'POST' });
         if (res.ok) {
@@ -641,7 +641,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
         console.error('Reset failed:', e);
       }
     }
-
+    
     // Keyboard: Ctrl+S to save
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -649,7 +649,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
         saveSettings();
       }
     });
-
+    
     // --- Knowledge Base ---
     function toggleKBFields() {
       var kbType = document.getElementById('kb_type').value;
@@ -658,14 +658,14 @@ defmodule SymphonyElixir.Server.SettingsUI do
       vaultGroup.style.display = (kbType === 'confluence') ? 'none' : '';
     }
     toggleKBFields();
-
+    
     async function testKBConnection() {
       var btn = document.getElementById('kb-test-btn');
       var result = document.getElementById('kb-test-result');
       btn.disabled = true;
       result.textContent = 'Testing...';
       result.style.color = 'var(--text-muted)';
-
+    
       var kbType = document.getElementById('kb_type').value;
       var vaultPath = document.getElementById('kb_vault_path').value;
       // For local type, pass empty path — backend auto-resolves default
@@ -689,13 +689,13 @@ defmodule SymphonyElixir.Server.SettingsUI do
       }
       btn.disabled = false;
     }
-
+    
     // --- Integration Test (unified) ---
     async function testIntegration(type) {
       var result = document.getElementById('integration-test-' + type);
       result.textContent = 'Testing...';
       result.style.color = 'var(--text-muted)';
-
+    
       try {
         var res = await fetch(API + '/integrations/' + type + '/test', {
           method: 'POST',
@@ -715,13 +715,13 @@ defmodule SymphonyElixir.Server.SettingsUI do
         result.style.color = 'var(--error, #ef4444)';
       }
     }
-
+    
     // --- Default Skills ---
     var allSkills = [];
     var allGroups = [];
     var defaultSkillIds = [];
     var defaultGroupIds = [];
-
+    
     async function loadDefaultSkillsUI() {
       try {
         var [sr, gr, setRes] = await Promise.all([
@@ -737,7 +737,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
         renderDefaultSkillPills();
       } catch(e) { console.error('Default skills load error:', e); }
     }
-
+    
     function renderDefaultSkillPills() {
       var container = document.getElementById('default-skill-pills');
       var pills = [];
@@ -756,7 +756,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
         : '<span style="font-size:0.75rem;color:var(--text-muted)">No default skills</span>';
       populateDefaultSkillSelect();
     }
-
+    
     function populateDefaultSkillSelect() {
       var sel = document.getElementById('default-add-skill');
       sel.innerHTML = '<option value="">+ Add skill or group...</option>';
@@ -783,7 +783,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
       });
       sel.appendChild(optGroups);
     }
-
+    
     function defaultAddSkill(val) {
       if (!val) return;
       if (val.startsWith('skill:')) {
@@ -795,17 +795,17 @@ defmodule SymphonyElixir.Server.SettingsUI do
       }
       saveDefaultSkills();
     }
-
+    
     function defaultRemoveSkill(sid) {
       defaultSkillIds = defaultSkillIds.filter(function(id) { return id !== sid; });
       saveDefaultSkills();
     }
-
+    
     function defaultRemoveGroup(gid) {
       defaultGroupIds = defaultGroupIds.filter(function(id) { return id !== gid; });
       saveDefaultSkills();
     }
-
+    
     async function saveDefaultSkills() {
       try {
         await fetch(API + '/settings', {
@@ -819,7 +819,7 @@ defmodule SymphonyElixir.Server.SettingsUI do
         renderDefaultSkillPills();
       } catch(e) { console.error('Save default skills error:', e); }
     }
-
+    
     // Init
     loadSettings();
     loadDefaultSkillsUI();

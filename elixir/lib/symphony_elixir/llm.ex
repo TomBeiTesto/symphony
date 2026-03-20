@@ -8,6 +8,8 @@ defmodule SymphonyElixir.LLM do
 
   require Logger
 
+  alias SymphonyElixir.LocalBoard.Helpers
+
   @api_url "https://api.anthropic.com/v1/messages"
   @default_model "claude-sonnet-4-20250514"
   @default_max_tokens 4096
@@ -38,7 +40,7 @@ defmodule SymphonyElixir.LLM do
           "max_tokens" => max_tokens,
           "messages" => [%{"role" => "user", "content" => prompt}]
         }
-        |> maybe_put_system(system_prompt)
+        |> Helpers.maybe_put("system", if(system_prompt in [nil, ""], do: nil, else: system_prompt))
 
       headers = [
         {"x-api-key", api_key},
@@ -68,7 +70,4 @@ defmodule SymphonyElixir.LLM do
     end
   end
 
-  defp maybe_put_system(body, nil), do: body
-  defp maybe_put_system(body, ""), do: body
-  defp maybe_put_system(body, system), do: Map.put(body, "system", system)
 end

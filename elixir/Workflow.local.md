@@ -197,6 +197,9 @@ When an issue has `plan_status: planning`, you are in a planning-only pass:
 - If state is terminal (`Done`, `Cancelled`, `Archived`), do nothing and shut down.
 - If `plan_status` is `plan_review`, do nothing — the plan is awaiting human review.
 - Keep changes concise, specific, and focused on the issue requirements.
+- **NEVER run Playwright or E2E tests.** Only run `mix test` (unit/integration tests). E2E tests require a running server and browser — they are too slow and fragile for agent sessions. If the issue mentions E2E tests, write the test code but do not execute it.
+- **Do not debug build cache or filesystem issues.** If `mix compile` or `mix test` fails due to corrupted `_build`, run `rm -rf _build && mix deps.compile` once. If it still fails, report the blocker and stop — do not spend turns investigating filesystem quirks.
+- **Stay focused.** If a task is taking more than 3-4 tool calls without progress, step back and reassess. Do not loop on retries, polling, or process management.
 
 {% if vault %}
 ### Knowledge Base

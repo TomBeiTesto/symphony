@@ -287,48 +287,9 @@ defmodule SymphonyElixir.Integrations.KBIndex do
     end
   end
 
-  defp parse_frontmatter_map(yaml_str) when yaml_str == "", do: %{}
-
   defp parse_frontmatter_map(yaml_str) do
-    yaml_str
-    |> String.split("\n")
-    |> Enum.reject(&(String.trim(&1) == ""))
-    |> parse_yaml_lines(%{}, nil)
+    SymphonyElixir.YamlParser.parse(yaml_str)
   end
-
-  defp parse_yaml_lines([], acc, _), do: acc
-
-  defp parse_yaml_lines([line | rest], acc, current_list_key) do
-    trimmed = String.trim(line)
-
-    cond do
-      String.starts_with?(trimmed, "- ") and current_list_key != nil ->
-        value = String.trim_leading(trimmed, "- ") |> String.trim()
-        existing = Map.get(acc, current_list_key, [])
-
-        parse_yaml_lines(
-          rest,
-          Map.put(acc, current_list_key, existing ++ [value]),
-          current_list_key
-        )
-
-      String.ends_with?(trimmed, ":") ->
-        key = String.trim_trailing(trimmed, ":")
-        parse_yaml_lines(rest, acc, key)
-
-      String.contains?(trimmed, ": ") ->
-        [key | value_parts] = String.split(trimmed, ": ", parts: 2)
-        value = Enum.join(value_parts, ": ") |> String.trim() |> unquote_value()
-        parse_yaml_lines(rest, Map.put(acc, key, value), nil)
-
-      true ->
-        parse_yaml_lines(rest, acc, current_list_key)
-    end
-  end
-
-  defp unquote_value("\"" <> rest), do: String.trim_trailing(rest, "\"")
-  defp unquote_value("'" <> rest), do: String.trim_trailing(rest, "'")
-  defp unquote_value(other), do: other
 
   defp file_mtime(path) do
     case File.stat(path) do

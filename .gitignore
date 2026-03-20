@@ -51,3 +51,8 @@ elixir/test/e2e/screenshots/
 # Dialyzer
 elixir/priv/plts/
 elixir/backups/
+
+# test router
+*test_router_*.json
+*.symphony_prompt*.txt
+Claude.md

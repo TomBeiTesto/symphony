@@ -50,7 +50,15 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
     end
 
     test "replaces existing retry entry", %{config: config} do
-      old_entry = %{issue_id: "issue-1", identifier: "MT-100", attempt: 1, error: nil, due_at_ms: 0, timer_ref: nil}
+      old_entry = %{
+        issue_id: "issue-1",
+        identifier: "MT-100",
+        attempt: 1,
+        error: nil,
+        due_at_ms: 0,
+        timer_ref: nil
+      }
+
       state = %State{retry_attempts: %{"issue-1" => old_entry}}
 
       state = Retry.schedule_failure_retry(state, config, "issue-1", "MT-100", 3, "error")
@@ -93,7 +101,16 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
   describe "handle_retry/4" do
     test "dispatches when issue found and slots available", %{config: config} do
       issue = make_issue("issue-1", "MT-100", "In Progress")
-      entry = %{issue_id: "issue-1", identifier: "MT-100", attempt: 1, error: nil, due_at_ms: 0, timer_ref: nil}
+
+      entry = %{
+        issue_id: "issue-1",
+        identifier: "MT-100",
+        attempt: 1,
+        error: nil,
+        due_at_ms: 0,
+        timer_ref: nil
+      }
+
       state = %State{retry_attempts: %{"issue-1" => entry}}
 
       {result, _state} = Retry.handle_retry(state, config, "issue-1", [issue])
@@ -101,7 +118,15 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
     end
 
     test "releases claim when issue not in candidates", %{config: config} do
-      entry = %{issue_id: "issue-1", identifier: "MT-100", attempt: 1, error: nil, due_at_ms: 0, timer_ref: nil}
+      entry = %{
+        issue_id: "issue-1",
+        identifier: "MT-100",
+        attempt: 1,
+        error: nil,
+        due_at_ms: 0,
+        timer_ref: nil
+      }
+
       state = %State{retry_attempts: %{"issue-1" => entry}, claimed: MapSet.new(["issue-1"])}
 
       {result, state} = Retry.handle_retry(state, config, "issue-1", [])
@@ -139,5 +164,4 @@ defmodule SymphonyElixir.Orchestrator.RetryTest do
       assert Map.has_key?(state.retry_attempts, "issue-1")
     end
   end
-
 end

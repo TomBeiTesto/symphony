@@ -322,7 +322,9 @@ defmodule SymphonyElixir.ProjectScanner.AgentSummarizer do
 
       Port.close(port)
     rescue
-      _ -> :ok
+      e ->
+        Logger.warning("Failed to kill port process: #{Exception.message(e)}")
+        :ok
     end
   end
 end

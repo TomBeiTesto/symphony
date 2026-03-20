@@ -8,11 +8,12 @@ defmodule SymphonyElixir.Orchestrator.Maintenance do
 
   require Logger
 
-  alias SymphonyElixir.DateTimeUtils
+  alias SymphonyElixir.{DateTimeUtils, ParseUtils}
 
   @archive_after_days 1
 
   @doc "Auto-archive Done issues older than the configured threshold."
+  @spec auto_archive_done_issues() :: :ok
   def auto_archive_done_issues do
     case SymphonyElixir.LocalBoard.list_issues_by_states(["Done"]) do
       issues when is_list(issues) ->
@@ -33,6 +34,7 @@ defmodule SymphonyElixir.Orchestrator.Maintenance do
   end
 
   @doc "Auto-promote backlog issues to Todo when slots are available."
+  @spec auto_promote_backlog_to_todo() :: :ok
   def auto_promote_backlog_to_todo do
     if SymphonyElixir.Settings.get("auto_add_enabled") == "true" do
       max = parse_max_todo(SymphonyElixir.Settings.get("max_todo_parallel"))
@@ -61,18 +63,13 @@ defmodule SymphonyElixir.Orchestrator.Maintenance do
     end
   end
 
-  @doc "Parse the max_todo_parallel setting, clamping to 1..3."
-  def parse_max_todo(val) when is_binary(val) do
-    case Integer.parse(val) do
-      {n, _} -> max(1, min(n, 3))
-      :error -> 3
-    end
+  defp parse_max_todo(val) when is_binary(val) do
+    ParseUtils.parse_int(val, 3) |> max(1) |> min(3)
   end
 
-  def parse_max_todo(_), do: 3
+  defp parse_max_todo(_), do: 3
 
-  @doc "Get the completed_at timestamp for an issue."
-  def get_completed_at(issue) do
+  defp get_completed_at(issue) do
     # Try agent_run completed_at, then fall back to updated_at
     dt_str =
       (issue[:agent_run] && issue[:agent_run]["completed_at"]) ||

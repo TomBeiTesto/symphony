@@ -155,7 +155,7 @@ defmodule SymphonyElixir.ProjectScanner do
 
     %{
       name: summary.name,
-      slug: slugify(dir_name),
+      slug: SymphonyElixir.LocalBoard.Helpers.slugify(dir_name),
       path: dir_path,
       description: summary.description,
       repo_url: Git.detect_remote_url(dir_path) || detect_parent_remote(dir_path),
@@ -216,11 +216,4 @@ defmodule SymphonyElixir.ProjectScanner do
 
   defp expand_path("~" <> rest), do: Path.expand(System.user_home!() <> rest)
   defp expand_path(path), do: Path.expand(path)
-
-  defp slugify(name) do
-    name
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/, "-")
-    |> String.trim("-")
-  end
 end

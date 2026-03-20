@@ -1,6 +1,6 @@
-.PHONY: all setup format lint credo dialyzer test coverage specs.check
+.PHONY: all setup format lint credo dialyzer test coverage specs.check clean help
 
-all: format lint credo test coverage dialyzer
+all: format credo test coverage dialyzer
 
 setup:
 	mix setup
@@ -8,8 +8,7 @@ setup:
 format:
 	mix format --check-formatted
 
-lint:
-	mix credo --strict
+lint: credo
 
 credo:
 	mix credo --strict
@@ -25,3 +24,21 @@ coverage:
 
 specs.check:
 	mix specs.check
+
+clean:
+	mix clean
+	rm -rf _build deps priv/plts
+
+help:
+	@echo "Available targets:"
+	@echo "  all         Run format, credo, test, coverage, dialyzer"
+	@echo "  setup       Install dependencies (mix setup)"
+	@echo "  format      Check code formatting"
+	@echo "  lint        Alias for credo"
+	@echo "  credo       Run Credo static analysis (strict)"
+	@echo "  dialyzer    Run Dialyzer type analysis"
+	@echo "  test        Run ExUnit test suite"
+	@echo "  coverage    Run tests with coverage report"
+	@echo "  specs.check Verify @spec coverage"
+	@echo "  clean       Remove build artifacts and dependencies"
+	@echo "  help        Show this help message"

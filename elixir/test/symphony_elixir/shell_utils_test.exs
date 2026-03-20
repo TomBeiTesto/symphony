@@ -16,13 +16,11 @@ defmodule SymphonyElixir.ShellUtilsTest do
     end
 
     test "sh shell uses -c flag" do
-      assert {"/bin/sh", ["-c", "echo hi"]} =
-               ShellUtils.shell_command("/bin/sh", "echo hi")
+      assert {"/bin/sh", ["-c", "echo hi"]} = ShellUtils.shell_command("/bin/sh", "echo hi")
     end
 
     test "cmd shell uses /C flag" do
-      assert {"cmd.exe", ["/C", "echo hi"]} =
-               ShellUtils.shell_command("cmd.exe", "echo hi")
+      assert {"cmd.exe", ["/C", "echo hi"]} = ShellUtils.shell_command("cmd.exe", "echo hi")
     end
 
     test "powershell uses -NoProfile -Command" do
@@ -31,8 +29,7 @@ defmodule SymphonyElixir.ShellUtilsTest do
     end
 
     test "unknown shell falls back to a valid flag" do
-      {"unknown_shell", [flag, "echo hi"]} =
-        ShellUtils.shell_command("unknown_shell", "echo hi")
+      {"unknown_shell", [flag, "echo hi"]} = ShellUtils.shell_command("unknown_shell", "echo hi")
 
       assert flag in ["-c", "/C"]
     end

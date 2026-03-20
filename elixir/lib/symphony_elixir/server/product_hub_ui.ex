@@ -1,10 +1,11 @@
+# credo:disable-for-this-file Credo.Check.Readability.MaxLineLength
 defmodule SymphonyElixir.Server.ProductHubUI do
   @moduledoc """
   Unified Product-Centric Hub UI.
-
+  
   Combines the Product Spec Sheet and Issue Board into a single workspace
   with a persistent sidebar for product navigation and tabbed main content.
-
+  
   Layout: Topbar + Sidebar (products) + Tab Bar (Spec Sheet | Issues | Activity)
   """
 
@@ -23,19 +24,22 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             <button class="dropdown-item" onclick="openScanModal(); closeDropdowns()">Import Projects...</button>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="openIssueCreateModal()">+ Issue</button>
+        <button class="btn btn-primary" onclick="openIssueCreateModal()"
+          data-help='{"title":"Create Issue","what":"Create a new work item (issue) on the kanban board. Assign skills, set priority, and optionally link to a product.","why":"Issues are what AI agents work on. Create one, move it to Todo, and the Orchestrator dispatches an agent.","connects":"Kanban Board, Skills, Orchestrator, Products"}'>+ Issue</button>
       </div>
 
       <div class="hub-layout">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar"
+          data-help='{"title":"Sidebar","what":"Navigate between Products, Projects, and a global All Issues view. Click a product to see its details.","why":"Quick navigation — switch context without losing your place.","connects":"Products, Projects, Issues"}'>
           <div class="sidebar-scroll">
             <div class="sidebar-section">
               <div class="sidebar-title">Products</div>
               <div id="sidebar-products"></div>
             </div>
             <div class="sidebar-section" style="margin-top:4px">
-              <div class="sidebar-item" id="all-issues-item" onclick="selectAllIssues()">
+              <div class="sidebar-item" id="all-issues-item" onclick="selectAllIssues()"
+                data-help='{"title":"All Issues","what":"Shows every issue across all products on a single kanban board.","why":"Get a bird-eye view of all work in progress, regardless of which product it belongs to.","connects":"Issues, Kanban Board"}'>
                 <span class="sidebar-item-name">All Issues</span>
                 <span class="sidebar-badge" id="all-issues-badge">0</span>
               </div>
@@ -50,16 +54,20 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             </div>
           </div>
         </aside>
-
+    
         <!-- Main Content -->
         <div class="hub-main">
           <nav class="tab-bar" id="tab-bar">
-            <div class="tab-item active" data-tab="spec" onclick="switchTab('spec')">Spec Sheet</div>
-            <div class="tab-item" data-tab="issues" onclick="switchTab('issues')">
+            <div class="tab-item active" data-tab="spec" onclick="switchTab('spec')"
+              data-help='{"title":"Spec Sheet","what":"Product definition: name, description, features, and their implementation status.","why":"Define what the product IS before building it. Features listed here drive pipeline work.","connects":"Products, Features, Pipelines"}'>Spec Sheet</div>
+            <div class="tab-item" data-tab="issues" onclick="switchTab('issues')"
+              data-help='{"title":"Issues","what":"Kanban board filtered to this product. Drag issues between columns to change state.","why":"Track work progress. Moving an issue to Todo triggers the Orchestrator to dispatch an agent.","connects":"Orchestrator, Skills, Kanban Board"}'>
             Issues <span class="tab-badge" id="issues-tab-badge">0</span></div>
-            <div class="tab-item" data-tab="activity" onclick="switchTab('activity')">
+            <div class="tab-item" data-tab="activity" onclick="switchTab('activity')"
+              data-help='{"title":"Activity","what":"Timeline of recent events: issue state changes, pipeline runs, agent completions.","why":"See what happened — which agents ran, what changed, and when.","connects":"Issues, Pipelines, Orchestrator"}'>
             Activity <span class="tab-badge" id="activity-tab-badge">0</span></div>
-            <div class="tab-item" data-tab="kb" onclick="switchTab('kb')">
+            <div class="tab-item" data-tab="kb" onclick="switchTab('kb')"
+              data-help='{"title":"Knowledge Base","what":"Browse and search the KB notes for this product. Shows architecture, business logic, constraints, workflows.","why":"See what the AI knows about your product. KB notes are injected as context when agents work.","connects":"Knowledge Base, Pipelines, Agents"}'>
             Knowledge Base <span class="tab-badge" id="kb-tab-badge" style="display:none">0</span></div>
             <div class="tab-actions" id="tab-actions"></div>
           </nav>
@@ -81,9 +89,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
     #{modals()}
-
+    
       <script>
     #{javascript()}
       </script>
@@ -128,7 +136,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Add/Edit Feature Modal -->
       <div class="modal-overlay" id="feature-modal" style="display:none">
         <div class="modal modal-sm">
@@ -157,7 +165,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Generate Features Modal -->
       <div class="modal-overlay" id="generate-modal" style="display:none">
         <div class="modal">
@@ -181,7 +189,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Code Review Modal -->
       <div class="modal-overlay" id="code-review-modal" style="display:none">
         <div class="modal">
@@ -206,7 +214,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Generate Definition Modal -->
       <div class="modal-overlay" id="gendef-modal" style="display:none">
         <div class="modal">
@@ -231,7 +239,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Product Task Modal -->
       <div class="modal-overlay" id="product-task-modal" style="display:none">
         <div class="modal">
@@ -265,7 +273,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Feature Detail Modal -->
       <div class="modal-overlay" id="detail-modal" style="display:none">
         <div class="modal">
@@ -279,13 +287,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </div>
         </div>
       </div>
-
+    
       <!-- Issue Create Modal (shared widget) -->
-    #{SymphonyElixir.Server.UIHelpers.create_issue_modal_html(
-      prefix: "hi", on_submit: "handleIssueSubmit",
-      on_cancel: "closeIssueModal", ai_draft: true,
-      show_skills_picker: true)}
-
+    #{SymphonyElixir.Server.UIHelpers.create_issue_modal_html(prefix: "hi", on_submit: "handleIssueSubmit", on_cancel: "closeIssueModal", ai_draft: true, show_skills_picker: true)}
+    
       <!-- Project Create/Edit Modal -->
       <div class="modal-overlay" id="project-modal" style="display:none">
         <div class="modal">
@@ -347,7 +352,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           </form>
         </div>
       </div>
-
+    
       <!-- Import / Scan Modal -->
       <div class="modal-overlay" id="scan-modal" style="display:none">
         <div class="modal modal-wide">
@@ -401,7 +406,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       UIHelpers.spinner_css() <>
       UIHelpers.pulse_css() <>
       ~S"""
-
+      
       body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
       .hub-actions-bar {
         display: flex;
@@ -488,7 +493,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .modal-body textarea { resize: vertical; min-height: 60px; }
       .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
       .modal-sm { width: 460px; }
-
+      
       /* Product checklist */
       .project-checklist {
         max-height: 200px;
@@ -506,7 +511,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         color: var(--text-secondary);
       }
       .project-check-item input { margin-right: 6px; accent-color: var(--accent); }
-
+      
       /* Empty state */
       .empty-state {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -514,7 +519,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
       .empty-state h2 { color: var(--text-secondary); font-size: 1.2rem; }
       .empty-icon { opacity: 0.3; margin-bottom: 8px; }
-
+      
       /* --- Spec Sheet (from review_ui) --- */
       .spec-sheet { padding: 24px; }
       .product-header-card {
@@ -573,7 +578,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .overall-track { flex: 1; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
       .overall-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
       .overall-value { font-size: 0.8rem; font-weight: 700; min-width: 36px; text-align: right; }
-
+      
       /* Category rings */
       .rings-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; padding: 0; }
       .ring-card {
@@ -603,7 +608,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         text-overflow: ellipsis;
       }
       .ring-count { font-size: 0.65rem; color: var(--text-muted); }
-
+      
       /* Category sections */
       .category-section { margin-bottom: 12px; }
       .category-header {
@@ -638,7 +643,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         transition: all var(--transition);
       }
       .add-feature-btn:hover { border-color: var(--accent); color: var(--accent); }
-
+      
       /* Feature cards */
       .feature-card {
         background: var(--bg-secondary);
@@ -723,7 +728,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         transition: all var(--transition);
       }
       .verify-btn:hover { background: rgba(188,140,255,0.2); }
-
+      
       /* Detail modal rows */
       .detail-project-row {
         display: flex;
@@ -743,7 +748,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         transition: all var(--transition);
       }
       .detail-status-btn:hover { filter: brightness(1.2); }
-
+      
       /* Gap section */
       .gap-section {
         background: var(--bg-secondary);
@@ -785,10 +790,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         cursor: pointer;
       }
       .gap-row-action:hover { border-color: var(--accent); color: var(--accent); }
-
+      
       /* Skill picker — see UIHelpers.skill_picker_css() */
       .ai-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
-
+      
       /* --- Issues Tab (kanban) --- */
       .kanban { display: flex; gap: 0; flex: 1; overflow-x: auto; overflow-y: hidden; height: 100%; }
       .kb-column {
@@ -896,7 +901,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
       .kb-quick-input:focus { border-color: var(--accent); border-style: solid; background: var(--bg-primary); }
       .kb-quick-input::placeholder { color: var(--text-muted); }
-
+      
       /* Issue cards */
       .issue-card {
         background: var(--bg-secondary);
@@ -991,7 +996,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       }
       .card-age { font-size: 0.58rem; color: var(--text-muted); opacity: 0.6; margin-left: auto; }
       .card-age.stale { color: var(--red); opacity: 0.8; }
-
+      
       /* --- Activity Tab --- */
       .activity-feed { padding: 24px; max-width: 800px; }
       .activity-item {
@@ -1025,7 +1030,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .activity-title a:hover { color: var(--accent); }
       .activity-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
       .activity-empty { text-align: center; color: var(--text-muted); padding: 40px; font-size: 0.85rem; }
-
+      
       /* --- Knowledge Base Tab --- */
       .kb-browser { padding: 24px; max-width: 900px; }
       .kb-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -1096,7 +1101,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         line-height: 1.55;
         color: var(--text-secondary);
       }
-
+      
       /* KB Sync indicator on issue cards */
       .kb-sync-dot {
         display: inline-block;
@@ -1109,7 +1114,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .kb-sync-dot.synced { background: var(--green); title: 'Synced to KB'; }
       .kb-sync-dot.not-synced { background: var(--text-muted); opacity: 0.4; }
       .kb-sync-time { font-size: 0.6rem; color: var(--text-muted); margin-left: 4px; }
-
+      
       /* Note editor */
       .kb-editor { padding: 24px; max-width: 900px; }
       .kb-editor-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -1142,7 +1147,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         line-height: 1.5;
       }
       .kb-editor-actions { display: flex; gap: 8px; margin-top: 12px; }
-
+      
       /* Version history */
       .kb-version-list { margin-top: 12px; }
       .kb-version-item {
@@ -1178,7 +1183,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       .kb-diff-view .diff-add { color: var(--green); background: rgba(63,185,80,0.1); }
       .kb-diff-view .diff-del { color: var(--red); background: rgba(248,81,73,0.1); }
       .kb-diff-view pre { margin: 0; font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap; }
-
+      
       /* Auto-dispatch controls (in Issues tab actions) */
       .auto-dispatch-bar {
         display: flex;
@@ -1257,11 +1262,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       let gapSectionCollapsed = false;
       let draggedCard = null;
       let _apiLock = false;
-
+    
       // ========== SHARED MODAL HELPERS ==========
       function openModal(id) { document.getElementById(id).style.display = 'flex'; }
       function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
+    
       // Kanban state
       const TERMINAL_STATES = ['Done','Archived','Cancelled'];
       let collapsedColumns = JSON.parse(localStorage.getItem('symphony_hub_columns') || 'null');
@@ -1270,7 +1275,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         TERMINAL_STATES.forEach(function(s) { collapsedColumns[s] = true;
         });
       }
-
+    
       // Spec sheet constants
       const STATUS_ORDER = ['missing','planned','in_progress','done','n_a'];
       const STATUS_LABELS = {
@@ -1286,8 +1291,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         'in progress':'badge-in-progress','review':'badge-review',
         'done':'badge-done','cancelled':'badge-cancelled','archived':'badge-archived'
       };
-
-
+    
+    
       // Kanban config for shared drag-drop
       window._kanbanOpts = {
         cardSelector: '.issue-card',
@@ -1307,7 +1312,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
   defp init_js do
     ~S"""
       // ========== INIT ==========
-
+    
       async function init() {
         restoreState();
         await Promise.all([loadProducts(), loadProjects(), loadAllSkills(), loadBoardSnapshot()]);
@@ -1319,7 +1324,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           selectAllIssues();
         }
       }
-
+    
       function restoreState() {
         selectedProductId = localStorage.getItem('symphony_hub_product') || null;
         activeTab = localStorage.getItem('symphony_hub_tab') || 'spec';
@@ -1328,7 +1333,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (params.get('product')) selectedProductId = params.get('product');
         if (params.get('tab')) activeTab = params.get('tab');
       }
-
+    
       function saveState() {
         localStorage.setItem('symphony_hub_product', selectedProductId || '');
         localStorage.setItem('symphony_hub_tab', activeTab);
@@ -1336,36 +1341,36 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (selectedProductId) url += '?product=' + selectedProductId + '&tab=' + activeTab;
         history.replaceState(null, '', url);
       }
-
+    
     """
   end
 
   defp data_loading_js do
     ~S"""
       // ========== DATA LOADING ==========
-
+    
       async function loadProducts() {
         var res = await fetch(API + '/products');
         var data = await res.json();
         allProducts = data.products || [];
       }
-
+    
       async function loadProjects() {
         var res = await fetch(API + '/projects');
         var data = await res.json();
         allProjects = data.projects || [];
       }
-
+    
       // loadAllSkills() provided by UIHelpers.load_skills_js()
-
+    
       async function loadBoardSnapshot() {
         try {
           var res = await fetch(API + '/snapshot');
           boardData = await res.json();
         } catch (e) { boardData = null; }
       }
-
-
+    
+    
       async function loadActivity() {
         if (!selectedProductId || selectedProductId === '__all__') { activityData = []; return; }
         try {
@@ -1374,14 +1379,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           activityData = data.issues || [];
         } catch (e) { activityData = []; }
       }
-
+    
     """
   end
 
   defp sidebar_js do
     ~S"""
       // ========== SIDEBAR ==========
-
+    
       function countIssuesForProduct(prod) {
         if (!boardData || !boardData.columns) return 0;
         var count = 0;
@@ -1395,10 +1400,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         return count;
       }
-
+    
       function renderSidebar() {
         var container = document.getElementById('sidebar-products');
-
+    
         var html = '';
         allProducts.forEach(function(p) {
           var isActive = selectedProductId === p.id;
@@ -1437,7 +1442,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         // Render all projects section
         renderAllProjectsList();
       }
-
+    
       function renderSidebarProjectItem(proj, parentProductId) {
         var cloneBtn = (proj.repo_url && !proj.path)
           ? '<button class="project-action-btn"' +
@@ -1470,16 +1475,16 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           '</span>' +
         '</div>';
       }
-
+    
       var projectsFilterUnassigned = false;
-
+    
       function toggleProjectsFilter() {
         projectsFilterUnassigned = !projectsFilterUnassigned;
         var btn = document.getElementById('projects-filter-btn');
         if (btn) btn.textContent = projectsFilterUnassigned ? 'Unassigned' : 'All';
         renderAllProjectsList();
       }
-
+    
       function renderAllProjectsList() {
         var section = document.getElementById('all-projects-section');
         var container = document.getElementById('sidebar-all-projects');
@@ -1498,10 +1503,10 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
         container.innerHTML = list.map(function(p) { return renderSidebarProjectItem(p, null); }).join('');
       }
-
+    
       // ========== SIDEBAR DRAG & DROP (Project -> Product) ==========
       var draggedProjectId = null;
-
+    
       function onProjectDragStart(e) {
         var el = e.target.closest('.sidebar-project');
         if (!el) return;
@@ -1510,7 +1515,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         e.dataTransfer.effectAllowed = 'link';
         e.dataTransfer.setData('text/plain', draggedProjectId);
       }
-
+    
       function onProjectDragEnd(e) {
         draggedProjectId = null;
         var el = e.target.closest('.sidebar-project');
@@ -1518,18 +1523,18 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.querySelectorAll('.sidebar-item.drag-over')
           .forEach(function(el) { el.classList.remove('drag-over'); });
       }
-
+    
       function onProductDragOver(e) {
         if (!draggedProjectId) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'link';
         e.currentTarget.classList.add('drag-over');
       }
-
+    
       function onProductDragLeave(e) {
         e.currentTarget.classList.remove('drag-over');
       }
-
+    
       async function onProductDrop(e) {
         e.preventDefault();
         e.currentTarget.classList.remove('drag-over');
@@ -1554,7 +1559,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Project assigned to product', { type: 'success' });
         } catch (err) { showToast('Failed to assign project', { type: 'error' }); }
       }
-
+    
       async function unlinkProjectFromProduct(projectId, productId) {
         var prod = allProducts.find(function(p) { return p.id === productId; });
         if (!prod) return;
@@ -1571,7 +1576,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Project unlinked', { type: 'success' });
         } catch (err) { showToast('Failed to unlink project', { type: 'error' }); }
       }
-
+    
       function handleProductClick(prodId) {
         // Click active product to deselect
         if (selectedProductId === prodId) {
@@ -1581,13 +1586,13 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           selectProduct(prodId);
         }
       }
-
+    
       async function refreshAfterMutation() {
         await loadBoardSnapshot();
         renderSidebar();
         if (activeTab === 'issues') renderKanban();
       }
-
+    
       function updateAllIssuesBadge() {
         if (boardData && boardData.columns) {
           var total = 0;
@@ -1595,13 +1600,13 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           document.getElementById('all-issues-badge').textContent = total;
         }
       }
-
+    
       async function selectProduct(prodId) {
         selectedProductId = prodId;
         saveState();
-
+    
         if (!prodId) { showWelcome(); renderSidebar(); return; }
-
+    
         try {
           var res = await fetch(API + '/products/' + prodId);
           if (!res.ok) {
@@ -1621,7 +1626,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         renderTabBar();
         loadTabContent();
       }
-
+    
       function selectAllIssues() {
         selectedProductId = '__all__';
         currentProd = null;
@@ -1635,7 +1640,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         renderTabBar();
         loadTabContent();
       }
-
+    
       function showWelcome() {
         document.getElementById('tab-content').innerHTML =
           '<div class="empty-state"><div class="empty-icon">' +
@@ -1652,21 +1657,21 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             : 'Create a product to group projects and track features.') + '</p>' +
           '<button class="btn btn-primary" onclick="openNewProductModal()">Create Product</button></div>';
       }
-
+    
     """
   end
 
   defp tabs_js do
     ~S"""
       // ========== TABS ==========
-
+    
       function switchTab(tab) {
         activeTab = tab;
         saveState();
         renderTabBar();
         loadTabContent();
       }
-
+    
       function renderTabBar() {
         var noProduct = !currentProd || selectedProductId === '__all__';
         document.querySelectorAll('.tab-item').forEach(function(el) {
@@ -1679,7 +1684,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         // Update issues badge from boardData
         updateIssuesBadge();
       }
-
+    
       async function loadTabContent() {
         var content = document.getElementById('tab-content');
         switch (activeTab) {
@@ -1755,7 +1760,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
         renderTabActions();
       }
-
+    
       function renderTabActions() {
         var actions = document.getElementById('tab-actions');
         if (activeTab === 'issues') {
@@ -1773,18 +1778,18 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           actions.innerHTML = '';
         }
       }
-
+    
     """
   end
 
   defp spec_sheet_js do
     ~S"""
       // ========== SPEC SHEET TAB ==========
-
+    
       function getProjectById(id) {
         return allProjects.find(function(p) { return p.id === id; }) || { id: id, name: id };
       }
-
+    
       function computeOverallStatus(statuses, projectIds) {
         var pids = projectIds || Object.keys(statuses || {});
         var applicable = pids.filter(function(pid) { return (statuses[pid] || 'missing') !== 'n_a'; });
@@ -1796,19 +1801,19 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (vals.some(function(v) { return v === 'planned'; })) return 'planned';
         return 'missing';
       }
-
+    
       function getApplicableProjects(feature, projectIds) {
         var pids = projectIds || Object.keys(feature.statuses || {});
         return pids.filter(function(pid) { return (feature.statuses[pid] || 'missing') !== 'n_a'; });
       }
-
+    
       function scoreColor(pct) {
         if (pct === 0) return 'var(--text-muted)';
         if (pct >= 80) return 'var(--green)';
         if (pct >= 50) return 'var(--yellow)';
         return 'var(--red)';
       }
-
+    
       function computeCategoryStats(features) {
         var total = 0, done = 0;
         features.forEach(function(f) {
@@ -1817,7 +1822,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         return { total: total, done: done, pct: total > 0 ? Math.round(done / total * 100) : 100 };
       }
-
+    
       function getCategories(features) {
         var cats = {};
         features.forEach(function(f) {
@@ -1830,7 +1835,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         return keys.map(function(k) { return { name: k, features: cats[k] }; });
       }
-
+    
       function renderDonutSVG(pct, color) {
         var r = 22, c = 28, stroke = 5, circ = 2 * Math.PI * r;
         var offset = circ - (pct / 100) * circ;
@@ -1847,7 +1852,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           ' font-size="13" font-weight="700">'+pct+'%</text>' +
           '</svg>';
       }
-
+    
       function renderSpecSheet() {
         if (!currentProd) return;
         var prod = currentProd, pids = prod.project_ids || [], features = prod.features || [];
@@ -1857,7 +1862,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         renderInlineGapSection(prod, pids, features);
         updateCategoryDatalist(features);
       }
-
+    
       function renderProductHeader(prod, pids, features) {
         var el = document.getElementById('product-header');
         if (!el) return;
@@ -1920,7 +1925,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           '</div></div>';
         el.innerHTML = html;
       }
-
+    
       function renderCategoryRings(prod, pids, features) {
         var el = document.getElementById('category-rings'); if (!el) return;
         var categories = getCategories(features);
@@ -1938,7 +1943,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         html += '</div>'; el.innerHTML = html;
       }
-
+    
       function renderCategorySections(prod, pids, features) {
         var el = document.getElementById('category-sections'); if (!el) return;
         var categories = getCategories(features); var html = '';
@@ -1968,7 +1973,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             '</div>';
         el.innerHTML = html;
       }
-
+    
       function renderInlineGapSection(prod, pids, features) {
         var el = document.getElementById('inline-gap-section'); if (!el) return;
         var gaps = [];
@@ -2015,9 +2020,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
         html += '</div>'; el.innerHTML = html;
       }
-
+    
       function toggleGapSection() { gapSectionCollapsed = !gapSectionCollapsed; renderSpecSheet(); }
-
+    
       async function quickSetStatus(featureId, projectId, status) {
         await fetch(API + '/products/' + currentProd.id + '/features/' + featureId + '/status', {
           method: 'PATCH',
@@ -2026,7 +2031,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         var res = await fetch(API + '/products/' + currentProd.id); currentProd = await res.json(); renderSpecSheet();
       }
-
+    
       function renderFeatureCard(f, pids) {
         var overall = computeOverallStatus(f.statuses);
         var applicable = getApplicableProjects(f);
@@ -2083,7 +2088,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         '</div></div></div>';
         return html;
       }
-
+    
       function filterCategory(catName) { activeFilter = activeFilter === catName ? null : catName; renderSpecSheet(); }
       function toggleCategory(catName) {
         collapsedCategories[catName] = !collapsedCategories[catName];
@@ -2111,14 +2116,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (dl) dl.innerHTML = Object.keys(cats).map(function(c) { return '<option value="' + esc(c) + '">';
         }).join('');
       }
-
+    
     """
   end
 
   defp kanban_js do
     ~S"""
       // ========== ISSUES TAB (KANBAN) ==========
-
+    
       function issueMatchesProduct(issue) {
         if (!currentProd || selectedProductId === '__all__') return true;
         if (issue.product_id === selectedProductId) return true;
@@ -2126,7 +2131,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (issue.project_id && (currentProd.project_ids || []).indexOf(issue.project_id) >= 0) return true;
         return false;
       }
-
+    
       function renderKanban() {
         var board = document.getElementById('kanban-board');
         if (!board || !boardData || !boardData.columns) return;
@@ -2170,16 +2175,16 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         });
         updateIssuesBadge();
       }
-
+    
       function updateIssuesBadge() {
         if (!boardData || !boardData.columns) return;
         var count = 0;
         boardData.columns.forEach(function(col) { count += col.issues.filter(issueMatchesProduct).length; });
         document.getElementById('issues-tab-badge').textContent = count;
       }
-
+    
       var DELETABLE_STATES = ['Backlog', 'Cancelled', 'Archived', 'Done'];
-
+    
       function renderIssueCard(issue) {
         var labels = (issue.labels || []).slice(0, 2).map(function(l) {
           return '<span class="label-tag">' + esc(l) + '</span>';
@@ -2225,15 +2230,15 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             : '') +
           '</div></div>';
       }
-
+    
       function toggleKbColumn(state) {
         collapsedColumns[state] = !collapsedColumns[state];
         localStorage.setItem('symphony_hub_columns', JSON.stringify(collapsedColumns));
         renderKanban();
       }
-
+    
       // Drag & Drop and Quick Add — provided by shared kanban_drag_drop_js()
-
+    
       // Delete issue from hub
       async function deleteIssueFromHub(id, identifier) {
         if (!confirm('Delete ' + identifier + '?')) return;
@@ -2243,8 +2248,8 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Deleted ' + identifier, { type: 'success' });
         } catch (err) { showToast('Delete failed: ' + err.message, { type: 'error' }); }
       }
-
-
+    
+    
       // Auto-dispatch
       async function loadAutoSettings() {
         try {
@@ -2280,14 +2285,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           body: JSON.stringify({ segregate_by_project: enabled ? 'true' : 'false' })
         });
       }
-
+    
     """
   end
 
   defp activity_js do
     ~S"""
       // ========== ACTIVITY TAB ==========
-
+    
       function renderActivity() {
         var el = document.getElementById('activity-feed');
         if (!el) return;
@@ -2320,27 +2325,27 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         el.innerHTML = html;
         document.getElementById('activity-tab-badge').textContent = activityData.length;
       }
-
+    
     """
   end
 
   defp kb_browser_js do
     ~S"""
       // ========== KNOWLEDGE BASE TAB ==========
-
+    
       var kbNotes = [];
-
+    
       async function loadKBNotes() {
         var resultsEl = document.getElementById('kb-results');
         if (!resultsEl) return;
         resultsEl.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Loading notes...</div>';
-
+    
         // Search with product scope if a product is selected
         var query = '';
         if (currentProd && selectedProductId !== '__all__') {
           query = currentProd.name;
         }
-
+    
         try {
           var res = await fetch('/board/api/vault/search?q=' + encodeURIComponent(query));
           var data = await res.json();
@@ -2351,7 +2356,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             '<h2>KB unavailable</h2><p>' + esc(err.message) + '</p></div>';
         }
       }
-
+    
       async function searchKB() {
         var input = document.getElementById('kb-search-input');
         if (!input) return;
@@ -2362,7 +2367,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         // Hide note viewer
         var viewer = document.getElementById('kb-note-viewer');
         if (viewer) viewer.style.display = 'none';
-
+    
         try {
           var res = await fetch('/board/api/vault/search?q=' + encodeURIComponent(query));
           var data = await res.json();
@@ -2372,13 +2377,13 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           resultsEl.innerHTML = '<div class="empty-state"><p>Search failed: ' + esc(err.message) + '</p></div>';
         }
       }
-
+    
       function renderKBNotes() {
         var resultsEl = document.getElementById('kb-results');
         if (!resultsEl) return;
         var badge = document.getElementById('kb-tab-badge');
         if (badge) { badge.textContent = kbNotes.length; badge.style.display = kbNotes.length > 0 ? '' : 'none'; }
-
+    
         if (kbNotes.length === 0) {
           resultsEl.innerHTML = '<div class="empty-state" style="height:30vh">' +
             '<h2>No notes found</h2>' +
@@ -2386,7 +2391,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             ' on completed issues, or run extract-logic tasks.</p></div>';
           return;
         }
-
+    
         var html = '<div class="kb-notes-list">';
         kbNotes.forEach(function(note) {
           var pathParts = note.path.replace(/\\\\/g, '/').split('/');
@@ -2400,27 +2405,27 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         html += '</div>';
         resultsEl.innerHTML = html;
       }
-
+    
       async function viewKBNote(notePath) {
         var viewer = document.getElementById('kb-note-viewer');
         var resultsEl = document.getElementById('kb-results');
         if (!viewer || !resultsEl) return;
-
+    
         viewer.style.display = '';
         viewer.innerHTML = '<div class="tab-loading"><span class="spinner"></span> Loading note...</div>';
-
+    
         try {
           var res = await fetch('/board/api/vault/note?path=' + encodeURIComponent(notePath));
           if (!res.ok) throw new Error('Note not found');
           var data = await res.json();
-
+    
           var fm = data.frontmatter || {};
           var fmHtml = '';
           Object.keys(fm).forEach(function(k) {
             var v = Array.isArray(fm[k]) ? fm[k].join(', ') : fm[k];
             fmHtml += '<span class="kb-fm-tag"><strong>' + esc(k) + ':</strong> ' + esc(v) + '</span>';
           });
-
+    
           viewer.innerHTML = '<div class="kb-note-header">' +
             '<button class="btn btn-ghost btn-sm" onclick="closeKBNote()">Back</button>' +
             '<span class="kb-note-path">' + esc(notePath) + '</span>' +
@@ -2444,12 +2449,12 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             '<div class="empty-state"><p>Failed to load note: ' + esc(err.message) + '</p></div>';
         }
       }
-
+    
       function closeKBNote() {
         var viewer = document.getElementById('kb-note-viewer');
         if (viewer) viewer.style.display = 'none';
       }
-
+    
       async function deleteKBNote(notePath) {
         if (!confirm('Delete this note from the Knowledge Base?')) return;
         try {
@@ -2470,16 +2475,16 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Delete failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
     """
   end
 
   defp kb_editor_js do
     ~S"""
       // ========== NOTE EDITOR (Gap 2) ==========
-
+    
       var editingNotePath = null;
-
+    
       function openKBEditor(productName) {
         var editor = document.getElementById('kb-editor');
         var results = document.getElementById('kb-results');
@@ -2509,7 +2514,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         '</div>';
         document.getElementById('kb-edit-title').focus();
       }
-
+    
       async function openKBEditorForNote(notePath) {
         var editor = document.getElementById('kb-editor');
         var viewer = document.getElementById('kb-note-viewer');
@@ -2547,7 +2552,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             '<button class="btn btn-ghost btn-sm" onclick="closeKBEditor()">Back</button>';
         }
       }
-
+    
       async function saveKBNote() {
         var title = (document.getElementById('kb-edit-title').value || '').trim();
         if (!title) {
@@ -2577,7 +2582,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Save failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
       function closeKBEditor() {
         var editor = document.getElementById('kb-editor');
         var results = document.getElementById('kb-results');
@@ -2585,9 +2590,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (results) results.style.display = '';
         editingNotePath = null;
       }
-
+    
       // ========== APPEND TO NOTE ==========
-
+    
       async function openAppendToNote(notePath) {
         var viewer = document.getElementById('kb-note-viewer');
         if (!viewer) return;
@@ -2608,7 +2613,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         viewer.appendChild(form);
         document.getElementById('kb-append-content').focus();
       }
-
+    
       async function doAppendToNote(notePath) {
         var content = (document.getElementById('kb-append-content').value || '').trim();
         if (!content) { showToast('Content is required', { type: 'error' }); return; }
@@ -2629,14 +2634,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Append failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
     """
   end
 
   defp kb_versions_js do
     ~S"""
       // ========== BATCH SEND TO KB (Gap 6) ==========
-
+    
       async function batchSendToKB() {
         if (!currentProd || selectedProductId === '__all__') {
           showToast('Select a product first', { type: 'error' });
@@ -2685,9 +2690,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Batch send failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
       // ========== VERSION HISTORY (Gap 7) ==========
-
+    
       async function showVersionHistory(notePath) {
         var panel = document.getElementById('kb-version-panel');
         if (!panel) return;
@@ -2731,7 +2736,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             esc(err.message) + '</div>';
         }
       }
-
+    
       async function viewVersion(versionPath, notePath) {
         var panel = document.getElementById('kb-version-panel');
         if (!panel) return;
@@ -2759,7 +2764,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Failed to load version: ' + err.message, { type: 'error' });
         }
       }
-
+    
       async function diffVersion(versionPath, notePath) {
         var panel = document.getElementById('kb-version-panel');
         if (!panel) return;
@@ -2789,7 +2794,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Diff failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
       function computeSimpleDiff(oldLines, newLines) {
         var html = '';
         var maxLen = Math.max(oldLines.length, newLines.length);
@@ -2805,7 +2810,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
         return html;
       }
-
+    
       async function restoreVersion(versionPath, notePath) {
         if (!confirm('Restore this version? The current version will be saved to history first.')) return;
         try {
@@ -2825,14 +2830,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           showToast('Restore failed: ' + err.message, { type: 'error' });
         }
       }
-
+    
     """
   end
 
   defp modal_product_js do
     ~S"""
       // ========== MODALS: PRODUCT CRUD ==========
-
+    
       function openNewProductModal() {
         document.getElementById('prod-modal-title').textContent = 'New Product';
         document.getElementById('product-form-id').value = '';
@@ -2845,7 +2850,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         openModal('prod-modal');
         document.getElementById('prod-ai-draft-input').focus();
       }
-
+    
       function openEditProductModal() {
         if (!currentProd) return;
         document.getElementById('prod-modal-title').textContent = 'Edit Product';
@@ -2859,9 +2864,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         openModal('prod-modal');
         document.getElementById('product-form-name').focus();
       }
-
+    
       function closeProdModal() { closeModal('prod-modal'); }
-
+    
       function renderProjectChecklist(selectedIds) {
         var container = document.getElementById('project-checklist');
         if (allProjects.length === 0) {
@@ -2878,7 +2883,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             esc(p.name) + '</label>';
         }).join('');
       }
-
+    
       async function saveProduct() {
         var editId = document.getElementById('product-form-id').value;
         var name = document.getElementById('product-form-name').value.trim();
@@ -2908,7 +2913,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (editId) await selectProduct(editId);
         else if (allProducts.length > 0) await selectProduct(allProducts[allProducts.length - 1].id);
       }
-
+    
       async function deleteCurrentProduct() {
         if (!currentProd) return;
         if (!confirm('Delete product "' + currentProd.name + '"?')) return;
@@ -2916,14 +2921,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         selectedProductId = null; currentProd = null;
         await loadProducts(); renderSidebar(); saveState(); showWelcome();
       }
-
+    
     """
   end
 
   defp modal_feature_js do
     ~S"""
       // ========== MODALS: FEATURE CRUD ==========
-
+    
       function renderDepsChecklist(selectedIds, excludeId) {
         var container = document.getElementById('feature-deps-checklist');
         var features = (currentProd && currentProd.features) ? currentProd.features : [];
@@ -2939,7 +2944,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
             esc(f.name) + '</label>';
         }).join('');
       }
-
+    
       function openAddFeatureModal(defaultCategory) {
         document.getElementById('feature-modal-title').textContent = 'Add Feature';
         document.getElementById('feature-edit-id').value = '';
@@ -2951,7 +2956,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         openModal('feature-modal');
         document.getElementById('feature-name').focus();
       }
-
+    
       function editFeature(fid) {
         var f = currentProd.features.find(function(x) { return x.id === fid; }); if (!f) return;
         document.getElementById('feature-modal-title').textContent = 'Edit Feature';
@@ -2963,9 +2968,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         openModal('feature-modal');
         document.getElementById('feature-name').focus();
       }
-
+    
       function closeFeatureModal() { closeModal('feature-modal'); }
-
+    
       async function saveFeature() {
         var editId = document.getElementById('feature-edit-id').value;
         var name = document.getElementById('feature-name').value.trim(); if (!name) {
@@ -2993,14 +2998,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var res = await fetch(API + '/products/' + currentProd.id);
         currentProd = await res.json(); renderSpecSheet();
       }
-
+    
       async function deleteFeature(fid) {
         if (!confirm('Delete this feature?')) return;
         await fetch(API + '/products/' + currentProd.id + '/features/' + fid, { method: 'DELETE' });
         var res = await fetch(API + '/products/' + currentProd.id);
         currentProd = await res.json(); renderSpecSheet();
       }
-
+    
       // Feature Detail Modal
       function openFeatureDetail(fid) {
         var f = currentProd.features.find(function(x) { return x.id === fid; });
@@ -3043,13 +3048,13 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('detail-modal-body').innerHTML = html;
         openModal('detail-modal');
       }
-
+    
       function closeDetailModal() { closeModal('detail-modal'); }
       function toggleDetailHistory(fid) {
         detailHistoryExpanded[fid] = !detailHistoryExpanded[fid];
         openFeatureDetail(fid);
       }
-
+    
       async function cycleDetailStatus(featureId, projectId, current) {
         var idx = STATUS_ORDER.indexOf(current); var next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
         await fetch(API + '/products/' + currentProd.id + '/features/' + featureId + '/status', {
@@ -3059,16 +3064,16 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var res = await fetch(API + '/products/' + currentProd.id);
         currentProd = await res.json(); renderSpecSheet(); openFeatureDetail(featureId);
       }
-
+    
     """
   end
 
   defp modal_agent_js do
     ~S"""
       // ========== MODALS: AGENT ACTIONS ==========
-
+    
       // Skill picker — shared from UIHelpers.skill_picker_js()
-
+    
       // Analyze Gaps
       async function analyzeGaps() {
         if (!currentProd) return;
@@ -3083,7 +3088,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
         finally { btn.textContent = origText; btn.disabled = false; }
       }
-
+    
       // Generate Features
       function openGenerateModal() {
         if (!currentProd) return;
@@ -3114,7 +3119,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
         finally { btn.innerHTML = 'Create Agent Task'; btn.disabled = false; }
       }
-
+    
       // Check Feature
       async function checkFeature(featureId) {
         if (!currentProd) return;
@@ -3135,7 +3140,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
       }
-
+    
       // Analyze Existing
       async function analyzeExistingFeatures() {
         if (!currentProd) return;
@@ -3151,7 +3156,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
         finally { btn.textContent = origText; btn.disabled = false; }
       }
-
+    
       // Code Review
       function openCodeReviewModal() {
         if (!currentProd) return;
@@ -3179,7 +3184,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
         finally { btn.innerHTML = 'Start Code Review'; btn.disabled = false; }
       }
-
+    
       // Generate Definition
       function openGenDefModal() {
         if (!currentProd) return;
@@ -3207,7 +3212,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
         finally { btn.innerHTML = 'Generate Definition'; btn.disabled = false; }
       }
-
+    
       // Product Task
       function openProductTaskModal() {
         if (!currentProd) return;
@@ -3245,14 +3250,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         catch (e) { showToast('Failed: ' + e.message, { type: 'error' }); }
         finally { btn.innerHTML = 'Create Task'; btn.disabled = false; }
       }
-
+    
     """
   end
 
   defp modal_issue_js do
     ~S"""
       // ========== ISSUE CREATE MODAL ==========
-
+    
       // Hooks for the shared AI draft (prefix "hi")
       function hiAiDraftExtras() {
         return {};
@@ -3264,7 +3269,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           document.getElementById('hi-skills').style.display = '';
         }
       }
-
+    
       async function aiDraftProduct() {
         var input = document.getElementById('prod-ai-draft-input');
         var hint = input.value.trim();
@@ -3288,7 +3293,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (e) { showToast('Draft failed: ' + e.message, { type: 'error' }); }
         finally { btn.textContent = 'AI Draft'; btn.disabled = false; input.disabled = false; }
       }
-
+    
       async function aiDraftProject() {
         var input = document.getElementById('project-ai-draft-input');
         var hint = input.value.trim();
@@ -3311,7 +3316,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (e) { showToast('Draft failed: ' + e.message, { type: 'error' }); }
         finally { btn.textContent = 'AI Draft'; btn.disabled = false; input.disabled = false; }
       }
-
+    
       async function openIssueCreateModal() {
         hiReset();
         renderSkillPicker('hi-skills', [], []);
@@ -3326,9 +3331,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('hi-modal').style.display = 'flex';
         setTimeout(function() { document.getElementById('hi-ai-draft-input').focus(); }, 100);
       }
-
+    
       function closeIssueModal() { document.getElementById('hi-modal').style.display = 'none'; }
-
+    
       async function handleIssueSubmit(e) {
         e.preventDefault();
         var d = hiCollectData();
@@ -3359,14 +3364,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           await refreshAfterMutation();
         } catch (err) { showToast('Save failed', { type: 'error' }); }
       }
-
+    
     """
   end
 
   defp modal_project_js do
     ~S"""
       // ========== PROJECT CRUD ==========
-
+    
       function openNewProjectModal() {
         document.getElementById('project-modal-title').textContent = 'New Project';
         document.getElementById('project-form-id').value = '';
@@ -3381,7 +3386,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         openModal('project-modal');
         document.getElementById('project-ai-draft-input').focus();
       }
-
+    
       function editProjectInline(id) {
         var p = allProjects.find(function(x) { return x.id === id; }); if (!p) return;
         document.getElementById('project-modal-title').textContent = 'Edit: ' + p.name;
@@ -3397,9 +3402,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         openModal('project-modal');
         document.getElementById('project-form-name').focus();
       }
-
+    
       function closeProjectModal() { closeModal('project-modal'); }
-
+    
       async function handleProjectSubmit(e) {
         e.preventDefault();
         var id = document.getElementById('project-form-id').value;
@@ -3432,7 +3437,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           await loadProjects(); renderSidebar();
         } catch (err) { showToast('Save failed: ' + err.message, { type: 'error' }); }
       }
-
+    
       async function deleteProjectInline(id) {
         var p = allProjects.find(function(x) { return x.id === id; }); if (!p) return;
         if (!confirm('Delete project "' + p.name + '" and all its issues?')) return;
@@ -3442,7 +3447,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           await loadProjects(); renderSidebar();
         } catch (err) { showToast('Delete failed: ' + err.message, { type: 'error' }); }
       }
-
+    
       async function cloneProject(id) {
         var p = allProjects.find(function(x) { return x.id === id; }); if (!p) return;
         if (!confirm('Clone repository for "' + p.name + '"?\n' + p.repo_url)) return;
@@ -3457,7 +3462,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           else { showToast('Clone failed: ' + (data.error || 'unknown'), { type: 'error' }); }
         } catch (err) { showToast('Clone failed: ' + err.message, { type: 'error' }); }
       }
-
+    
       async function browseFolder(targetInputId) {
         try {
           var res = await fetch(API + '/browse-folder', { method: 'POST' });
@@ -3465,7 +3470,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           if (data.path) document.getElementById(targetInputId).value = data.path;
         } catch (err) { showToast('Failed to open folder dialog', { type: 'error' }); }
       }
-
+    
     """
   end
 
@@ -3473,7 +3478,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
     ~S"""
       // Import / Scan
       var scannedCandidates = [];
-
+    
       function openScanModal() {
         document.getElementById('scan-root-path').value = '';
         document.getElementById('scan-results').innerHTML = '';
@@ -3481,9 +3486,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         scannedCandidates = [];
         openModal('scan-modal');
       }
-
+    
       function closeScanModal() { closeModal('scan-modal'); }
-
+    
       async function scanDirectory() {
         var rootPath = document.getElementById('scan-root-path').value.trim(); if (!rootPath) return;
         var btn = document.getElementById('scan-btn');
@@ -3514,7 +3519,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         }
         finally { btn.disabled = false; btn.textContent = 'Scan'; }
       }
-
+    
       function renderScanResults() {
         var results = document.getElementById('scan-results');
         if (scannedCandidates.length === 0) {
@@ -3562,14 +3567,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         document.getElementById('import-btn').textContent =
           'Import ' + selectedCount + ' Project' + (selectedCount !== 1 ? 's' : '');
       }
-
+    
       function toggleScanItem(idx, checked) { scannedCandidates[idx]._selected = checked; renderScanResults(); }
       function toggleAllScan(checked) {
         scannedCandidates.forEach(function(c) { if (!c._existing) c._selected = checked;
         });
         renderScanResults();
       }
-
+    
       async function importScanned() {
         var toImport = scannedCandidates.filter(function(c) { return c._selected && !c._existing; })
           .map(function(c) {
@@ -3597,14 +3602,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         } catch (err) { showToast('Import failed: ' + err.message, { type: 'error' }); }
         finally { btn.disabled = false; }
       }
-
+    
     """
   end
 
   defp keyboard_shortcuts_js do
     ~S"""
       // ========== KEYBOARD SHORTCUTS ==========
-
+    
       document.addEventListener('keydown', function(e) {
         var inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
         if (e.key === 'Escape') {
@@ -3619,14 +3624,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); openIssueCreateModal(); }
         if (e.key === '?') showToast('1/2/3=Tabs  n=New Issue  Esc=Close', { duration: 3000 });
       });
-
+    
     """
   end
 
   defp auto_refresh_js do
     ~S"""
       // ========== AUTO-REFRESH ==========
-
+    
       async function refreshCurrentView() {
         if (draggedCard) return;
         await loadBoardSnapshot();
@@ -3641,14 +3646,14 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           if (res.ok) { currentProd = await res.json(); renderSpecSheet(); }
         }
       }
-
+    
       setInterval(refreshCurrentView, 10000);
-
+    
       // Refresh immediately when tab regains focus
       document.addEventListener('visibilitychange', function() {
         if (!document.hidden) refreshCurrentView();
       });
-
+    
       // ========== START ==========
       init();
     """

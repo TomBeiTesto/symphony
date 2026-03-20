@@ -1,5 +1,5 @@
 defmodule SymphonyElixir.LLMTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias SymphonyElixir.LLM
 

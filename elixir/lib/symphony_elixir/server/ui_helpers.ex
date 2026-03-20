@@ -503,25 +503,30 @@ defmodule SymphonyElixir.Server.UIHelpers do
   @spec nav_topbar(String.t()) :: String.t()
   def nav_topbar(active \\ "") do
     nav_items = [
-      {"hub", "/board", "Hub"},
-      {"pipeline", "/board/pipeline", "Pipeline"},
-      {"skills", "/board/skills", "Skills"},
-      {"settings", "/board/settings", "Settings"}
+      {"hub", "/board", "Hub",
+       ~S({"title":"Hub","what":"Product dashboard showing all your products, projects, and issues at a glance.","why":"Central starting point — manage products, create issues, and launch pipelines.","connects":"Products, Projects, Issues"})},
+      {"pipeline", "/board/pipeline", "Pipeline",
+       ~S({"title":"Pipelines","what":"Visual DAG editor for multi-step AI workflows. Drag nodes, connect edges, start runs.","why":"Automate complex tasks: analyze → plan → implement → review → test — all orchestrated.","connects":"Pipeline Nodes, Issues, Skills, Knowledge Base"})},
+      {"skills", "/board/skills", "Skills",
+       ~S({"title":"Skills","what":"Reusable AI instruction documents that shape how agents work. Assign to issues or pipeline nodes.","why":"Encode your standards: testing practices, code review checklists, design rules — agents follow them.","connects":"Issues, Skill Groups, Pipeline Nodes"})},
+      {"settings", "/board/settings", "Settings",
+       ~S({"title":"Settings","what":"Global configuration: AI provider keys, agent model, workspace root, KB vault path, integrations.","why":"Control how Symphony connects to AI providers, where agents work, and how the KB is stored.","connects":"Orchestrator, Knowledge Base, Integrations"})},
+      {"guide", "/board/guide", "Guide",
+       ~S({"title":"Guide","what":"Interactive concept map and help system. Explore how all Symphony concepts connect.","why":"Understand the big picture — click any concept to learn what it does and how it relates to others.","connects":"All Symphony concepts"})}
     ]
 
     links =
       nav_items
-      |> Enum.map(fn {key, href, label} ->
+      |> Enum.map(fn {key, href, label, help} ->
         cls = if key == active, do: "btn btn-ghost nav-active", else: "btn btn-ghost"
 
         indicator =
           if key == "pipeline",
-            do:
-              ~s(<span id="pipeline-run-indicator" class="pipeline-run-dot"
+            do: ~s(<span id="pipeline-run-indicator" class="pipeline-run-dot"
                 style="display:none" title="Pipeline running"></span>),
             else: ""
 
-        ~s(<a href="#{href}" class="#{cls}">#{label}#{indicator}</a>)
+        ~s(<a href="#{href}" class="#{cls}" data-help='#{help}'>#{label}#{indicator}</a>)
       end)
       |> Enum.join("\n            ")
 
@@ -1191,7 +1196,155 @@ defmodule SymphonyElixir.Server.UIHelpers do
       nav_active_css() <>
       button_css() <>
       badge_css() <>
-      toast_css()
+      toast_css() <>
+      explain_mode_css()
+  end
+
+  @doc false
+  def explain_mode_css do
+    ~S"""
+    /* ── Explain Mode ── */
+    #explain-badge {
+      display: none;
+      position: fixed; bottom: 16px; left: 16px; z-index: 10000;
+      background: var(--accent); color: #000; font-weight: 700; font-size: 0.75rem;
+      padding: 4px 12px; border-radius: 20px;
+      animation: explain-pulse 2s ease infinite;
+      cursor: pointer; pointer-events: auto;
+    }
+    @keyframes explain-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(88,166,255,0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(88,166,255,0); }
+    }
+    body.explain-active [data-help] {
+      outline: 2px dashed var(--accent) !important;
+      outline-offset: 2px;
+      cursor: help !important;
+      transition: outline-color var(--transition);
+    }
+    body.explain-active [data-help]:hover {
+      outline-color: var(--accent-hover) !important;
+      background: rgba(88,166,255,0.06);
+    }
+    #explain-popover {
+      display: none; position: fixed; z-index: 10001;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 20px;
+      box-shadow: var(--shadow); max-width: 360px; min-width: 240px;
+      font-size: 0.85rem; line-height: 1.55;
+    }
+    #explain-popover .ep-title {
+      font-weight: 700; color: var(--accent); font-size: 0.95rem;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    }
+    #explain-popover .ep-section { margin-bottom: 8px; }
+    #explain-popover .ep-label {
+      font-weight: 600; color: var(--text-muted); font-size: 0.72rem;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
+    }
+    #explain-popover .ep-text { color: var(--text-secondary); }
+    #explain-popover .ep-connects { color: var(--purple); font-style: italic; }
+    #explain-popover .ep-close {
+      position: absolute; top: 8px; right: 10px; background: none; border: none;
+      color: var(--text-muted); cursor: pointer; font-size: 1rem; padding: 2px 6px;
+    }
+    #explain-popover .ep-close:hover { color: var(--text-primary); }
+    """
+  end
+
+  @doc false
+  def explain_mode_js do
+    ~S"""
+    <div id="explain-badge" onclick="toggleExplain()">? Explain Mode</div>
+    <div id="explain-popover"><button class="ep-close" onclick="closeExplainPopover()">&times;</button><div id="ep-content"></div></div>
+    <script>
+    (function() {
+      var active = false;
+      var badge = document.getElementById('explain-badge');
+      var popover = document.getElementById('explain-popover');
+
+      window.toggleExplain = function() {
+        active = !active;
+        document.body.classList.toggle('explain-active', active);
+        badge.style.display = 'block';
+        badge.textContent = active ? '? Explain Mode ON — click any highlighted element' : '? Explain Mode';
+        badge.style.background = active ? 'var(--accent)' : 'var(--bg-tertiary)';
+        badge.style.color = active ? '#000' : 'var(--text-muted)';
+        if (!active) closeExplainPopover();
+      };
+
+      window.closeExplainPopover = function() {
+        popover.style.display = 'none';
+      };
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          var tag = (e.target.tagName || '').toLowerCase();
+          if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+          e.preventDefault();
+          toggleExplain();
+        }
+        if (e.key === 'Escape' && popover.style.display !== 'none') {
+          closeExplainPopover();
+        }
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!active) return;
+        var el = e.target.closest('[data-help]');
+        if (el) {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            var data = JSON.parse(el.getAttribute('data-help'));
+            showExplainPopover(el, data);
+          } catch(err) { console.warn('Invalid data-help JSON', err); }
+          return;
+        }
+        if (!popover.contains(e.target) && e.target !== badge) {
+          closeExplainPopover();
+        }
+      }, true);
+
+      function showExplainPopover(el, data) {
+        var html = '';
+        if (data.title) html += '<div class="ep-title">' + esc(data.title) + '</div>';
+        if (data.what) html += '<div class="ep-section"><div class="ep-label">What it is</div><div class="ep-text">' + esc(data.what) + '</div></div>';
+        if (data.why) html += '<div class="ep-section"><div class="ep-label">Why use it</div><div class="ep-text">' + esc(data.why) + '</div></div>';
+        if (data.connects) html += '<div class="ep-section"><div class="ep-label">Connects to</div><div class="ep-connects">' + esc(data.connects) + '</div></div>';
+        document.getElementById('ep-content').innerHTML = html;
+
+        var rect = el.getBoundingClientRect();
+        var pw = 360, ph = popover.offsetHeight || 200;
+        var left = rect.left + rect.width / 2 - pw / 2;
+        var top = rect.bottom + 8;
+        if (left < 8) left = 8;
+        if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+        if (top + ph > window.innerHeight - 8) top = rect.top - ph - 8;
+        if (top < 8) top = 8;
+
+        popover.style.left = left + 'px';
+        popover.style.top = top + 'px';
+        popover.style.display = 'block';
+      }
+
+      // esc function for popover (reuse if available)
+      if (typeof window.esc !== 'function') {
+        window.esc = function(s) {
+          if (s == null) return '';
+          var d = document.createElement('div');
+          d.textContent = s;
+          return d.innerHTML;
+        };
+      }
+
+      // Show badge on load so user knows the feature exists
+      badge.style.display = 'block';
+      badge.style.background = 'var(--bg-tertiary)';
+      badge.style.color = 'var(--text-muted)';
+    })();
+    </script>
+    """
   end
 
   @doc """
@@ -1220,6 +1373,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
     <body>
     #{nav_topbar(active_nav)}
     #{body}
+    #{explain_mode_js()}
     </body>
     </html>
     """

@@ -7,7 +7,7 @@ defmodule SymphonyElixir.Workspace do
 
   require Logger
 
-  alias SymphonyElixir.{Config, Issue, ShellUtils}
+  alias SymphonyElixir.{Config, Issue, PathUtils, ShellUtils}
 
   @type hook_name :: :after_create | :before_run | :after_run | :before_remove
   @type create_result :: {:ok, %{path: String.t(), created_now: boolean()}} | {:error, term()}
@@ -114,8 +114,8 @@ defmodule SymphonyElixir.Workspace do
   """
   @spec validate_workspace_path(Config.t(), String.t()) :: :ok | {:error, term()}
   def validate_workspace_path(%Config{} = config, workspace_path) do
-    root = normalize_path(config.workspace_root)
-    path = normalize_path(workspace_path)
+    root = PathUtils.normalize_path(config.workspace_root)
+    path = PathUtils.normalize_path(workspace_path)
 
     basename = Path.basename(path)
 
@@ -190,19 +190,6 @@ defmodule SymphonyElixir.Workspace do
   end
 
   # --- Path Helpers ---
-
-  defp normalize_path(path) do
-    expanded = Path.expand(path)
-
-    case :os.type() do
-      {:win32, _} ->
-        # Normalize to forward slashes and lowercase on Windows
-        expanded |> String.replace("\\", "/") |> String.downcase()
-
-      _ ->
-        expanded
-    end
-  end
 
   defp path_is_under?(child, parent) do
     # Ensure parent ends with separator for prefix comparison

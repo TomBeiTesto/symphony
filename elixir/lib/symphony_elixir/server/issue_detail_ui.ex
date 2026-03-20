@@ -1,7 +1,8 @@
+# credo:disable-for-this-file Credo.Check.Readability.MaxLineLength
 defmodule SymphonyElixir.Server.IssueDetailUI do
   @moduledoc """
   Server-rendered issue detail page with live activity feed.
-
+  
   Shows issue metadata and polls the orchestrator for real-time
   agent activity (tool use, messages, token usage).
   """
@@ -29,7 +30,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           <span class="meta" id="agent-status">Loading...</span>
         </div>
       </div>
-
+    
       <div class="rerun-bar" id="rerun-panel" style="display:none;">
         <div class="rerun-bar-inner">
           <div class="rerun-bar-left">
@@ -46,7 +47,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           </div>
         </div>
       </div>
-
+    
       <div class="content">
         <div class="main-grid">
           <!-- Left: Issue info + result -->
@@ -186,7 +187,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
               <div class="report-content" id="report-content"></div>
             </div>
           </div>
-
+    
           <!-- Right: Agent activity -->
           <div class="panel activity-panel">
             <div class="activity-header">
@@ -199,7 +200,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           </div>
         </div>
       </div>
-
+    
       <script>
     #{UIHelpers.esc_js()}
     #{UIHelpers.markdown_js()}
@@ -246,7 +247,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       UIHelpers.pulse_css() <>
       UIHelpers.label_css() <>
       ~S"""
-
+      
       html, body { height: 100%; overflow: hidden; }
       body { display: flex; flex-direction: column; }
       h1 { color: var(--text-primary); font-size: 1.15rem; }
@@ -529,7 +530,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     let lastEventCount = 0;
     let lastOrchStatus = null;
     let reportLoaded = false;
-
+    
     async function fetchReport() {
       try {
         const res = await fetch(`/board/api/issues/${ISSUE_ID}/report`);
@@ -548,7 +549,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         console.error('Report fetch error:', e);
       }
     }
-
+    
     async function pollActivity() {
       try {
         const res = await fetch(`/board/api/issues/${ISSUE_ID}/activity`);
@@ -559,11 +560,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         console.error('Poll error:', e);
       }
     }
-
+    
     function updateUI(data) {
       const issue = data.issue;
       const orch = data.orchestrator;
-
+    
       // Update state badge
       const badge = document.getElementById('state-badge');
       badge.textContent = issue.state;
@@ -572,7 +573,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         badge.className = 'state-badge running';
         badge.textContent = 'Running';
       }
-
+    
       // Update agent status
       const status = document.getElementById('agent-status');
       if (orch && orch.status === 'running' && orch.running) {
@@ -588,7 +589,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } else {
         status.textContent = 'Idle';
       }
-
+    
       // Show rerun button when agent has completed (not currently running)
       var rerunBtn = document.getElementById('rerun-btn');
       var isCompleted = (orch && orch.status === 'completed') || issue.state === 'Done' || issue.state === 'Review';
@@ -598,7 +599,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       if (isRunning) {
         document.getElementById('rerun-panel').style.display = 'none';
       }
-
+    
       // Update tokens — check running state first, then fall back to persisted tokens
       const tokEl = document.getElementById('token-display');
       var t = (orch && orch.running && orch.running.tokens) ? orch.running.tokens : null;
@@ -609,7 +610,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } else {
         tokEl.innerHTML = '';
       }
-
+    
       // Update activity feed — re-render on new events or status change
       const events = orch && orch.event_log ? orch.event_log : [];
       const orchStatus = orch ? orch.status : null;
@@ -618,7 +619,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         lastOrchStatus = orchStatus;
         renderEvents(events);
       }
-
+    
       // Show plan review panel
       const planPanel = document.getElementById('plan-review-panel');
       const planText = document.getElementById('plan-text');
@@ -645,7 +646,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } else {
         planPanel.style.display = 'none';
       }
-
+    
       // Show result panel when completed
       const resultPanel = document.getElementById('result-panel');
       const resultText = document.getElementById('result-text');
@@ -659,11 +660,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } else {
         resultPanel.style.display = 'none';
       }
-
+    
       // Show follow-ups panel
       renderFollowups(orch);
     }
-
+    
     """
   end
 
@@ -671,7 +672,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     ~S"""
     var followupsData = [];
     var editingFollowupId = null;
-
+    
     function renderFollowups(orch) {
       // Skip re-render while user is editing a follow-up
       if (editingFollowupId) return;
@@ -723,7 +724,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           '</div>';
       }).join('');
     }
-
+    
     function toggleFollowupEdit(fuId) {
       var form = document.getElementById('fu-edit-' + fuId);
       if (!form) return;
@@ -731,7 +732,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       form.style.display = opening ? 'flex' : 'none';
       editingFollowupId = opening ? fuId : null;
     }
-
+    
     async function saveFollowupEdit(fuId) {
       var title = document.getElementById('fu-edit-title-' + fuId).value.trim();
       var desc = document.getElementById('fu-edit-desc-' + fuId).value;
@@ -747,17 +748,17 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         if (res.ok) pollActivity();
       } catch (err) { console.error('Edit follow-up failed:', err); }
     }
-
+    
     async function acceptFollowup(fuId) {
       var res = await fetch('/board/api/issues/' + ISSUE_ID + '/follow-ups/' + fuId + '/accept', {method: 'POST'});
       if (res.ok) pollActivity();
     }
-
+    
     async function rejectFollowup(fuId) {
       var res = await fetch('/board/api/issues/' + ISSUE_ID + '/follow-ups/' + fuId + '/reject', {method: 'POST'});
       if (res.ok) pollActivity();
     }
-
+    
     """
   end
 
@@ -769,14 +770,14 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         feed.innerHTML = '<div class="empty-state">Waiting for agent...</div>';
         return;
       }
-
+    
       // Filter out noisy/duplicate events
       const filtered = events.filter(ev => {
         // Skip token_usage_updated (shown in header instead)
         if (ev.event === 'token_usage_updated') return false;
         return true;
       });
-
+    
       feed.innerHTML = filtered.map((ev, idx) => {
         if (!ev) return '';
         const cls = (ev.event || 'default').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -784,7 +785,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         let body = '';
         let detailText = '';
         let hasDetail = false;
-
+    
         switch(ev.event) {
           case 'tool_use':
             const summary = ev.detail ? `: ${truncate(String(ev.detail), 80)}` : '';
@@ -822,21 +823,21 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           default:
             body = esc(ev.event || 'event');
         }
-
+    
         const detailHtml = hasDetail
           ? `<div class="detail-block">${esc(detailText)}</div>`
           : '';
         const detailCls = hasDetail ? ' has-detail' : '';
         const onclick = hasDetail ? ` onclick="toggleDetail(this)"` : '';
-
+    
         return `<div class="event ${cls}${detailCls}"${onclick}>`
           + `<span class="time">${time}</span>${body}${detailHtml}</div>`;
       }).join('');
-
+    
       // Auto-scroll to bottom
       feed.scrollTop = feed.scrollHeight;
     }
-
+    
     """
   end
 
@@ -845,11 +846,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     function toggleDetail(el) {
       el.classList.toggle('expanded');
     }
-
+    
     // --- Edit mode ---
     let editing = false;
     let issueData = null;
-
+    
     async function loadIssueData() {
       try {
         var res = await fetch('/board/api/issues/' + ISSUE_ID);
@@ -880,7 +881,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         }
       } catch(e) {}
     }
-
+    
     """
   end
 
@@ -902,7 +903,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       } catch(e) {}
     }
     checkKBAvailable();
-
+    
     async function sendToKB() {
       if (!confirm('Send this issue and its reports to the Knowledge Base?')) return;
       var btn = document.getElementById('send-to-kb-btn');
@@ -934,7 +935,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         btn.disabled = false;
       }
     }
-
+    
     function toggleRerunPanel() {
       var panel = document.getElementById('rerun-panel');
       panel.style.display = panel.style.display === 'none' ? '' : 'none';
@@ -942,7 +943,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         document.getElementById('rerun-hint').focus();
       }
     }
-
+    
     async function rerunIssue() {
       var hint = document.getElementById('rerun-hint').value.trim();
       if (!hint) {
@@ -969,7 +970,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         showToast('Rerun failed: ' + err.message, { type: 'error' });
       }
     }
-
+    
     async function deleteIssue() {
       if (!confirm('Delete ' + IDENTIFIER + '?')) return;
       try {
@@ -983,13 +984,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         alert('Delete failed: ' + err.message);
       }
     }
-
+    
     function toggleEdit() {
       editing = !editing;
       var viewMode = document.getElementById('view-mode');
       var editMode = document.getElementById('edit-mode');
       var btn = document.getElementById('edit-btn');
-
+    
       if (editing) {
         viewMode.style.display = 'none';
         editMode.style.display = 'block';
@@ -1003,16 +1004,16 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         btn.classList.remove('active');
       }
     }
-
+    
     async function populateEditForm() {
       if (!issueData) await loadIssueData();
       if (!issueData) return;
-
+    
       document.getElementById('edit-title').value = issueData.title || '';
       document.getElementById('edit-description').value = issueData.description || '';
       document.getElementById('edit-priority').value = (issueData.priority || 0).toString();
       document.getElementById('edit-labels').value = (issueData.labels || []).join(', ');
-
+    
       // Populate state select
       var stateSelect = document.getElementById('edit-state');
       stateSelect.innerHTML = '';
@@ -1028,7 +1029,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           });
         }
       } catch(e) {}
-
+    
       // Populate product select
       var prodSelect = document.getElementById('edit-product');
       prodSelect.innerHTML = '<option value="">No product</option>';
@@ -1044,7 +1045,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           });
         }
       } catch(e) {}
-
+    
       // Populate project select
       var projSelect = document.getElementById('edit-project');
       projSelect.innerHTML = '<option value="">No project</option>';
@@ -1060,10 +1061,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           });
         }
       } catch(e) {}
-
+    
       document.getElementById('edit-title').focus();
     }
-
+    
     async function saveEdit() {
       var data = {
         title: document.getElementById('edit-title').value,
@@ -1075,7 +1076,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         product_id: document.getElementById('edit-product').value || null,
         project_id: document.getElementById('edit-project').value || null
       };
-
+    
       try {
         var res = await fetch('/board/api/issues/' + ISSUE_ID, {
           method: 'PATCH',
@@ -1117,7 +1118,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         showToast('Save failed: ' + esc(e.message || 'network error'), {type: 'error'});
       }
     }
-
+    
     // Ctrl+S to save while editing
     document.addEventListener('keydown', function(e) {
       if (editing && e.key === 's' && (e.ctrlKey || e.metaKey)) {
@@ -1128,7 +1129,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         toggleEdit();
       }
     });
-
+    
     """
   end
 
@@ -1139,7 +1140,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     var allGroups = [];
     var issueSkillIds = [];
     var issueGroupIds = [];
-
+    
     async function loadSkillsData() {
       try {
         var [skillsRes, groupsRes, issueRes] = await Promise.all([
@@ -1158,11 +1159,11 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         populateSkillPicker();
       } catch(e) { console.error('Skills load error:', e); }
     }
-
+    
     function renderSkillPills() {
       var container = document.getElementById('skill-pills');
       var pills = [];
-
+    
       issueSkillIds.forEach(function(sid) {
         var s = allSkills.find(function(sk) { return sk.id === sid; });
         if (s) {
@@ -1172,7 +1173,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           '</span>');
         }
       });
-
+    
       issueGroupIds.forEach(function(gid) {
         var g = allGroups.find(function(gr) { return gr.id === gid; });
         if (g) {
@@ -1182,10 +1183,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           '</span>');
         }
       });
-
+    
       container.innerHTML = pills.length > 0 ? pills.join('') : '<span class="meta">No skills assigned</span>';
     }
-
+    
     function populateSkillPicker() {
       var skillSelect = document.getElementById('add-skill-select');
       skillSelect.innerHTML = '<option value="">Select a skill...</option>';
@@ -1195,7 +1196,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             + '[' + esc(s.category) + '] ' + esc(s.name) + '</option>';
         }
       });
-
+    
       var groupSelect = document.getElementById('add-group-select');
       groupSelect.innerHTML = '<option value="">Select a group...</option>';
       allGroups.forEach(function(g) {
@@ -1205,34 +1206,34 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         }
       });
     }
-
+    
     function toggleSkillPicker() {
       var picker = document.getElementById('skill-picker');
       picker.style.display = picker.style.display === 'none' ? '' : 'none';
     }
-
+    
     async function addSkillToIssue(skillId) {
       if (!skillId) return;
       issueSkillIds.push(skillId);
       await saveIssueSkills();
     }
-
+    
     async function addGroupToIssue(groupId) {
       if (!groupId) return;
       issueGroupIds.push(groupId);
       await saveIssueSkills();
     }
-
+    
     async function removeSkillFromIssue(skillId) {
       issueSkillIds = issueSkillIds.filter(function(id) { return id !== skillId; });
       await saveIssueSkills();
     }
-
+    
     async function removeGroupFromIssue(groupId) {
       issueGroupIds = issueGroupIds.filter(function(id) { return id !== groupId; });
       await saveIssueSkills();
     }
-
+    
     async function saveIssueSkills() {
       try {
         var res = await fetch('/board/api/issues/' + ISSUE_ID + '/skills', {
@@ -1251,7 +1252,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         showToast('Save skills failed: ' + esc(e.message || 'network error'), {type: 'error'});
       }
     }
-
+    
     """
   end
 
@@ -1261,7 +1262,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     loadIssueData();
     loadSkillsData();
     loadPipelineContext();
-
+    
     // --- Pipeline Context ---
     async function loadPipelineContext() {
       try {
@@ -1270,7 +1271,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         const pipelines = data.pipelines || [];
         const issueId = ISSUE_ID;
         const matches = [];
-
+    
         pipelines.forEach(function(p) {
           (p.nodes || []).forEach(function(n) {
             if (n.type === 'issue' && n.issue_id === issueId) {
@@ -1278,24 +1279,24 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             }
           });
         });
-
+    
         const panel = document.getElementById('pipeline-ctx-panel');
         const content = document.getElementById('pipeline-ctx-content');
         if (matches.length === 0) return;
-
+    
         panel.style.display = '';
         var html = '';
         for (var m = 0; m < matches.length; m++) {
           var p = matches[m].pipeline;
           var nodeCount = (p.nodes || []).length;
-
+    
           // Build mini progress bar
           var segHtml = '';
           (p.nodes || []).forEach(function(n) {
             var color = n.id === matches[m].node.id ? 'var(--accent)' : 'var(--border)';
             segHtml += '<div class="pipeline-progress-seg" style="background:' + color + '"></div>';
           });
-
+    
           html += '<a class="pipeline-run-link" href="/board/pipeline/' + p.id + '">' +
             '<strong>' + esc(p.name) + '</strong>' +
             '<span style="color:var(--text-muted)">' + nodeCount + ' nodes</span>' +
@@ -1303,12 +1304,12 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             '<div class="pipeline-progress-bar">' + segHtml + '</div>';
         }
         content.innerHTML = html;
-
+    
         // Check for active runs
         var activeRes = await fetch('/board/api/pipeline-runs/active');
         var activeData = await activeRes.json();
         var activeRuns = activeData.runs || [];
-
+    
         matches.forEach(function(m) {
           var run = activeRuns.find(function(r) { return r.pipeline_id === m.pipeline.id; });
           if (run) {
@@ -1324,7 +1325,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         });
       } catch(e) {}
     }
-
+    
     """
   end
 
@@ -1344,18 +1345,18 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         console.error('Approve plan error:', e);
       }
     }
-
+    
     function showRejectForm() {
       document.getElementById('plan-actions').style.display = 'none';
       document.getElementById('plan-reject-form').style.display = 'block';
       document.getElementById('plan-feedback').focus();
     }
-
+    
     function hideRejectForm() {
       document.getElementById('plan-reject-form').style.display = 'none';
       document.getElementById('plan-actions').style.display = 'flex';
     }
-
+    
     async function rejectPlan() {
       var feedback = document.getElementById('plan-feedback').value.trim();
       try {
@@ -1376,7 +1377,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         console.error('Reject plan error:', e);
       }
     }
-
+    
     // Poll every 2 seconds
     pollActivity();
     setInterval(pollActivity, 2000);

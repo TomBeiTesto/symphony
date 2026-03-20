@@ -153,6 +153,7 @@ defmodule SymphonyElixir.Settings do
   rescue
     e ->
       Logger.error("Failed to persist settings: #{Exception.message(e)}")
+      reraise e, __STACKTRACE__
   end
 
   defp load_from_disk(%{store_path: path} = state) do

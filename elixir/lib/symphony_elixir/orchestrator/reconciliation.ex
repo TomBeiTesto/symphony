@@ -5,8 +5,6 @@ defmodule SymphonyElixir.Orchestrator.Reconciliation do
   See SPEC Section 8.5.
   """
 
-  require Logger
-
   alias SymphonyElixir.{Config, Issue}
   alias SymphonyElixir.Orchestrator.State
 

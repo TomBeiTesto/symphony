@@ -5,6 +5,8 @@ defmodule SymphonyElixir.Prompt do
   See SPEC Section 12.
   """
 
+  require Logger
+
   @default_prompt "You are working on an issue from the project board."
 
   @doc """
@@ -31,6 +33,10 @@ defmodule SymphonyElixir.Prompt do
     case Solid.parse(template) do
       {:ok, parsed} ->
         case Solid.render(parsed, context) do
+          {:ok, iodata, _warnings} ->
+            rendered = IO.iodata_to_binary(iodata)
+            {:ok, maybe_append_followup_instructions(rendered, issue)}
+
           {:ok, iodata} ->
             rendered = IO.iodata_to_binary(iodata)
             {:ok, maybe_append_followup_instructions(rendered, issue)}
@@ -104,7 +110,9 @@ defmodule SymphonyElixir.Prompt do
         nil
     end
   rescue
-    _ -> nil
+    e ->
+      Logger.warning("Failed to fetch project #{project_id} for prompt: #{Exception.message(e)}")
+      nil
   end
 
   defp safe_get_product(product_id) do
@@ -134,7 +142,9 @@ defmodule SymphonyElixir.Prompt do
         nil
     end
   rescue
-    _ -> nil
+    e ->
+      Logger.warning("Failed to fetch product #{product_id} for prompt: #{Exception.message(e)}")
+      nil
   end
 
   defp resolve_product_projects(product) do
@@ -157,7 +167,9 @@ defmodule SymphonyElixir.Prompt do
       end
     end)
   rescue
-    _ -> []
+    e ->
+      Logger.warning("Failed to resolve product projects for prompt: #{Exception.message(e)}")
+      []
   end
 
   defp maybe_add_skills(context, issue) do
@@ -183,7 +195,9 @@ defmodule SymphonyElixir.Prompt do
       end
     end
   rescue
-    _ -> context
+    e ->
+      Logger.warning("Failed to add skills to prompt context: #{Exception.message(e)}")
+      context
   end
 
   defp safe_resolve_skills(issue) do
@@ -193,7 +207,9 @@ defmodule SymphonyElixir.Prompt do
       []
     end
   rescue
-    _ -> []
+    e ->
+      Logger.warning("Failed to resolve skills for prompt: #{Exception.message(e)}")
+      []
   end
 
   defp maybe_append_followup_instructions(rendered, %{propose_followups: true}) do
