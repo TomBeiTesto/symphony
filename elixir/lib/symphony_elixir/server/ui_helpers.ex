@@ -55,7 +55,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
       if (s == null) return '';
       var d = document.createElement('div');
       d.textContent = s;
-      return d.innerHTML;
+      return d.innerHTML.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r');
     }
     """
   end
@@ -1175,6 +1175,53 @@ defmodule SymphonyElixir.Server.UIHelpers do
         _apiLock = false;
       }
     }
+    """
+  end
+
+  @doc """
+  Standard CSS bundle used by all pages: base reset, topbar, nav highlight,
+  buttons, badges, and toast notifications.
+
+  Individual pages can append page-specific CSS after this.
+  """
+  @spec standard_css() :: String.t()
+  def standard_css do
+    base_css() <>
+      topbar_css() <>
+      nav_active_css() <>
+      button_css() <>
+      badge_css() <>
+      toast_css()
+  end
+
+  @doc """
+  Wraps page content in the standard HTML shell: doctype, head with CSS,
+  body with nav topbar.
+
+  `title`     – page title shown in browser tab
+  `active_nav` – key for topbar highlight ("hub", "kanban", "pipeline", "skills", "settings", "")
+  `extra_css`  – page-specific CSS appended after `standard_css()`
+  `body`       – HTML body content (rendered after the topbar)
+  """
+  @spec page_template(String.t(), String.t(), String.t(), String.t()) :: String.t()
+  def page_template(title, active_nav, extra_css, body) do
+    """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>#{esc(title)}</title>
+      <style>
+    #{standard_css()}
+    #{extra_css}
+      </style>
+    </head>
+    <body>
+    #{nav_topbar(active_nav)}
+    #{body}
+    </body>
+    </html>
     """
   end
 end

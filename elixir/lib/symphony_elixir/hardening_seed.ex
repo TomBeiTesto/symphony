@@ -214,7 +214,8 @@ defmodule SymphonyElixir.HardeningSeed do
           "instructions" => "Review each finding individually. Accept the ones you want applied, discard the rest.",
           "gate_prompt" =>
             "Review the #{label} scan results below. Check each finding you want applied and" <>
-              " uncheck the ones to skip. Then approve to apply accepted findings, or reject to re-scan."
+              " uncheck the ones to skip. Then approve to apply accepted findings, or reject to re-scan.",
+          "review_mode" => "findings_review"
         }, %{
           "x" => x,
           "y" => y_base + scan_to_gate

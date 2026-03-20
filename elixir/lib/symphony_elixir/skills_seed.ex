@@ -820,6 +820,10 @@ defmodule SymphonyElixir.SkillsSeed do
       ]
       ```
       Each finding = one violation or a small group of related violations in the same file.
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -842,9 +846,11 @@ defmodule SymphonyElixir.SkillsSeed do
       4. Write a brief report of what was applied
 
       ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
       - Do NOT fix findings that were rejected/discarded
       - Do NOT change logic or behavior — style/format only
       - Do NOT add new linter dependencies
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -891,6 +897,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "fix_hint": "Delete function definition (lines 42-55)", "category": "dead-code", "confidence": "high"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -903,10 +913,12 @@ defmodule SymphonyElixir.SkillsSeed do
       # Dead Code Removal — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Remove ONLY the dead code items that were accepted
-      3. Run the full test suite to verify nothing broke
-      4. Confirm compilation succeeds with no new warnings
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Remove ONLY the dead code items that were accepted
+      4. Run the full test suite to verify nothing broke
+      5. Confirm compilation succeeds with no new warnings
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -951,6 +963,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "fix_hint": "Remove from dependencies", "category": "unused-dep"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -963,11 +979,13 @@ defmodule SymphonyElixir.SkillsSeed do
       # Dependency Audit — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. For each accepted finding: update vulnerable dep, remove unused dep, or bump outdated dep
-      3. Do NOT auto-upgrade major versions unless the finding was specifically accepted
-      4. Run full test suite after all changes
-      5. Re-run audit tools to confirm clean state
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. For each accepted finding: update vulnerable dep, remove unused dep, or bump outdated dep
+      4. Do NOT auto-upgrade major versions unless the finding was specifically accepted
+      5. Run full test suite after all changes
+      6. Re-run audit tools to confirm clean state
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1009,6 +1027,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "category": "injection"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1021,11 +1043,13 @@ defmodule SymphonyElixir.SkillsSeed do
       # Security Scan — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Fix ONLY accepted security issues: add sanitization, replace secrets, add auth checks, escape output
-      3. Do NOT suppress warnings — fix the underlying issue
-      4. Re-run security scanners on affected files
-      5. Run the test suite
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Fix ONLY accepted security issues: add sanitization, replace secrets, add auth checks, escape output
+      4. Do NOT suppress warnings — fix the underlying issue
+      5. Re-run security scanners on affected files
+      6. Run the test suite
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1073,10 +1097,12 @@ defmodule SymphonyElixir.SkillsSeed do
       # DRY Analysis — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. For each accepted finding: extract shared function/module, update all callers
-      3. Name extracted functions by WHAT they do, not WHERE they came from
-      4. Run the full test suite after each extraction
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. For each accepted finding: extract shared function/module, update all callers
+      4. Name extracted functions by WHAT they do, not WHERE they came from
+      5. Run the full test suite after each extraction
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1113,6 +1139,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "category": "swallowed-error"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1125,11 +1155,13 @@ defmodule SymphonyElixir.SkillsSeed do
       # Error Handling Audit — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Fix ONLY accepted issues: replace bare rescues, add error logging, add missing error clauses
-      3. Do NOT add error handling for impossible cases
-      4. Do NOT change the error handling strategy (exceptions vs result tuples)
-      5. Run the test suite
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Fix ONLY accepted issues: replace bare rescues, add error logging, add missing error clauses
+      4. Do NOT add error handling for impossible cases
+      5. Do NOT change the error handling strategy (exceptions vs result tuples)
+      6. Run the test suite
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1166,6 +1198,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "category": "missing-type"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1178,10 +1214,12 @@ defmodule SymphonyElixir.SkillsSeed do
       # Type Safety Audit — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Add specs/annotations or fix type errors for ONLY accepted findings
-      3. Do NOT change runtime behavior to satisfy the type checker
-      4. Run the type checker and test suite
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Add specs/annotations or fix type errors for ONLY accepted findings
+      4. Do NOT change runtime behavior to satisfy the type checker
+      5. Run the type checker and test suite
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1216,6 +1254,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "fix_hint": "Rename to match project convention: describe + test blocks", "category": "naming"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1228,11 +1270,13 @@ defmodule SymphonyElixir.SkillsSeed do
       # Test Style & Consistency — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Fix ONLY accepted style issues: rename tests, extract setup, standardize assertions
-      3. Do NOT change what tests verify — only style and organization
-      4. Do NOT delete tests
-      5. Run the full test suite — all tests must still pass
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Fix ONLY accepted style issues: rename tests, extract setup, standardize assertions
+      4. Do NOT change what tests verify — only style and organization
+      5. Do NOT delete tests
+      6. Run the full test suite — all tests must still pass
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1267,6 +1311,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "category": "ci-performance"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1279,11 +1327,13 @@ defmodule SymphonyElixir.SkillsSeed do
       # Infrastructure Review — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Fix ONLY accepted issues in CI/CD, Docker, build scripts, config, .gitignore
-      3. Do NOT change deployment targets, secrets, or branch policies
-      4. Verify build/CI scripts still work (dry-run if possible)
-      5. Run the test suite
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Fix ONLY accepted issues in CI/CD, Docker, build scripts, config, .gitignore
+      4. Do NOT change deployment targets, secrets, or branch policies
+      5. Verify build/CI scripts still work (dry-run if possible)
+      6. Run the test suite
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1328,6 +1378,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "files": [], "fix_hint": "Add settings.spec.ts covering view/edit/save flow", "category": "missing-coverage"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, npx playwright install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1340,12 +1394,14 @@ defmodule SymphonyElixir.SkillsSeed do
       # Frontend E2E (Playwright) — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. Fix broken tests and add missing tests ONLY for accepted findings
-      3. Follow existing test patterns and conventions
-      4. Each test must be independent (no shared state)
-      5. Run the full E2E suite — all tests must pass
-      6. Tests must be stable (run twice, same result)
+      1. Before running any commands, install project dependencies first (npm install, npx playwright install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. Fix broken tests and add missing tests ONLY for accepted findings
+      4. Follow existing test patterns and conventions
+      5. Each test must be independent (no shared state)
+      6. Run the full E2E suite — all tests must pass
+      7. Tests must be stable (run twice, same result)
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1394,6 +1450,10 @@ defmodule SymphonyElixir.SkillsSeed do
          "fix_hint": "Keep test/user_test.exs:10 (most focused), remove others", "category": "duplicate-test"}
       ]
       ```
+
+      ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      - Do NOT skip because a tool is missing — install it
       """
     },
     %{
@@ -1407,12 +1467,14 @@ defmodule SymphonyElixir.SkillsSeed do
       # Test Coverage Audit — Apply
 
       ## Mode: APPLY ACCEPTED FINDINGS ONLY
-      1. Read accepted finding IDs from pipeline context
-      2. For coverage gaps: add unit tests following existing patterns
-      3. For duplicates: remove the less-focused duplicate, keep the more precise one
-      4. Do NOT remove tests that look similar but test different edge cases
-      5. Run full test suite — zero failures
-      6. Re-measure coverage — report before/after
+      1. Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
+      2. Read accepted finding IDs from pipeline context
+      3. For coverage gaps: add unit tests following existing patterns
+      4. For duplicates: remove the less-focused duplicate, keep the more precise one
+      5. Do NOT remove tests that look similar but test different edge cases
+      6. Run full test suite — zero failures
+      7. Re-measure coverage — report before/after
+      - Do NOT skip because a tool is missing — install it
       """
     },
 
@@ -1784,11 +1846,12 @@ defmodule SymphonyElixir.SkillsSeed do
       - Verify no regressions
 
       ## Rules
+      - Before running any commands, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
       - Follow the plan — do NOT deviate without good reason
       - If you discover the plan is wrong or incomplete, note it but implement what you can
       - Verify incrementally — do NOT batch all changes and test at the end
       - Do NOT change code outside the scope of the plan
-      - Do NOT skip tests
+      - Do NOT skip tests — if something is missing, install it
       """
     },
 
@@ -1853,8 +1916,10 @@ defmodule SymphonyElixir.SkillsSeed do
       ```
 
       ## Rules
+      - Before running tests, install project dependencies first (npm install, pip install -r requirements.txt, mix deps.get, etc.)
       - ALL tests must pass before marking complete
       - Do NOT skip flaky tests — fix them
+      - Do NOT skip because a tool is missing — install it
       - Do NOT change production code — only test code
       """
     },

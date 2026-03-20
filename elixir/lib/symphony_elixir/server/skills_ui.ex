@@ -11,19 +11,7 @@ defmodule SymphonyElixir.Server.SkillsUI do
   @doc "Render the full Skills Library HTML page."
   @spec render() :: String.t()
   def render do
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Symphony Skills</title>
-      <style>
-    #{css()}
-      </style>
-    </head>
-    <body>
-    #{UIHelpers.nav_topbar("skills")}
+    body = """
       <div class="page-actions-bar">
         <div class="page-actions-left"><h2 class="page-title">Skills Library</h2></div>
         <div class="page-actions-right">
@@ -163,20 +151,14 @@ defmodule SymphonyElixir.Server.SkillsUI do
       <script>
     #{js()}
       </script>
-    </body>
-    </html>
     """
+
+    UIHelpers.page_template("Symphony Skills", "skills", css(), body)
   end
 
   defp css do
-    UIHelpers.base_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.nav_active_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.form_css() <>
+    UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
-      UIHelpers.badge_css() <>
-      UIHelpers.toast_css() <>
       UIHelpers.page_actions_css() <>
       ~S"""
       .skills-page {

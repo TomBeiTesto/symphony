@@ -10,19 +10,9 @@ defmodule SymphonyElixir.Server.BoardUI do
   @doc "Render the full Kanban board HTML page."
   @spec render() :: String.t()
   def render do
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Symphony Board</title>
-      <style>
-    #{css()}
-      </style>
-    </head>
-    <body>
-    #{SymphonyElixir.Server.UIHelpers.nav_topbar("kanban")}
+    alias SymphonyElixir.Server.UIHelpers
+
+    body = """
       <div class="page-actions-bar">
         <div class="page-actions-left">
           <h2 class="page-title">Kanban Board</h2>
@@ -176,28 +166,22 @@ defmodule SymphonyElixir.Server.BoardUI do
       <!-- Project Modal -->
 
       <script>
-    #{SymphonyElixir.Server.UIHelpers.esc_js()}
-    #{SymphonyElixir.Server.UIHelpers.toast_js()}
-    #{SymphonyElixir.Server.UIHelpers.color_maps_js()}
-    #{SymphonyElixir.Server.UIHelpers.kanban_drag_drop_js()}
+    #{UIHelpers.esc_js()}
+    #{UIHelpers.toast_js()}
+    #{UIHelpers.color_maps_js()}
+    #{UIHelpers.kanban_drag_drop_js()}
     #{javascript()}
       </script>
-    </body>
-    </html>
     """
+
+    UIHelpers.page_template("Symphony Board", "kanban", css(), body)
   end
 
   defp css do
     alias SymphonyElixir.Server.UIHelpers
 
-    UIHelpers.base_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.nav_active_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.form_css() <>
+    UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
-      UIHelpers.badge_css() <>
-      UIHelpers.toast_css() <>
       UIHelpers.skeleton_css() <>
       UIHelpers.page_actions_css() <>
       UIHelpers.dropdown_css() <>

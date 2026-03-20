@@ -45,6 +45,11 @@ defmodule SymphonyElixir.PipelineRunner do
     GenServer.cast(__MODULE__, {:force_complete, run_id, node_id})
   end
 
+  @doc "Cancel a running pipeline run. Stops agent containers and marks run cancelled."
+  def cancel_run(pipeline_id, run_id) do
+    GenServer.call(__MODULE__, {:cancel_run, pipeline_id, run_id})
+  end
+
   @doc "Get status of all tracked runs."
   def list_active do
     GenServer.call(__MODULE__, :list_active)
@@ -169,6 +174,30 @@ defmodule SymphonyElixir.PipelineRunner do
     {:reply, active, state}
   end
 
+  def handle_call({:cancel_run, pipeline_id, run_id}, _from, state) do
+    # Set run status to cancelled
+    LocalBoard.update_pipeline_run_status(run_id, "cancelled")
+
+    # Kill running agent containers
+    case Map.get(state.runs, run_id) do
+      %{pipeline: pipeline} ->
+        case LocalBoard.get_pipeline_run(pipeline_id, run_id) do
+          {:ok, run} -> cancel_running_issues(pipeline, run)
+          _ -> :ok
+        end
+
+      nil ->
+        # Not tracked — try to cancel issues from the stored run
+        with {:ok, pipeline} <- LocalBoard.get_pipeline(pipeline_id),
+             {:ok, run} <- LocalBoard.get_pipeline_run(pipeline_id, run_id) do
+          cancel_running_issues(pipeline, run)
+        end
+    end
+
+    state = stop_run(state, run_id)
+    {:reply, :ok, state}
+  end
+
   @impl true
   def handle_info({:tick, run_id}, state) do
     case Map.get(state.runs, run_id) do
@@ -179,7 +208,11 @@ defmodule SymphonyElixir.PipelineRunner do
         case LocalBoard.get_pipeline_run(run_state.pipeline_id, run_id) do
           {:ok, run} ->
             if run.status in ["completed", "failed", "cancelled"] do
-              # Run is done, stop tracking and cancel timer
+              # Run is done — cancel any running agent containers
+              if run.status == "cancelled" do
+                cancel_running_issues(run_state.pipeline, run)
+              end
+
               {:noreply, stop_run(state, run_id)}
             else
               # Fix C: If paused, just reschedule tick without advancing
@@ -378,6 +411,37 @@ defmodule SymphonyElixir.PipelineRunner do
 
       _ ->
         %{state | runs: Map.delete(state.runs, run_id)}
+    end
+  end
+
+  # Cancel all running issue agents when a pipeline run is cancelled.
+  defp cancel_running_issues(pipeline, run) do
+    node_states = run.node_states || %{}
+    node_issue_ids = run.node_issue_ids || %{}
+
+    running_issue_ids =
+      pipeline.nodes
+      |> Enum.filter(fn n -> n.type == "issue" end)
+      |> Enum.filter(fn n -> Map.get(node_states, n.id) in ["running", "pending"] end)
+      |> Enum.flat_map(fn n ->
+        case Map.get(node_issue_ids, n.id) do
+          nil -> []
+          id -> [id]
+        end
+      end)
+
+    if running_issue_ids != [] do
+      Logger.info("PipelineRunner: cancelling #{length(running_issue_ids)} running issues: #{inspect(running_issue_ids)}")
+
+      try do
+        SymphonyElixir.Orchestrator.cancel_issues(running_issue_ids)
+      catch
+        :exit, _ ->
+          # Orchestrator not running — cancel issues directly
+          Enum.each(running_issue_ids, fn id ->
+            LocalBoard.move_issue(id, "Canceled")
+          end)
+      end
     end
   end
 
@@ -869,7 +933,6 @@ defmodule SymphonyElixir.PipelineRunner do
   end
 
   defp collect_and_sync_predecessor_reports(node, pipeline, run_id, config) do
-    # Find predecessor issue nodes and their created issues
     predecessor_issue_ids = get_predecessor_issue_ids(node, pipeline, run_id)
     Logger.info("KB sync node #{node.id}: predecessor issue IDs = #{inspect(predecessor_issue_ids)}")
 
@@ -882,58 +945,281 @@ defmodule SymphonyElixir.PipelineRunner do
 
       kb_config =
         SymphonyElixir.Integrations.Registry.build_config("knowledge_base", config)
-        |> Map.put("action", "write_note")
 
-      notes_written =
-        Enum.flat_map(predecessor_issue_ids, fn issue_id ->
-          case LocalBoard.get_issue(issue_id) do
-            {:ok, issue} ->
-              report_files = SymphonyElixir.Workspace.find_issue_reports(issue)
-              Logger.info(
-                "KB sync: issue #{issue[:identifier]}: found #{length(report_files)} reports: #{inspect(report_files)}"
-              )
-
-              Enum.flat_map(report_files, fn report_path ->
-                title = Path.basename(report_path, ".md")
-                content = File.read!(report_path)
-
-                context = %{
-                  "node_id" => node.id,
-                  "pipeline_id" => pipeline.id,
-                  "run_id" => run_id,
-                  "title" => title,
-                  "content" => content,
-                  "product_name" => product_name,
-                  "tags" => ["symphony", "extraction"]
-                }
-
-                case SymphonyElixir.Integrations.Registry.execute(
-                       "knowledge_base",
-                       kb_config,
-                       context
-                     ) do
-                  {:ok, %{path: path}} ->
-                    Logger.info("KB sync: wrote #{path}")
-                    [path]
-
-                  {:ok, _} ->
-                    [title]
-
-                  {:error, reason} ->
-                    Logger.warning("KB sync failed for '#{title}': #{inspect(reason)}")
-                    []
-                end
-              end)
-
-            _ ->
-              []
+      issues =
+        predecessor_issue_ids
+        |> Enum.flat_map(fn id ->
+          case LocalBoard.get_issue(id) do
+            {:ok, issue} -> [issue]
+            _ -> []
           end
         end)
 
-      Logger.info(
-        "KB sync node #{node.id}: wrote #{length(notes_written)} notes for " <>
-          "#{length(predecessor_issue_ids)} predecessor issues"
-      )
+      # Collect all new content from predecessor issues:
+      #   - Fresh report files (extraction agents write to project/reports/)
+      #   - Agent result_text (feature agents produce summaries)
+      # Then merge everything into existing KB notes (or create new ones).
+      new_content_items = collect_issue_outputs(issues)
+
+      if new_content_items == [] do
+        Logger.info("KB sync node #{node.id}: no content to sync")
+      else
+        notes_written =
+          sync_to_kb(new_content_items, node, pipeline, run_id, product_name, kb_config)
+
+        Logger.info(
+          "KB sync node #{node.id}: synced #{length(notes_written)} notes " <>
+            "for #{length(predecessor_issue_ids)} predecessor issues"
+        )
+      end
+    end
+  end
+
+  # Collect all outputs from predecessor issues into a list of {title, content} pairs.
+  defp collect_issue_outputs(issues) do
+    Enum.flat_map(issues, fn issue ->
+      identifier = issue[:identifier] || issue[:id]
+      issue_created_at = get_issue_created_at(issue)
+
+      # 1. Check for fresh report files (extraction agents write these)
+      all_reports = SymphonyElixir.Workspace.find_issue_reports(issue)
+      fresh_reports = filter_fresh_files(all_reports, issue_created_at)
+
+      file_items =
+        Enum.map(fresh_reports, fn path ->
+          %{
+            title: Path.basename(path, ".md"),
+            content: File.read!(path),
+            source: identifier
+          }
+        end)
+
+      # 2. Check for agent result_text
+      result_item =
+        case get_issue_result_text(issue) do
+          nil ->
+            []
+
+          result_text ->
+            issue_title = issue[:title] || identifier
+            [%{title: issue_title, content: result_text, source: identifier}]
+        end
+
+      items = file_items ++ result_item
+
+      if items == [] do
+        Logger.info("KB sync: issue #{identifier}: no output to sync")
+      else
+        Logger.info(
+          "KB sync: issue #{identifier}: collected #{length(file_items)} files, " <>
+            "#{length(result_item)} result_text"
+        )
+      end
+
+      items
+    end)
+  end
+
+  # Sync collected content items to the KB. For each item:
+  #   - If a note with that title exists → merge (LLM-powered)
+  #   - If no note exists → write new
+  # Items without a matching note title are grouped into a combined merge
+  # against all existing notes.
+  defp sync_to_kb(items, node, pipeline, run_id, product_name, kb_config) do
+    existing_notes = find_product_kb_notes(product_name, kb_config)
+
+    # Split items: those that match an existing note title vs unmatched
+    {matched, unmatched} =
+      Enum.split_with(items, fn item ->
+        Enum.any?(existing_notes, fn note ->
+          String.downcase(note) == String.downcase(item.title)
+        end)
+      end)
+
+    # 1. Merge matched items directly into their corresponding notes
+    matched_results =
+      Enum.flat_map(matched, fn item ->
+        # Find the exact note title (preserving case)
+        note_title =
+          Enum.find(existing_notes, item.title, fn note ->
+            String.downcase(note) == String.downcase(item.title)
+          end)
+
+        Logger.info("KB sync: merging '#{item.title}' into existing note '#{note_title}'")
+
+        merge_into_note(
+          note_title, item.content, "Updated from pipeline agent #{item.source}",
+          node, pipeline, run_id, product_name, kb_config
+        )
+      end)
+
+    # 2. For unmatched items: merge into all existing notes (LLM decides relevance)
+    #    + write items that are genuinely new as new notes
+    unmatched_results =
+      if unmatched != [] do
+        combined =
+          unmatched
+          |> Enum.map(fn item -> "### #{item.title} (#{item.source})\n\n#{item.content}" end)
+          |> Enum.join("\n\n---\n\n")
+
+        if existing_notes != [] do
+          # Merge into each existing note — LLM will ignore irrelevant content
+          unmatched_note_titles = Enum.map(unmatched, & &1.title) |> Enum.uniq()
+
+          # Only merge into notes that weren't already handled above
+          already_merged = Enum.map(matched, & &1.title) |> Enum.map(&String.downcase/1)
+
+          notes_to_update =
+            Enum.reject(existing_notes, fn n -> String.downcase(n) in already_merged end)
+
+          Logger.info(
+            "KB sync: merging #{length(unmatched)} unmatched items into " <>
+              "#{length(notes_to_update)} existing notes"
+          )
+
+          merge_results =
+            Enum.flat_map(notes_to_update, fn note_title ->
+              merge_into_note(
+                note_title, combined, "Pipeline output from: #{Enum.join(unmatched_note_titles, ", ")}",
+                node, pipeline, run_id, product_name, kb_config
+              )
+            end)
+
+          merge_results
+        else
+          # No existing notes at all — write each item as a new note
+          Logger.info("KB sync: no existing notes, writing #{length(unmatched)} new notes")
+
+          write_config = Map.put(kb_config, "action", "write_note")
+
+          Enum.flat_map(unmatched, fn item ->
+            write_kb_note_content(
+              item.title, item.content, node, pipeline, run_id, product_name,
+              write_config, ["symphony", "extraction"]
+            )
+          end)
+        end
+      else
+        []
+      end
+
+    matched_results ++ unmatched_results
+  end
+
+  defp merge_into_note(note_title, content, merge_context, node, pipeline, run_id, product_name, kb_config) do
+    merge_config = Map.put(kb_config, "action", "merge_note")
+
+    context = %{
+      "node_id" => node.id,
+      "pipeline_id" => pipeline.id,
+      "run_id" => run_id,
+      "title" => note_title,
+      "content" => content,
+      "product_name" => product_name,
+      "tags" => ["symphony", "extraction"],
+      "merge_context" => merge_context
+    }
+
+    case SymphonyElixir.Integrations.Registry.execute("knowledge_base", merge_config, context) do
+      {:ok, %{path: path, merged: true}} ->
+        Logger.info("KB sync: merged into #{path}")
+        [path]
+
+      {:ok, %{path: path}} ->
+        Logger.info("KB sync: wrote #{path}")
+        [path]
+
+      {:error, reason} ->
+        Logger.warning("KB sync: merge failed for '#{note_title}': #{inspect(reason)}")
+        []
+    end
+  end
+
+  # Find existing KB note titles for a product.
+  defp find_product_kb_notes(nil, _kb_config), do: []
+
+  defp find_product_kb_notes(product_name, kb_config) do
+    case SymphonyElixir.Integrations.KnowledgeBase.resolve_base_path(kb_config) do
+      {:ok, base_path} ->
+        subfolder = Map.get(kb_config, "subfolder", "symphony")
+        product_dir = Path.join([base_path, subfolder, product_name])
+
+        if File.dir?(product_dir) do
+          product_dir
+          |> Path.join("*.md")
+          |> String.replace("\\", "/")
+          |> Path.wildcard()
+          |> Enum.map(&Path.basename(&1, ".md"))
+          |> Enum.reject(&String.starts_with?(&1, "."))
+        else
+          []
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  defp get_issue_result_text(issue) do
+    case issue do
+      %{agent_run: %{"result_text" => rt}} when is_binary(rt) and rt != "" -> rt
+      _ -> nil
+    end
+  end
+
+  defp get_issue_created_at(issue) do
+    case issue do
+      %{created_at: ts} when is_binary(ts) ->
+        case DateTime.from_iso8601(ts) do
+          {:ok, dt, _} -> dt
+          _ -> nil
+        end
+
+      %{created_at: %DateTime{} = dt} ->
+        dt
+
+      _ ->
+        nil
+    end
+  end
+
+  # Keep only files whose mtime is after the issue was created.
+  # If we can't determine the issue creation time, include all files.
+  defp filter_fresh_files(files, nil), do: files
+
+  defp filter_fresh_files(files, %DateTime{} = cutoff) do
+    cutoff_posix = DateTime.to_unix(cutoff)
+
+    Enum.filter(files, fn path ->
+      case File.stat(path, time: :posix) do
+        {:ok, %{mtime: mtime}} -> mtime >= cutoff_posix
+        _ -> false
+      end
+    end)
+  end
+
+  defp write_kb_note_content(title, content, node, pipeline, run_id, product_name, kb_config, tags) do
+    context = %{
+      "node_id" => node.id,
+      "pipeline_id" => pipeline.id,
+      "run_id" => run_id,
+      "title" => title,
+      "content" => content,
+      "product_name" => product_name,
+      "tags" => tags
+    }
+
+    case SymphonyElixir.Integrations.Registry.execute("knowledge_base", kb_config, context) do
+      {:ok, %{path: path}} ->
+        Logger.info("KB sync: wrote #{path}")
+        [path]
+
+      {:ok, _} ->
+        [title]
+
+      {:error, reason} ->
+        Logger.warning("KB sync failed for '#{title}': #{inspect(reason)}")
+        []
     end
   end
 
@@ -975,7 +1261,8 @@ defmodule SymphonyElixir.PipelineRunner do
           end
 
         if issue_id do
-          [issue_id]
+          # Collect this issue AND keep walking to find earlier issues too
+          [issue_id | walk_predecessors_for_issues(pid, pipeline, run, visited)]
         else
           # Not an issue node (gate, start, etc.) — keep walking through it
           walk_predecessors_for_issues(pid, pipeline, run, visited)

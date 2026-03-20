@@ -115,6 +115,15 @@ defmodule SymphonyElixir.Orchestrator.State do
     }
   end
 
+  @doc "Merge fields into an existing running entry."
+  @spec update_running(t(), String.t(), map()) :: t()
+  def update_running(%__MODULE__{} = state, issue_id, fields) do
+    case Map.get(state.running, issue_id) do
+      nil -> state
+      entry -> %{state | running: Map.put(state.running, issue_id, Map.merge(entry, fields))}
+    end
+  end
+
   @doc "Remove a running entry and return updated state. Also accumulates runtime."
   @spec remove_running(t(), String.t()) :: t()
   def remove_running(%__MODULE__{} = state, issue_id) do

@@ -29,24 +29,28 @@ defmodule SymphonyElixir.Orchestrator.Worker do
     # Claim the issue
     state = %{state | claimed: MapSet.put(state.claimed, issue_id)}
 
-    # Add to running
+    # Add to running (pid populated after spawn)
     state = State.add_running(state, issue_id, State.new_running_entry(issue, nil))
 
     # B1: Spawn worker via supervised task with concurrency limit
     # B4: Wrap in try/catch so crashes always send worker_done
-    Task.Supervisor.start_child(SymphonyElixir.WorkerTaskSupervisor, fn ->
-      result =
-        try do
-          run_worker(config, state.prompt_template, issue, orchestrator_pid)
-        catch
-          kind, reason ->
-            Logger.error("Worker crashed for issue=#{identifier}: #{kind} #{inspect(reason)}")
+    {:ok, task_pid} =
+      Task.Supervisor.start_child(SymphonyElixir.WorkerTaskSupervisor, fn ->
+        result =
+          try do
+            run_worker(config, state.prompt_template, issue, orchestrator_pid)
+          catch
+            kind, reason ->
+              Logger.error("Worker crashed for issue=#{identifier}: #{kind} #{inspect(reason)}")
 
-            {:error, {:worker_crash, kind, inspect(reason)}}
-        end
+              {:error, {:worker_crash, kind, inspect(reason)}}
+          end
 
-      send(orchestrator_pid, {:worker_done, issue_id, result})
-    end)
+        send(orchestrator_pid, {:worker_done, issue_id, result})
+      end)
+
+    # Store the worker pid so we can kill it on cancel
+    state = State.update_running(state, issue_id, %{worker_pid: task_pid})
 
     Logger.metadata(issue_id: issue_id, issue_identifier: identifier)
     state
@@ -72,7 +76,8 @@ defmodule SymphonyElixir.Orchestrator.Worker do
           if extra_mounts != [] do
             if client == ClaudeAdapter do
               ClaudeAdapter.start_session(config, workspace_path, prompt, callback,
-                extra_mounts: extra_mounts
+                extra_mounts: extra_mounts,
+                issue_id: issue.id
               )
             else
               Logger.warning(
@@ -83,7 +88,13 @@ defmodule SymphonyElixir.Orchestrator.Worker do
               client.start_session(config, workspace_path, prompt, callback)
             end
           else
-            client.start_session(config, workspace_path, prompt, callback)
+            if client == ClaudeAdapter do
+              ClaudeAdapter.start_session(config, workspace_path, prompt, callback,
+                issue_id: issue.id
+              )
+            else
+              client.start_session(config, workspace_path, prompt, callback)
+            end
           end
 
         case start_result do

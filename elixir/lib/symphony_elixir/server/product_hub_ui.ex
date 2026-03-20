@@ -11,19 +11,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
   @doc "Render the full Product Hub HTML page."
   @spec render() :: String.t()
   def render do
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Symphony</title>
-      <style>
-    #{css()}
-      </style>
-    </head>
-    <body>
-    #{SymphonyElixir.Server.UIHelpers.nav_topbar("hub")}
+    alias SymphonyElixir.Server.UIHelpers
+
+    body = """
       <div class="hub-actions-bar">
         <div class="dropdown" id="add-dropdown">
           <button class="btn btn-ghost" onclick="toggleDropdown('add-dropdown')">Add &#9662;</button>
@@ -97,9 +87,9 @@ defmodule SymphonyElixir.Server.ProductHubUI do
       <script>
     #{javascript()}
       </script>
-    </body>
-    </html>
     """
+
+    UIHelpers.page_template("Symphony", "hub", css(), body)
   end
 
   defp modals do
@@ -400,17 +390,11 @@ defmodule SymphonyElixir.Server.ProductHubUI do
   defp css do
     alias SymphonyElixir.Server.UIHelpers
 
-    UIHelpers.base_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.form_css() <>
+    UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
-      UIHelpers.badge_css() <>
-      UIHelpers.toast_css() <>
       UIHelpers.markdown_css() <>
       UIHelpers.skeleton_css() <>
       UIHelpers.hub_layout_css() <>
-      UIHelpers.nav_active_css() <>
       UIHelpers.ai_draft_css() <>
       UIHelpers.skill_picker_css() <>
       UIHelpers.dropdown_css() <>
@@ -1509,9 +1493,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
           list = allProjects.filter(function(p) { return !assignedIds.has(p.id); });
         }
         if (list.length === 0) {
-          container.innerHTML = '<div style="padding:6px 10px;
-          color:var(--text-muted);
-          font-size:0.73rem">All projects assigned</div>';
+          container.innerHTML = '<div style="padding:6px 10px;color:var(--text-muted);font-size:0.73rem">All projects assigned</div>';
           return;
         }
         container.innerHTML = list.map(function(p) { return renderSidebarProjectItem(p, null); }).join('');
@@ -2947,9 +2929,7 @@ defmodule SymphonyElixir.Server.ProductHubUI do
         var features = (currentProd && currentProd.features) ? currentProd.features : [];
         var available = features.filter(function(f) { return f.id !== excludeId; });
         if (available.length === 0) {
-          container.innerHTML = '<div style="color:var(--text-muted);
-          padding:8px;
-          font-size:0.8rem">No other features.</div>';
+          container.innerHTML = '<div style="color:var(--text-muted);padding:8px;font-size:0.8rem">No other features.</div>';
           return;
         }
         container.innerHTML = available.map(function(f) {

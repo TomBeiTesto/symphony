@@ -7,20 +7,9 @@ defmodule SymphonyElixir.Server.SettingsUI do
   @doc "Render the full Settings HTML page."
   @spec render() :: String.t()
   def render do
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Symphony Settings</title>
-      <style>
-    #{css()}
-      </style>
-    </head>
-    <body>
-    #{SymphonyElixir.Server.UIHelpers.nav_topbar("settings")}
+    alias SymphonyElixir.Server.UIHelpers
 
+    body = """
       <main class="settings-page">
         <div class="settings-container">
 
@@ -444,22 +433,16 @@ defmodule SymphonyElixir.Server.SettingsUI do
       </main>
 
       <script>
-    #{SymphonyElixir.Server.UIHelpers.esc_js()}
+    #{UIHelpers.esc_js()}
     #{javascript()}
       </script>
-    </body>
-    </html>
     """
+
+    UIHelpers.page_template("Symphony Settings", "settings", css(), body)
   end
 
   defp css do
-    alias SymphonyElixir.Server.UIHelpers
-
-    UIHelpers.base_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.nav_active_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.form_css() <>
+    SymphonyElixir.Server.UIHelpers.form_css() <>
       ~S"""
 
       body { min-height: 100vh; }

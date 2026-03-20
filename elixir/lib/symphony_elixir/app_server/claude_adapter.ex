@@ -29,6 +29,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
           callback: (map() -> :ok),
           provider: :claude_code,
           prompt_file: String.t() | nil,
+          container_name: String.t() | nil,
           accumulated_tokens: %{input: non_neg_integer(), output: non_neg_integer()}
         }
 
@@ -105,6 +106,8 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     runtime = config.sandbox
     image = config.sandbox_image || "symphony-agent-sandbox"
     allowed_tools_flag = build_allowed_tools_flag()
+    issue_id = Keyword.get(opts, :issue_id)
+    container_name = if issue_id, do: "symphony-#{issue_id}", else: nil
 
     # Convert Windows path to a WSL-compatible mount path for podman
     mount_path = to_container_mount_path(workspace_path)
@@ -151,16 +154,21 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
           []
       end
 
+    name_args = if container_name, do: ["--name", container_name], else: []
+
     container_args =
       [
         "run",
         "--rm",
         "-i",
         "--network",
-        "host",
-        "-v",
-        "#{mount_path}:/workspace:rw"
+        "host"
       ] ++
+        name_args ++
+        [
+          "-v",
+          "#{mount_path}:/workspace:rw"
+        ] ++
         extra_mount_args ++
         vault_mount_args ++
         [
@@ -212,7 +220,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
 
     try do
       port = Port.open({:spawn_executable, bash}, port_opts)
-      build_session(port, config, workspace_path, prompt_file, callback)
+      build_session(port, config, workspace_path, prompt_file, callback, container_name)
     rescue
       ErlangError ->
         cleanup_prompt_file(prompt_file)
@@ -283,7 +291,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
     end
   end
 
-  defp build_session(port, config, workspace_path, prompt_file, callback) do
+  defp build_session(port, config, workspace_path, prompt_file, callback, container_name \\ nil) do
     {:os_pid, os_pid} = Port.info(port, :os_pid)
     session_id = "claude-#{:rand.uniform(999_999)}"
 
@@ -300,6 +308,7 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
       callback: callback,
       provider: :claude_code,
       prompt_file: prompt_file,
+      container_name: container_name,
       accumulated_tokens: %{input: 0, output: 0}
     }
 
@@ -353,9 +362,75 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
       :error, :badarg -> :ok
     end
 
+    # Explicitly stop the container if it was named
+    stop_container(session)
+
     cleanup_prompt_file(session[:prompt_file])
     Events.emit_event(session, :session_stopped, %{})
     :ok
+  end
+
+  @doc "Force-stop a named container by issue ID. Used when cancelling pipeline runs."
+  @spec stop_container_by_issue_id(String.t()) :: :ok
+  def stop_container_by_issue_id(issue_id) when is_binary(issue_id) do
+    container_name = "symphony-#{issue_id}"
+    runtime = resolve_runtime()
+
+    if runtime do
+      Logger.info("Stopping container #{container_name} via #{runtime}")
+      bash = ShellUtils.find_bash_path()
+
+      if bash do
+        # Use spawn to avoid blocking — container may already be gone
+        spawn(fn ->
+          System.cmd(bash, ["-lc", "#{runtime} stop -t 5 #{container_name} 2>/dev/null"],
+            stderr_to_stdout: true
+          )
+
+          System.cmd(bash, ["-lc", "#{runtime} rm -f #{container_name} 2>/dev/null"],
+            stderr_to_stdout: true
+          )
+        end)
+      end
+    end
+
+    :ok
+  end
+
+  defp stop_container(%{container_name: name, config: config}) when is_binary(name) do
+    runtime = config.sandbox
+
+    if runtime in ["podman", "docker"] do
+      bash = ShellUtils.find_bash_path()
+
+      if bash do
+        spawn(fn ->
+          System.cmd(bash, ["-lc", "#{runtime} stop -t 5 #{name} 2>/dev/null"],
+            stderr_to_stdout: true
+          )
+
+          System.cmd(bash, ["-lc", "#{runtime} rm -f #{name} 2>/dev/null"],
+            stderr_to_stdout: true
+          )
+        end)
+      end
+    end
+
+    :ok
+  end
+
+  defp stop_container(_session), do: :ok
+
+  # Resolve the active container runtime (podman/docker) from settings
+  defp resolve_runtime do
+    runtime =
+      try do
+        SymphonyElixir.Settings.get("agent_sandbox")
+      catch
+        :exit, _ -> nil
+      end
+
+    if is_binary(runtime) and runtime in ["podman", "docker"], do: runtime, else: nil
   end
 
   # --- Streaming ---

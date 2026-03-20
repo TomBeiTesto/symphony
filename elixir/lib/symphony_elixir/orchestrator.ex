@@ -79,6 +79,11 @@ defmodule SymphonyElixir.Orchestrator do
     GenServer.call(__MODULE__, {:rerun_issue, issue_id, hint})
   end
 
+  @doc "Cancel running workers for the given issue IDs. Kills tasks and moves issues to Canceled."
+  def cancel_issues(issue_ids) when is_list(issue_ids) do
+    GenServer.call(__MODULE__, {:cancel_issues, issue_ids})
+  end
+
   # --- Server Callbacks ---
 
   @impl true
@@ -211,6 +216,36 @@ defmodule SymphonyElixir.Orchestrator do
       {:error, _} = err ->
         {:reply, err, state}
     end
+  end
+
+  def handle_call({:cancel_issues, issue_ids}, _from, state) do
+    alias SymphonyElixir.AppServer.ClaudeAdapter
+
+    state =
+      Enum.reduce(issue_ids, state, fn issue_id, acc ->
+        case Map.get(acc.running, issue_id) do
+          %{worker_pid: pid} = _entry when is_pid(pid) ->
+            Logger.info("Cancelling worker for issue_id=#{issue_id} pid=#{inspect(pid)}")
+            # Shutdown the task — this closes the Port which kills the container
+            Process.exit(pid, :shutdown)
+            # Also explicitly stop the container (in case process tree doesn't cascade)
+            ClaudeAdapter.stop_container_by_issue_id(issue_id)
+            acc = State.remove_running(acc, issue_id)
+            State.release_claim(acc, issue_id)
+
+          _ ->
+            # Not running as a tracked worker — still try to stop container
+            ClaudeAdapter.stop_container_by_issue_id(issue_id)
+            State.release_claim(acc, issue_id)
+        end
+      end)
+
+    # Move issues to Canceled state
+    Enum.each(issue_ids, fn issue_id ->
+      SymphonyElixir.LocalBoard.move_issue(issue_id, "Canceled")
+    end)
+
+    {:reply, :ok, state}
   end
 
   @impl true

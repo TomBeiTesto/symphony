@@ -6,7 +6,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
   Confluence backend delegates to `SymphonyElixir.Integrations.Confluence`.
 
   Actions: write_note, read_note, search, search_by_tags, search_by_metadata, append_to_note,
-  delete_note, list_versions, read_version, restore_version.
+  merge_note, delete_note, list_versions, read_version, restore_version.
   """
 
   require Logger
@@ -27,7 +27,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
   - kb_type: "local" | "obsidian" | "confluence"
   - vault_path: filesystem path (for local/obsidian)
   - subfolder: relative path within vault (default "symphony")
-  - action: "write_note" | "read_note" | "search" | "append_to_note" | "delete_note"
+  - action: "write_note" | "read_note" | "search" | "append_to_note" | "merge_note" | "delete_note"
   """
   @spec execute(map(), map()) :: {:ok, map()} | {:error, term()}
   def execute(config, context) do
@@ -44,6 +44,7 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
         "search_by_tags" -> search_by_tags(config, context)
         "search_by_metadata" -> search_by_metadata(config, context)
         "append_to_note" -> append_to_note(config, context)
+        "merge_note" -> merge_note(config, context)
         "delete_note" -> delete_note(config, context)
         "list_versions" -> list_versions(config, context)
         "read_version" -> read_version(config, context)
@@ -416,6 +417,134 @@ defmodule SymphonyElixir.Integrations.KnowledgeBase do
 
           {:ok, %{path: full_path}}
       end
+    end
+  end
+
+  # merge_note: Intelligently merge new information into an existing KB note using the LLM.
+  # If the note doesn't exist yet, falls back to write_note.
+  # Context fields:
+  #   - title: note title (used to find the file)
+  #   - content: new information to merge in
+  #   - product_name: product subfolder
+  #   - merge_context: optional description of what changed (helps the LLM)
+  defp merge_note(config, context) do
+    with {:ok, base_path} <- resolve_base_path(config) do
+      subfolder = Map.get(config, "subfolder", "symphony")
+      product_name = Map.get(context, "product_name")
+      title = Map.get(context, "title", "Untitled")
+      new_content = Map.get(context, "content", "")
+      merge_context = Map.get(context, "merge_context", "")
+
+      if contains_traversal?(title) or contains_traversal?(product_name) do
+        {:error, :path_traversal}
+      else
+        dir_parts = [base_path, subfolder] ++ if(product_name, do: [product_name], else: [])
+        target_dir = Path.join(dir_parts)
+        filename = sanitize_filename(title) <> ".md"
+        target_path = Path.join(target_dir, filename)
+
+        if path_traversal?(target_path, base_path) do
+          {:error, :path_traversal}
+        else
+          if File.exists?(target_path) do
+            existing_raw = File.read!(target_path)
+            {_fm, existing_body} = parse_frontmatter(existing_raw)
+
+            do_llm_merge(existing_body, new_content, title, merge_context, config, context, target_path)
+          else
+            # No existing note — just write a new one
+            Logger.info("KB merge_note: no existing '#{title}', creating new note")
+            write_note(config, context)
+          end
+        end
+      end
+    end
+  end
+
+  defp do_llm_merge(existing_body, new_content, title, merge_context, config, context, target_path) do
+    context_hint =
+      if merge_context != "",
+        do: "\n\nContext about the changes: #{merge_context}",
+        else: ""
+
+    prompt = """
+    You are updating a knowledge base note. The existing note contains the current understanding
+    of a topic. New information has been produced (from a pipeline run) that may update, extend,
+    or correct parts of this knowledge.
+
+    Your task: produce an UPDATED version of the note that integrates the new information.
+
+    Rules:
+    - Preserve the existing note's structure and sections
+    - Update facts that have changed (don't keep outdated information alongside new)
+    - Add new sections or bullet points for genuinely new information
+    - Remove information that the new content explicitly supersedes
+    - Do NOT add a changelog or "updated on" section — just produce the clean, merged note
+    - Do NOT wrap the output in markdown code fences — output the note content directly
+    - Keep the same style and tone as the existing note
+    - If the new information is not relevant to this note's topic, return the existing note unchanged
+    #{context_hint}
+
+    ## Existing Note: "#{title}"
+
+    #{existing_body}
+
+    ## New Information
+
+    #{new_content}
+
+    ## Your Output
+
+    Return ONLY the updated note content (no frontmatter, no code fences).
+    """
+
+    case SymphonyElixir.LLM.call(prompt, system: "You are a knowledge base editor. Be precise and factual.") do
+      {:ok, merged_body} ->
+        # Rebuild the note with updated frontmatter
+        tags = Map.get(context, "tags", [])
+        product_name = Map.get(context, "product_name")
+        source_issue = Map.get(context, "source_issue")
+
+        fm_attrs =
+          %{}
+          |> maybe_put("tags", tags, tags != [])
+          |> maybe_put("source", source_issue, source_issue != nil)
+          |> maybe_put("date", Date.utc_today() |> Date.to_iso8601(), true)
+          |> maybe_put("product", product_name, product_name != nil)
+
+        frontmatter = build_frontmatter(fm_attrs)
+
+        kb_type = Map.get(config, "kb_type", "local")
+
+        body =
+          if kb_type == "obsidian" and source_issue do
+            "> Source: [[#{source_issue}]]\n\n#{merged_body}"
+          else
+            merged_body
+          end
+
+        full_content = frontmatter <> "\n" <> body
+
+        # Archive previous version
+        dir = Path.dirname(target_path)
+        filename = Path.basename(target_path)
+        archive_version(dir, filename, target_path)
+
+        File.write!(target_path, full_content)
+
+        # Invalidate index
+        subfolder = Map.get(config, "subfolder", "symphony")
+        base_path = elem(resolve_base_path(config), 1)
+        search_dir = Path.join(base_path, subfolder)
+        rel = Path.relative_to(target_path, search_dir)
+        KBIndex.invalidate(search_dir, rel)
+
+        Logger.info("KB merge_note: merged and wrote #{target_path}")
+        {:ok, %{path: target_path, merged: true}}
+
+      {:error, reason} ->
+        Logger.warning("KB merge_note: LLM merge failed (#{inspect(reason)}), falling back to write_note")
+        write_note(config, context)
     end
   end
 

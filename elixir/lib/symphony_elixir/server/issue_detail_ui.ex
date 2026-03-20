@@ -12,21 +12,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
   @doc "Render the issue detail HTML page."
   @spec render(map()) :: String.t()
   def render(issue) do
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>#{esc(issue.identifier)} - #{esc(issue.title)}</title>
-      <style>
-    #{css()}
-      </style>
-    </head>
-    <body>
-    #{UIHelpers.nav_topbar("")}
+    body = """
       <div class="page-actions-bar">
         <div class="page-actions-left">
+          <a href="javascript:history.back()" style="color:var(--text-muted);text-decoration:none;font-size:1.1rem;margin-right:8px" title="Back">&larr;</a>
           <h2 class="issue-identifier">#{esc(issue.identifier)}</h2>
           <span class="state-badge" id="state-badge">#{esc(issue.state)}</span>
         </div>
@@ -212,14 +201,15 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       </div>
 
       <script>
-    #{SymphonyElixir.Server.UIHelpers.esc_js()}
-    #{SymphonyElixir.Server.UIHelpers.markdown_js()}
-    #{SymphonyElixir.Server.UIHelpers.toast_js()}
+    #{UIHelpers.esc_js()}
+    #{UIHelpers.markdown_js()}
+    #{UIHelpers.toast_js()}
     #{js(issue.id, issue.identifier)}
       </script>
-    </body>
-    </html>
     """
+
+    title = "#{esc(issue.identifier)} - #{esc(issue.title)}"
+    UIHelpers.page_template(title, "", css(), body)
   end
 
   defp render_labels([]), do: ""
@@ -251,21 +241,14 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
   defp format_time(_), do: ""
 
   defp css do
-    UIHelpers.theme_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.nav_active_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.toast_css() <>
-      UIHelpers.markdown_css() <>
+    UIHelpers.markdown_css() <>
       UIHelpers.page_actions_css() <>
       UIHelpers.pulse_css() <>
       UIHelpers.label_css() <>
       ~S"""
 
-      * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { height: 100%; overflow: hidden; }
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: var(--bg-primary); color: var(--text-secondary); display: flex; flex-direction: column; }
+      body { display: flex; flex-direction: column; }
       h1 { color: var(--text-primary); font-size: 1.15rem; }
       .page-actions-bar { padding: 8px 20px; }
       .issue-identifier { font-size: 1rem; font-weight: 600; color: var(--text-primary); }

@@ -36,14 +36,14 @@ defmodule SymphonyElixir.ShellUtils do
       String.contains?(shell, "bash") ->
         {shell, ["-lc", script]}
 
-      String.contains?(shell, "sh") ->
-        {shell, ["-c", script]}
+      String.contains?(shell, "powershell") ->
+        {shell, ["-NoProfile", "-Command", script]}
 
       String.contains?(shell, "cmd") ->
         {shell, ["/C", script]}
 
-      String.contains?(shell, "powershell") ->
-        {shell, ["-NoProfile", "-Command", script]}
+      String.contains?(shell, "sh") ->
+        {shell, ["-c", script]}
 
       true ->
         if windows?() do
@@ -63,9 +63,9 @@ defmodule SymphonyElixir.ShellUtils do
   def shell_args(shell) do
     cond do
       String.contains?(shell, "bash") -> ["-lc"]
-      String.contains?(shell, "sh") -> ["-c"]
-      String.contains?(shell, "cmd") -> ["/C"]
       String.contains?(shell, "powershell") -> ["-NoProfile", "-Command"]
+      String.contains?(shell, "cmd") -> ["/C"]
+      String.contains?(shell, "sh") -> ["-c"]
       true -> ["-c"]
     end
   end

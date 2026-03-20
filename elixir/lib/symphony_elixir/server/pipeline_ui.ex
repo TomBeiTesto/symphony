@@ -12,19 +12,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
 
   @spec render_list() :: String.t()
   def render_list do
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Symphony Pipelines</title>
-      <style>
-    #{list_css()}
-      </style>
-    </head>
-    <body>
-    #{UIHelpers.nav_topbar("pipeline")}
+    body = """
       <div class="page-header">
         <h2>Pipelines</h2>
         <button class="btn btn-primary" onclick="createPipeline()">+ New Pipeline</button>
@@ -36,17 +24,12 @@ defmodule SymphonyElixir.Server.PipelineUI do
     #{UIHelpers.toast_js()}
     #{list_js()}
       </script>
-    </body>
-    </html>
     """
+
+    UIHelpers.page_template("Symphony Pipelines", "pipeline", list_css(), body)
   end
 
   defp list_css do
-    UIHelpers.base_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.nav_active_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.toast_css() <>
       ~S"""
 
       .page-header {
@@ -418,20 +401,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
   def render_designer(pipeline) do
     pipeline_json = Jason.encode!(pipeline)
 
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>#{UIHelpers.esc(pipeline.name)} — Symphony Pipeline</title>
-      <style>
-    #{designer_css()}
-      </style>
-    </head>
-    <body>
-    #{UIHelpers.nav_topbar("pipeline")}
-
+    body = """
       <!-- Floating palette -->
       <div class="palette" id="palette">
         <div class="palette-item" draggable="true" data-type="start" title="Start">
@@ -583,19 +553,15 @@ defmodule SymphonyElixir.Server.PipelineUI do
     const PIPELINE_DATA = #{pipeline_json};
     #{designer_js()}
       </script>
-    </body>
-    </html>
     """
+
+    title = "#{UIHelpers.esc(pipeline.name)} — Symphony Pipeline"
+    UIHelpers.page_template(title, "pipeline", designer_css(), body)
   end
 
   defp designer_css do
-    UIHelpers.base_css() <>
-      UIHelpers.topbar_css() <>
-      UIHelpers.nav_active_css() <>
-      UIHelpers.button_css() <>
-      UIHelpers.form_css() <>
+    UIHelpers.form_css() <>
       UIHelpers.modal_css() <>
-      UIHelpers.toast_css() <>
       UIHelpers.ai_draft_css() <>
       UIHelpers.skill_picker_css() <>
       UIHelpers.integration_help_css() <>
@@ -832,6 +798,19 @@ defmodule SymphonyElixir.Server.PipelineUI do
       .report-content {
         font-size: 0.78rem; line-height: 1.5; color: var(--text-secondary);
         max-height: 300px; overflow-y: auto;
+      }
+
+      /* Plan review content */
+      .plan-review-content {
+        font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);
+        padding: 12px; background: var(--bg-tertiary);
+        border: 1px solid var(--border); border-radius: 6px;
+        max-height: 600px; overflow-y: auto;
+      }
+      .plan-review-content h2, .plan-review-content h3 { color: var(--text-primary); }
+      .plan-review-content code {
+        background: var(--bg-secondary); padding: 1px 4px;
+        border-radius: 3px; font-size: 0.76rem;
       }
 
       /* Finding cards */
@@ -1629,7 +1608,17 @@ defmodule SymphonyElixir.Server.PipelineUI do
         const autoTimeout = (node.config || {}).auto_approve_timeout_ms || '';
         const autoCond = (node.config || {}).auto_approve_condition || '';
         const webhookUrl = (node.config || {}).auto_approve_webhook_url || '';
+        const reviewMode = (node.config || {}).review_mode || '';
         html += `
+          <div class="form-group">
+            <label>Review Mode</label>
+            <select id="cfg-review-mode">
+              <option value="" ${reviewMode === '' ? 'selected' : ''}>Default</option>
+              <option value="code_review" ${reviewMode === 'code_review' ? 'selected' : ''}>Code Review</option>
+              <option value="plan_review" ${reviewMode === 'plan_review' ? 'selected' : ''}>Plan Review</option>
+              <option value="findings_review" ${reviewMode === 'findings_review' ? 'selected' : ''}>Findings Review</option>
+            </select>
+          </div>
           <div class="form-group">
             <label>Review Instructions</label>
             <textarea id="cfg-instructions" rows="3">${esc((node.config || {}).instructions || '')}</textarea>
@@ -1769,6 +1758,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       }
       if (node.type === 'human_gate') {
         node.config = node.config || {};
+        node.config.review_mode = document.getElementById('cfg-review-mode').value || null;
         node.config.instructions = document.getElementById('cfg-instructions').value;
         var hgTimeout = document.getElementById('cfg-auto-timeout').value;
         node.config.auto_approve_timeout_ms = hgTimeout ? parseInt(hgTimeout) : null;
@@ -2124,10 +2114,18 @@ defmodule SymphonyElixir.Server.PipelineUI do
     // ══════════════════════════════════
     async function toggleExecution() {
       if (execMode) {
+        // Cancel the active run on the server if still running
+        if (activeRun && activeRun.id && !['completed', 'failed', 'cancelled'].includes(activeRun.status)) {
+          try {
+            await fetch('/board/api/pipelines/' + pipeline.id + '/runs/' + activeRun.id + '/cancel', { method: 'POST' });
+          } catch(e) { /* ignore */ }
+        }
         // Stop execution mode
         execMode = false;
         activeRun = null;
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        window._gateContextLoadedFor = null;
+        window._sidebarNodeState = null;
         document.getElementById('run-btn').innerHTML = '&#9654; Run';
         document.querySelector('.exec-sidebar')?.classList.remove('open');
         document.getElementById('palette').style.display = 'flex';
@@ -2344,7 +2342,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
       if (node.type === 'issue') {
         var issueId = node.issue_id || ((activeRun.node_issue_ids || {})[nodeId]);
         if (issueId) {
-          html += '<div style="margin-top:12px"><a href="/board/issues/' + issueId + '" class="btn btn-sm btn-ghost" target="_blank" style="text-decoration:none">View Issue</a></div>';
+          html += '<div style="margin-top:12px"><a href="/board/issues/' + issueId + '" class="btn btn-sm btn-ghost" style="text-decoration:none">View Issue</a></div>';
           if (state === 'running') {
             html += '<div style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">Issue dispatched. Waiting for completion...</div>';
           }
@@ -2393,8 +2391,9 @@ defmodule SymphonyElixir.Server.PipelineUI do
         if (!sidebar) return;
 
         var contextHtml = '';
+        var mode = ctx.review_mode || 'default';
 
-        // Gate prompt banner — the key decision question
+        // Gate prompt banner — always shown
         if (ctx.gate_prompt) {
           contextHtml += '<div class="gate-prompt-banner">';
           contextHtml += '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);margin-bottom:4px">Decision Required</div>';
@@ -2402,7 +2401,7 @@ defmodule SymphonyElixir.Server.PipelineUI do
           contextHtml += '</div>';
         }
 
-        // Instructions (collapsible if gate_prompt exists)
+        // Instructions — always available but collapsible when prompt exists
         if (ctx.instructions) {
           if (ctx.gate_prompt) {
             contextHtml += '<details style="margin-top:8px">';
@@ -2417,134 +2416,264 @@ defmodule SymphonyElixir.Server.PipelineUI do
           }
         }
 
-        // Quality checks
-        if (ctx.checks && ctx.checks.length > 0) {
-          contextHtml += '<div style="margin-top:8px;font-size:0.82rem">';
-          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Quality Checks</strong>';
-          ctx.checks.forEach(function(c) {
-            contextHtml += '<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;font-size:0.75rem">' + esc(c) + '</span>';
-          });
-          contextHtml += '</div>';
+        // Mode-specific content
+        if (mode === 'plan_review') {
+          contextHtml += renderPlanReview(ctx);
+        } else if (mode === 'code_review') {
+          contextHtml += renderCodeReview(ctx);
+        } else if (mode === 'findings_review') {
+          contextHtml += renderFindingsReview(ctx);
+        } else {
+          contextHtml += renderDefaultReview(ctx);
         }
 
-        // Predecessor issues — expandable accordions with inline reports
-        if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
-          contextHtml += '<div style="margin-top:10px">';
-          contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:6px">Predecessor Issues (' + ctx.predecessor_issues.length + ')</strong>';
-          ctx.predecessor_issues.forEach(function(issue, idx) {
-            var stateColor = issue.state === 'Done' ? 'var(--green)' : issue.state === 'Review' ? 'var(--yellow)' : 'var(--text-muted)';
-            var hasContent = issue.result_text || (issue.reports && issue.reports.length > 0) || issue.description;
-
-            if (hasContent) {
-              contextHtml += '<details class="issue-accordion"' + (idx === 0 ? ' open' : '') + '>';
-              contextHtml += '<summary class="accordion-header">';
-              contextHtml += '<span style="color:var(--accent);font-weight:500">' + esc(issue.identifier) + '</span> ';
-              contextHtml += esc(issue.title);
-              contextHtml += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
-              if (issue.reports && issue.reports.length > 0) contextHtml += ' <span style="font-size:0.65rem;color:var(--green)">&#128196; ' + issue.reports.length + '</span>';
-              contextHtml += '</summary>';
-              contextHtml += '<div class="accordion-body">';
-
-              // Issue description
-              if (issue.description) {
-                contextHtml += '<div class="report-section">';
-                contextHtml += '<div class="report-section-title">Description</div>';
-                contextHtml += '<div class="report-content">' + renderMarkdown(issue.description) + '</div>';
-                contextHtml += '</div>';
-              }
-
-              // Agent result text
-              if (issue.result_text) {
-                contextHtml += '<div class="report-section">';
-                contextHtml += '<div class="report-section-title">Agent Result</div>';
-                contextHtml += '<div class="report-content">' + renderMarkdown(issue.result_text) + '</div>';
-                contextHtml += '</div>';
-              }
-
-              // Report files
-              if (issue.reports && issue.reports.length > 0) {
-                issue.reports.forEach(function(report) {
-                  contextHtml += '<div class="report-section">';
-                  contextHtml += '<div class="report-section-title">' + esc(report.name) + '</div>';
-                  contextHtml += '<div class="report-content">' + renderMarkdown(report.content) + '</div>';
-                  contextHtml += '</div>';
-                });
-              }
-
-              contextHtml += '<div style="margin-top:6px"><a href="' + esc(issue.url) + '" target="_blank" class="btn btn-sm btn-ghost" style="font-size:0.72rem;text-decoration:none">Open Full Issue</a></div>';
-              contextHtml += '</div></details>';
-            } else {
-              // Simple row for issues without content
-              contextHtml += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
-              contextHtml += '<a href="' + esc(issue.url) + '" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500">' + esc(issue.identifier) + '</a> ';
-              contextHtml += esc(issue.title);
-              contextHtml += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
-              contextHtml += '</div>';
-            }
-          });
-          contextHtml += '</div>';
-        }
-
-        // Per-finding accept/reject buttons from predecessor scan outputs
-        if (ctx.predecessor_outputs) {
-          var allFindings = [];
-          Object.keys(ctx.predecessor_outputs).forEach(function(predId) {
-            var output = ctx.predecessor_outputs[predId];
-            if (output && output.findings && Array.isArray(output.findings)) {
-              output.findings.forEach(function(f) { allFindings.push(f); });
-            }
-          });
-          if (allFindings.length > 0) {
-            contextHtml += '<div style="margin-top:12px">';
-            contextHtml += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
-            contextHtml += '<strong style="font-size:0.72rem;color:var(--text-muted)">Findings (' + allFindings.length + ')</strong>';
-            contextHtml += '<span style="display:flex;gap:4px"><button class="btn btn-sm btn-ghost" style="font-size:0.68rem;color:var(--green)" onclick="setAllFindings(true)">Accept All</button><button class="btn btn-sm btn-ghost" style="font-size:0.68rem;color:var(--red)" onclick="setAllFindings(false)">Reject All</button></span>';
-            contextHtml += '</div>';
-            allFindings.forEach(function(f) {
-              var sevColor = f.severity === 'critical' ? 'var(--red)' : f.severity === 'high' ? '#f0883e' : f.severity === 'medium' ? 'var(--yellow)' : 'var(--text-muted)';
-              var fid = esc(f.id);
-              contextHtml += '<div class="finding-card" data-finding-id="' + fid + '" data-decision="accepted">';
-              contextHtml += '<div class="finding-header">';
-              contextHtml += '<div style="flex:1;min-width:0">';
-              contextHtml += '<span style="color:' + sevColor + ';font-weight:600;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.3px">' + esc(f.severity || 'info') + '</span> ';
-              contextHtml += '<span style="font-weight:500;font-size:0.82rem">' + esc(f.title) + '</span>';
-              contextHtml += '</div>';
-              contextHtml += '<div class="finding-actions">';
-              contextHtml += '<button class="finding-btn finding-accept active" onclick="setFindingDecision(\'' + fid + '\', true)" title="Accept">&#10003;</button>';
-              contextHtml += '<button class="finding-btn finding-reject" onclick="setFindingDecision(\'' + fid + '\', false)" title="Reject">&#10007;</button>';
-              contextHtml += '</div></div>';
-              if (f.description) contextHtml += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;padding:0 4px">' + esc(f.description) + '</div>';
-              if (f.files && f.files.length > 0) contextHtml += '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;padding:0 4px">' + f.files.map(esc).join(', ') + '</div>';
-              if (f.fix_hint) contextHtml += '<div style="font-size:0.68rem;color:var(--green);margin-top:2px;padding:0 4px">Fix: ' + esc(f.fix_hint) + '</div>';
-              contextHtml += '</div>';
-            });
-            contextHtml += '<div id="findings-summary" style="margin-top:8px;font-size:0.75rem;color:var(--text-muted)"></div>';
-            contextHtml += '</div>';
-          }
-        }
-
-        // Feedback history thread
-        if (ctx.feedback_history && ctx.feedback_history.length > 0) {
-          contextHtml += '<details style="margin-top:10px"' + (ctx.feedback_history.length <= 3 ? ' open' : '') + '>';
-          contextHtml += '<summary class="accordion-header">Decision History (' + ctx.feedback_history.length + ')</summary>';
-          contextHtml += '<div class="accordion-body" style="padding:4px 0">';
-          ctx.feedback_history.forEach(function(d) {
-            var actionColor = d.action === 'approve' ? 'var(--green)' : d.action === 'reject' ? 'var(--red)' : 'var(--yellow)';
-            contextHtml += '<div style="padding:4px 8px;border-left:2px solid ' + actionColor + ';margin-bottom:4px;font-size:0.78rem">';
-            contextHtml += '<span style="color:' + actionColor + ';font-weight:500">' + esc(d.action) + '</span>';
-            if (d.decided_at) contextHtml += ' <span style="font-size:0.68rem;color:var(--text-muted)">' + new Date(d.decided_at).toLocaleString() + '</span>';
-            if (d.feedback) contextHtml += '<div style="margin-top:2px;color:var(--text-secondary)">' + esc(d.feedback) + '</div>';
-            contextHtml += '</div>';
-          });
-          contextHtml += '</div></details>';
-        }
+        // Feedback history thread — always shown
+        contextHtml += renderFeedbackHistory(ctx);
 
         if (contextHtml) {
           var contextDiv = document.createElement('div');
           contextDiv.innerHTML = contextHtml;
           sidebar.appendChild(contextDiv);
         }
+
+        if (mode === 'findings_review' || mode === 'default') {
+          updateFindingsSummary();
+        }
       } catch(e) {}
+    }
+
+    // ── Plan Review: show rendered implementation plan ──
+    function renderPlanReview(ctx) {
+      var html = '';
+      if (!ctx.predecessor_issues || ctx.predecessor_issues.length === 0) {
+        html += '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem">Waiting for plan...</div>';
+        return html;
+      }
+      ctx.predecessor_issues.forEach(function(issue) {
+        // Plan is in result_text (agent output)
+        var planText = issue.result_text || '';
+        if (!planText && issue.reports) {
+          // Fallback: check reports for plan content
+          issue.reports.forEach(function(r) { if (r.content && !planText) planText = r.content; });
+        }
+        if (planText) {
+          html += '<div style="margin-top:10px">';
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+          html += '<strong style="font-size:0.75rem;color:var(--text-muted)">' + esc(issue.identifier) + ' — ' + esc(issue.title) + '</strong>';
+          html += '<a href="' + esc(issue.url) + '" class="btn btn-sm btn-ghost" style="font-size:0.68rem;text-decoration:none">Full Issue</a>';
+          html += '</div>';
+          html += '<div class="plan-review-content">' + renderMarkdown(planText) + '</div>';
+          html += '</div>';
+        }
+      });
+      if (!html) {
+        html += '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem">No plan content found in predecessor issues.</div>';
+      }
+      return html;
+    }
+
+    // ── Code Review: show change summaries and reports ──
+    function renderCodeReview(ctx) {
+      var html = '';
+      if (!ctx.predecessor_issues || ctx.predecessor_issues.length === 0) {
+        html += '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem">Waiting for implementation...</div>';
+        return html;
+      }
+      ctx.predecessor_issues.forEach(function(issue) {
+        var stateColor = issue.state === 'Done' ? 'var(--green)' : issue.state === 'Review' ? 'var(--yellow)' : 'var(--text-muted)';
+        html += '<div style="margin-top:10px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+        html += '<strong style="font-size:0.75rem;color:var(--accent)">' + esc(issue.identifier) + '</strong>';
+        html += '<span style="font-size:0.8rem;color:var(--text-primary)">' + esc(issue.title) + '</span>';
+        html += '<span style="color:' + stateColor + ';font-size:0.68rem">' + esc(issue.state) + '</span>';
+        html += '<a href="' + esc(issue.url) + '" class="btn btn-sm btn-ghost" style="font-size:0.68rem;text-decoration:none;margin-left:auto">Full Issue</a>';
+        html += '</div>';
+
+        // Agent result — typically contains change summary
+        if (issue.result_text) {
+          html += '<div class="report-section">';
+          html += '<div class="report-section-title">Changes Summary</div>';
+          html += '<div class="report-content">' + renderMarkdown(issue.result_text) + '</div>';
+          html += '</div>';
+        }
+
+        // Report files — rendered as markdown
+        if (issue.reports && issue.reports.length > 0) {
+          issue.reports.forEach(function(report) {
+            html += '<div class="report-section">';
+            html += '<div class="report-section-title">' + esc(report.name) + '</div>';
+            html += '<div class="report-content">' + renderMarkdown(report.content) + '</div>';
+            html += '</div>';
+          });
+        }
+        html += '</div>';
+      });
+      return html;
+    }
+
+    // ── Findings Review: per-finding accept/reject cards ──
+    function renderFindingsReview(ctx) {
+      var html = '';
+      var allFindings = collectFindings(ctx);
+
+      if (allFindings.length === 0) {
+        // Fallback: check predecessor issue reports for findings info
+        if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
+          html += '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem">No structured findings. Scan result:</div>';
+          ctx.predecessor_issues.forEach(function(issue) {
+            if (issue.result_text) {
+              html += '<div class="report-section">';
+              html += '<div class="report-section-title">' + esc(issue.identifier) + ' — ' + esc(issue.title) + '</div>';
+              html += '<div class="report-content">' + renderMarkdown(issue.result_text) + '</div>';
+              html += '</div>';
+            }
+          });
+        } else {
+          html += '<div style="padding:12px;color:var(--text-muted);font-size:0.82rem">No findings from scan.</div>';
+        }
+        return html;
+      }
+
+      html += renderFindingCards(allFindings);
+      return html;
+    }
+
+    // ── Default: show everything (backwards compatible) ──
+    function renderDefaultReview(ctx) {
+      var html = '';
+
+      // Quality checks
+      if (ctx.checks && ctx.checks.length > 0) {
+        html += '<div style="margin-top:8px;font-size:0.82rem">';
+        html += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:4px">Quality Checks</strong>';
+        ctx.checks.forEach(function(c) {
+          html += '<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;font-size:0.75rem">' + esc(c) + '</span>';
+        });
+        html += '</div>';
+      }
+
+      // Predecessor issues — expandable accordions
+      if (ctx.predecessor_issues && ctx.predecessor_issues.length > 0) {
+        html += '<div style="margin-top:10px">';
+        html += '<strong style="font-size:0.72rem;color:var(--text-muted);display:block;margin-bottom:6px">Predecessor Issues (' + ctx.predecessor_issues.length + ')</strong>';
+        ctx.predecessor_issues.forEach(function(issue, idx) {
+          html += renderIssueAccordion(issue, idx);
+        });
+        html += '</div>';
+      }
+
+      // Findings
+      var allFindings = collectFindings(ctx);
+      if (allFindings.length > 0) {
+        html += renderFindingCards(allFindings);
+      }
+
+      return html;
+    }
+
+    // ── Shared: collect findings from predecessor outputs ──
+    function collectFindings(ctx) {
+      var allFindings = [];
+      if (ctx.predecessor_outputs) {
+        Object.keys(ctx.predecessor_outputs).forEach(function(predId) {
+          var output = ctx.predecessor_outputs[predId];
+          if (output && output.findings && Array.isArray(output.findings)) {
+            output.findings.forEach(function(f) { allFindings.push(f); });
+          }
+        });
+      }
+      return allFindings;
+    }
+
+    // ── Shared: render finding cards with accept/reject buttons ──
+    function renderFindingCards(findings) {
+      var html = '<div style="margin-top:12px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+      html += '<strong style="font-size:0.72rem;color:var(--text-muted)">Findings (' + findings.length + ')</strong>';
+      html += '<span style="display:flex;gap:4px"><button class="btn btn-sm btn-ghost" style="font-size:0.68rem;color:var(--green)" onclick="setAllFindings(true)">Accept All</button><button class="btn btn-sm btn-ghost" style="font-size:0.68rem;color:var(--red)" onclick="setAllFindings(false)">Reject All</button></span>';
+      html += '</div>';
+      findings.forEach(function(f) {
+        var sevColor = f.severity === 'critical' ? 'var(--red)' : f.severity === 'high' ? '#f0883e' : f.severity === 'medium' ? 'var(--yellow)' : 'var(--text-muted)';
+        var fid = esc(f.id);
+        html += '<div class="finding-card" data-finding-id="' + fid + '" data-decision="accepted">';
+        html += '<div class="finding-header">';
+        html += '<div style="flex:1;min-width:0">';
+        html += '<span style="color:' + sevColor + ';font-weight:600;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.3px">' + esc(f.severity || 'info') + '</span> ';
+        html += '<span style="font-weight:500;font-size:0.82rem">' + esc(f.title) + '</span>';
+        html += '</div>';
+        html += '<div class="finding-actions">';
+        html += '<button class="finding-btn finding-accept active" onclick="setFindingDecision(\'' + fid + '\', true)" title="Accept">&#10003;</button>';
+        html += '<button class="finding-btn finding-reject" onclick="setFindingDecision(\'' + fid + '\', false)" title="Reject">&#10007;</button>';
+        html += '</div></div>';
+        if (f.description) html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;padding:0 4px">' + esc(f.description) + '</div>';
+        if (f.files && f.files.length > 0) html += '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;padding:0 4px">' + f.files.map(esc).join(', ') + '</div>';
+        if (f.fix_hint) html += '<div style="font-size:0.68rem;color:var(--green);margin-top:2px;padding:0 4px">Fix: ' + esc(f.fix_hint) + '</div>';
+        html += '</div>';
+      });
+      html += '<div id="findings-summary" style="margin-top:8px;font-size:0.75rem;color:var(--text-muted)"></div>';
+      html += '</div>';
+      return html;
+    }
+
+    // ── Shared: render an issue as an expandable accordion ──
+    function renderIssueAccordion(issue, idx) {
+      var stateColor = issue.state === 'Done' ? 'var(--green)' : issue.state === 'Review' ? 'var(--yellow)' : 'var(--text-muted)';
+      var hasContent = issue.result_text || (issue.reports && issue.reports.length > 0) || issue.description;
+      var html = '';
+
+      if (hasContent) {
+        html += '<details class="issue-accordion"' + (idx === 0 ? ' open' : '') + '>';
+        html += '<summary class="accordion-header">';
+        html += '<span style="color:var(--accent);font-weight:500">' + esc(issue.identifier) + '</span> ';
+        html += esc(issue.title);
+        html += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
+        if (issue.reports && issue.reports.length > 0) html += ' <span style="font-size:0.65rem;color:var(--green)">&#128196; ' + issue.reports.length + '</span>';
+        html += '</summary>';
+        html += '<div class="accordion-body">';
+        if (issue.description) {
+          html += '<div class="report-section"><div class="report-section-title">Description</div>';
+          html += '<div class="report-content">' + renderMarkdown(issue.description) + '</div></div>';
+        }
+        if (issue.result_text) {
+          html += '<div class="report-section"><div class="report-section-title">Agent Result</div>';
+          html += '<div class="report-content">' + renderMarkdown(issue.result_text) + '</div></div>';
+        }
+        if (issue.reports && issue.reports.length > 0) {
+          issue.reports.forEach(function(report) {
+            html += '<div class="report-section"><div class="report-section-title">' + esc(report.name) + '</div>';
+            html += '<div class="report-content">' + renderMarkdown(report.content) + '</div></div>';
+          });
+        }
+        html += '<div style="margin-top:6px"><a href="' + esc(issue.url) + '" class="btn btn-sm btn-ghost" style="font-size:0.72rem;text-decoration:none">Open Full Issue</a></div>';
+        html += '</div></details>';
+      } else {
+        html += '<div style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:0.8rem">';
+        html += '<a href="' + esc(issue.url) + '" style="color:var(--accent);text-decoration:none;font-weight:500">' + esc(issue.identifier) + '</a> ';
+        html += esc(issue.title);
+        html += ' <span style="color:' + stateColor + ';font-size:0.72rem">' + esc(issue.state) + '</span>';
+        html += '</div>';
+      }
+      return html;
+    }
+
+    // ── Shared: render feedback history ──
+    function renderFeedbackHistory(ctx) {
+      var html = '';
+      if (ctx.feedback_history && ctx.feedback_history.length > 0) {
+        html += '<details style="margin-top:10px"' + (ctx.feedback_history.length <= 3 ? ' open' : '') + '>';
+        html += '<summary class="accordion-header">Decision History (' + ctx.feedback_history.length + ')</summary>';
+        html += '<div class="accordion-body" style="padding:4px 0">';
+        ctx.feedback_history.forEach(function(d) {
+          var actionColor = d.action === 'approve' ? 'var(--green)' : d.action === 'reject' ? 'var(--red)' : 'var(--yellow)';
+          html += '<div style="padding:4px 8px;border-left:2px solid ' + actionColor + ';margin-bottom:4px;font-size:0.78rem">';
+          html += '<span style="color:' + actionColor + ';font-weight:500">' + esc(d.action) + '</span>';
+          if (d.decided_at) html += ' <span style="font-size:0.68rem;color:var(--text-muted)">' + new Date(d.decided_at).toLocaleString() + '</span>';
+          if (d.feedback) html += '<div style="margin-top:2px;color:var(--text-secondary)">' + esc(d.feedback) + '</div>';
+          html += '</div>';
+        });
+        html += '</div></details>';
+      }
+      return html;
     }
 
     async function forceCompleteNode(nodeId) {
@@ -2600,7 +2729,8 @@ defmodule SymphonyElixir.Server.PipelineUI do
     }
 
     async function gateDecision(nodeId, action) {
-      if (!activeRun) return;
+      if (!activeRun) { console.warn('gateDecision: no activeRun'); return; }
+
       const feedback = document.getElementById('gate-feedback')?.value || '';
 
       // Collect per-finding decisions from accept/reject buttons
@@ -2616,18 +2746,26 @@ defmodule SymphonyElixir.Server.PipelineUI do
       var body = { action: action, feedback: feedback };
       if (findingsDecisions) body.findings_decisions = findingsDecisions;
 
-      const res = await fetch(`/board/api/pipelines/${pipeline.id}/runs/${activeRun.id}/gate/${nodeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (res.ok) {
-        var accepted = findingsDecisions ? findingsDecisions.filter(function(f) { return f.accepted; }).length : 0;
-        var total = findingsDecisions ? findingsDecisions.length : 0;
-        var msg = findingsDecisions ? 'Gate ' + action + 'ed (' + accepted + '/' + total + ' findings accepted)' : 'Gate ' + action + 'ed';
-        showToast(msg, { type: action === 'approve' ? 'success' : '' });
-      } else {
-        showToast('Gate decision failed', { type: 'error' });
+      try {
+        var url = '/board/api/pipelines/' + pipeline.id + '/runs/' + activeRun.id + '/gate/' + nodeId;
+        var res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) {
+          var accepted = findingsDecisions ? findingsDecisions.filter(function(f) { return f.accepted; }).length : 0;
+          var total = findingsDecisions ? findingsDecisions.length : 0;
+          var msg = findingsDecisions ? 'Gate ' + action + 'ed (' + accepted + '/' + total + ' findings accepted)' : 'Gate ' + action + 'ed';
+          showToast(msg, { type: action === 'approve' ? 'success' : '' });
+        } else {
+          var errBody = await res.text();
+          console.error('gateDecision failed:', res.status, errBody);
+          showToast('Gate decision failed: ' + res.status, { type: 'error' });
+        }
+      } catch(e) {
+        console.error('gateDecision error:', e);
+        showToast('Gate decision error: ' + e.message, { type: 'error' });
       }
       pollRunStatus();
     }

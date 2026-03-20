@@ -30,14 +30,31 @@ defmodule SymphonyElixir.Server.BoardRouter do
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:dispatch)
 
+  # --- Response Helpers ---
+
+  defp json_resp(conn, status, data) do
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(status, Jason.encode!(data))
+  end
+
+  defp json_ok(conn, data), do: json_resp(conn, 200, data)
+  defp json_created(conn, data), do: json_resp(conn, 201, data)
+  defp json_error(conn, status, message), do: json_resp(conn, status, %{error: message})
+  defp json_not_found(conn), do: json_error(conn, 404, "not_found")
+
+  defp html_resp(conn, html) do
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(200, html)
+  end
+
   # --- Board UI ---
 
   get "/" do
     html = SymphonyElixir.Server.ProductHubUI.render()
 
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    html_resp(conn, html)
   end
 
   # Legacy routes — redirect to Hub
@@ -52,17 +69,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/skills" do
     html = SymphonyElixir.Server.SkillsUI.render()
 
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    html_resp(conn, html)
   end
 
   get "/settings" do
     html = SymphonyElixir.Server.SettingsUI.render()
 
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    html_resp(conn, html)
   end
 
   get "/products" do
@@ -77,9 +90,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       {:ok, issue} ->
         html = SymphonyElixir.Server.IssueDetailUI.render(issue)
 
-        conn
-        |> put_resp_content_type("text/html")
-        |> send_resp(200, html)
+        html_resp(conn, html)
 
       {:error, :not_found} ->
         conn
@@ -93,38 +104,28 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/snapshot" do
     snapshot = LocalBoard.get_board_snapshot()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(snapshot))
+    json_ok(conn, snapshot)
   end
 
   get "/api/states" do
     states = LocalBoard.list_states()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{states: states}))
+    json_ok(conn, %{states: states})
   end
 
   get "/api/issues" do
     issues = LocalBoard.list_issues()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{issues: issues}))
+    json_ok(conn, %{issues: issues})
   end
 
   get "/api/issues/:id" do
     case LocalBoard.get_issue(id) do
       {:ok, issue} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(issue))
+        json_ok(conn, issue)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -181,9 +182,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         |> send_resp(200, body)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -193,20 +192,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
     try do
       case SymphonyElixir.Orchestrator.approve_plan(id) do
         :ok ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(%{ok: true}))
+          json_ok(conn, %{ok: true})
 
         {:error, reason} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(422, Jason.encode!(%{error: to_string(reason)}))
+          json_resp(conn, 422, %{error: to_string(reason)})
       end
     catch
       :exit, _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(503, Jason.encode!(%{error: "orchestrator_unavailable"}))
+        json_error(conn, 503, "orchestrator_unavailable")
     end
   end
 
@@ -222,20 +215,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
     try do
       case SymphonyElixir.Orchestrator.reject_plan(id, feedback) do
         :ok ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(%{ok: true}))
+          json_ok(conn, %{ok: true})
 
         {:error, reason} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(422, Jason.encode!(%{error: to_string(reason)}))
+          json_resp(conn, 422, %{error: to_string(reason)})
       end
     catch
       :exit, _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(503, Jason.encode!(%{error: "orchestrator_unavailable"}))
+        json_error(conn, 503, "orchestrator_unavailable")
     end
   end
 
@@ -249,20 +236,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
     try do
       case SymphonyElixir.Orchestrator.rerun_issue(id, hint) do
         :ok ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(%{ok: true}))
+          json_ok(conn, %{ok: true})
 
         {:error, reason} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(422, Jason.encode!(%{error: to_string(reason)}))
+          json_resp(conn, 422, %{error: to_string(reason)})
       end
     catch
       :exit, _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(503, Jason.encode!(%{error: "orchestrator_unavailable"}))
+        json_error(conn, 503, "orchestrator_unavailable")
     end
   end
 
@@ -339,19 +320,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
       LocalBoard.save_agent_run(id, updated_run)
       maybe_move_to_done(id, updated_run)
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(result))
+      json_ok(conn, result)
     else
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "invalid_state"}))
+        json_error(conn, 400, "invalid_state")
     end
   end
 
@@ -363,19 +338,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
       LocalBoard.save_agent_run(id, updated_run)
       maybe_move_to_done(id, updated_run)
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(%{ok: true}))
+      json_ok(conn, %{ok: true})
     else
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "invalid_state"}))
+        json_error(conn, 400, "invalid_state")
     end
   end
 
@@ -388,28 +357,20 @@ defmodule SymphonyElixir.Server.BoardRouter do
       updated_run = update_follow_up_fields(agent_run, fu_id, attrs, editable_keys)
       LocalBoard.save_agent_run(id, updated_run)
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(%{ok: true}))
+      json_ok(conn, %{ok: true})
     else
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/issues" do
     case LocalBoard.create_issue(conn.body_params) do
       {:ok, issue} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(issue))
+        json_created(conn, issue)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+        json_resp(conn, 400, %{error: "create_failed", detail: inspect(reason)})
     end
   end
 
@@ -417,20 +378,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
     new_state = conn.body_params["state"]
 
     if is_nil(new_state) or new_state == "" do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "state is required"}))
+      json_error(conn, 400, "state is required")
     else
       case LocalBoard.move_issue(id, new_state) do
         {:ok, issue} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(issue))
+          json_ok(conn, issue)
 
         {:error, :not_found} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+          json_not_found(conn)
       end
     end
   end
@@ -438,28 +393,20 @@ defmodule SymphonyElixir.Server.BoardRouter do
   patch "/api/issues/:id" do
     case LocalBoard.update_issue(id, conn.body_params) do
       {:ok, issue} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(issue))
+        json_ok(conn, issue)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   delete "/api/issues/:id" do
     case LocalBoard.delete_issue(id) do
       :ok ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{deleted: true}))
+        json_ok(conn, %{deleted: true})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -468,88 +415,62 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/projects" do
     projects = LocalBoard.list_projects()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{projects: projects}))
+    json_ok(conn, %{projects: projects})
   end
 
   get "/api/projects/:id" do
     case LocalBoard.get_project(id) do
       {:ok, project} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(project))
+        json_ok(conn, project)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/projects" do
     case LocalBoard.create_project(conn.body_params) do
       {:ok, project} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(project))
+        json_created(conn, project)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+        json_resp(conn, 400, %{error: "create_failed", detail: inspect(reason)})
     end
   end
 
   patch "/api/projects/:id" do
     case LocalBoard.update_project(id, conn.body_params) do
       {:ok, project} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(project))
+        json_ok(conn, project)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   delete "/api/projects/:id" do
     case LocalBoard.delete_project(id) do
       :ok ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{deleted: true}))
+        json_ok(conn, %{deleted: true})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/projects/:id/clone" do
     case LocalBoard.clone_project_repo(id) do
       {:ok, path} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{cloned: true, path: path}))
+        json_ok(conn, %{cloned: true, path: path})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, :no_repo_url} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "no_repo_url"}))
+        json_error(conn, 400, "no_repo_url")
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: "clone_failed", detail: inspect(reason)}))
+        json_resp(conn, 500, %{error: "clone_failed", detail: inspect(reason)})
     end
   end
 
@@ -566,38 +487,26 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.ProjectScanner.scan(root_path, opts) do
       {:ok, candidates} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{candidates: candidates}))
+        json_ok(conn, %{candidates: candidates})
 
       {:error, :not_a_directory} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "not_a_directory", path: root_path}))
+        json_resp(conn, 400, %{error: "not_a_directory", path: root_path})
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: "scan_failed", detail: inspect(reason)}))
+        json_resp(conn, 500, %{error: "scan_failed", detail: inspect(reason)})
     end
   end
 
   post "/api/browse-folder" do
     case open_native_folder_dialog() do
       {:ok, path} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{path: path}))
+        json_ok(conn, %{path: path})
 
       :cancelled ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{path: nil}))
+        json_ok(conn, %{path: nil})
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: "browse_failed", detail: inspect(reason)}))
+        json_resp(conn, 500, %{error: "browse_failed", detail: inspect(reason)})
     end
   end
 
@@ -614,9 +523,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     created = for {:ok, p} <- results, do: p
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(201, Jason.encode!(%{imported: length(created), projects: created}))
+    json_created(conn, %{imported: length(created), projects: created})
   end
 
   # --- Products API ---
@@ -624,100 +531,68 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/products" do
     products = LocalBoard.list_products()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{products: products}))
+    json_ok(conn, %{products: products})
   end
 
   get "/api/products/:id" do
     case LocalBoard.get_product(id) do
       {:ok, prod} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(prod))
+        json_ok(conn, prod)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/products" do
     case LocalBoard.create_product(conn.body_params) do
       {:ok, prod} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(prod))
+        json_created(conn, prod)
 
       {:error, :duplicate_name} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          409,
-          Jason.encode!(%{
+        json_resp(conn, 409, %{
             error: "duplicate_name",
             message: "A product with that name already exists"
           })
-        )
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+        json_resp(conn, 400, %{error: "create_failed", detail: inspect(reason)})
     end
   end
 
   patch "/api/products/:id" do
     case LocalBoard.update_product(id, conn.body_params) do
       {:ok, prod} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(prod))
+        json_ok(conn, prod)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   delete "/api/products/:id" do
     case LocalBoard.delete_product(id) do
       :ok ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{deleted: true}))
+        json_ok(conn, %{deleted: true})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/products/:id/features" do
     case LocalBoard.add_product_feature(id, conn.body_params) do
       {:ok, prod} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(prod))
+        json_created(conn, prod)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, :duplicate_name} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          409,
-          Jason.encode!(%{
+        json_resp(conn, 409, %{
             error: "duplicate_name",
             message: "A feature with that name already exists in this product"
           })
-        )
     end
   end
 
@@ -733,42 +608,30 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
         {:ok, updated} = LocalBoard.get_product(id)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(updated))
+        json_ok(conn, updated)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   patch "/api/products/:prod_id/features/:feature_id" do
     case LocalBoard.update_product_feature(prod_id, feature_id, conn.body_params) do
       {:ok, prod} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(prod))
+        json_ok(conn, prod)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   delete "/api/products/:prod_id/features/:feature_id" do
     case LocalBoard.delete_product_feature(prod_id, feature_id) do
       {:ok, prod} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(prod))
+        json_ok(conn, prod)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -777,33 +640,22 @@ defmodule SymphonyElixir.Server.BoardRouter do
     status = conn.body_params["status"]
 
     if is_nil(project_id) or is_nil(status) do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "project_id and status are required"}))
+      json_error(conn, 400, "project_id and status are required")
     else
       source = conn.body_params["source"] || "manual"
 
       case LocalBoard.set_feature_status(prod_id, feature_id, project_id, status, source) do
         {:ok, prod} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(prod))
+          json_ok(conn, prod)
 
         {:error, :not_found} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+          json_not_found(conn)
 
         {:error, :invalid_status} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(
-            400,
-            Jason.encode!(%{
+          json_resp(conn, 400, %{
               error: "invalid_status",
               message: "Status must be one of: missing, planned, in_progress, done, n_a"
             })
-          )
       end
     end
   end
@@ -859,21 +711,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
             "product_id" => id
           })
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          201,
-          Jason.encode!(%{
+        json_created(conn, %{
             issue: issue,
             message:
               "Issue #{issue.identifier} created. The agent will analyze codebases and identify gaps."
           })
-        )
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -904,14 +749,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             issue
           end)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(%{created: created}))
+        json_created(conn, %{created: created})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -925,9 +766,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         user_prompt = conn.body_params["prompt"] || ""
 
         if user_prompt == "" do
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(400, Jason.encode!(%{error: "prompt is required"}))
+          json_error(conn, 400, "prompt is required")
         else
           projects = resolve_product_projects(prod)
           project_list = format_project_list(projects)
@@ -988,22 +827,15 @@ defmodule SymphonyElixir.Server.BoardRouter do
               "skill_group_ids" => skill_group_ids
             })
 
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(
-            201,
-            Jason.encode!(%{
+          json_created(conn, %{
               issue: issue,
               message:
                 "Issue #{issue.identifier} created. The agent will pick it up and propose features as follow-ups."
             })
-          )
         end
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1083,26 +915,17 @@ defmodule SymphonyElixir.Server.BoardRouter do
         end
       end)
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(
-        201,
-        Jason.encode!(%{
+      json_created(conn, %{
           issues: issues_created,
           message:
             "Created #{length(issues_created)} check issue(s). Agents will verify the feature in each project."
         })
-      )
     else
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       nil ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "feature_not_found"}))
+        json_error(conn, 404, "feature_not_found")
     end
   end
 
@@ -1169,21 +992,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
             "product_id" => id
           })
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          201,
-          Jason.encode!(%{
+        json_created(conn, %{
             issue: issue,
             message:
               "Issue #{issue.identifier} created. The agent will scan the codebases and discover implemented features."
           })
-        )
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1241,21 +1057,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
             "skill_group_ids" => skill_group_ids
           })
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          201,
-          Jason.encode!(%{
+        json_created(conn, %{
             issue: issue,
             message:
               "Issue #{issue.identifier} created. The agent will review all project codebases and report findings."
           })
-        )
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1312,21 +1121,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
             "skill_group_ids" => skill_group_ids
           })
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          201,
-          Jason.encode!(%{
+        json_created(conn, %{
             issue: issue,
             message:
               "Issue #{issue.identifier} created. The agent will analyze codebases and propose a product definition."
           })
-        )
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1337,9 +1139,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
         user_prompt = conn.body_params["prompt"] || ""
 
         if title == "" or user_prompt == "" do
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(400, Jason.encode!(%{error: "title and prompt are required"}))
+          json_error(conn, 400, "title and prompt are required")
         else
           projects = resolve_product_projects(prod)
           project_list = format_project_list(projects)
@@ -1376,22 +1176,15 @@ defmodule SymphonyElixir.Server.BoardRouter do
               "skill_group_ids" => skill_group_ids
             })
 
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(
-            201,
-            Jason.encode!(%{
+          json_created(conn, %{
               issue: issue,
               message:
                 "Issue #{issue.identifier} created. The agent will pick it up and work on it."
             })
-          )
         end
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1416,14 +1209,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           |> Enum.sort_by(fn i -> i.updated_at || "" end, :desc)
           |> Enum.take(50)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{issues: matching}))
+        json_ok(conn, %{issues: matching})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1432,90 +1221,63 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/skills" do
     skills = LocalBoard.list_skills()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{skills: skills}))
+    json_ok(conn, %{skills: skills})
   end
 
   get "/api/skills/:id" do
     case LocalBoard.get_skill(id) do
       {:ok, skill} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(skill))
+        json_ok(conn, skill)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/skills" do
     case LocalBoard.create_skill(conn.body_params) do
       {:ok, skill} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(skill))
+        json_created(conn, skill)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+        json_resp(conn, 400, %{error: "create_failed", detail: inspect(reason)})
     end
   end
 
   patch "/api/skills/:id" do
     case LocalBoard.update_skill(id, conn.body_params) do
       {:ok, skill} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(skill))
+        json_ok(conn, skill)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   delete "/api/skills/:id" do
     case LocalBoard.delete_skill(id) do
       :ok ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{deleted: true}))
+        json_ok(conn, %{deleted: true})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, :built_in} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          400,
-          Jason.encode!(%{
+        json_resp(conn, 400, %{
             error: "cannot_delete_built_in",
             message:
               "Built-in skills cannot be deleted. Duplicate it to create a customizable copy."
           })
-        )
     end
   end
 
   post "/api/skills/:id/duplicate" do
     case LocalBoard.duplicate_skill(id) do
       {:ok, skill} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(skill))
+        json_created(conn, skill)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1524,64 +1286,46 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/skill-groups" do
     groups = LocalBoard.list_skill_groups()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{skill_groups: groups}))
+    json_ok(conn, %{skill_groups: groups})
   end
 
   get "/api/skill-groups/:id" do
     case LocalBoard.get_skill_group(id) do
       {:ok, group} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(group))
+        json_ok(conn, group)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/skill-groups" do
     case LocalBoard.create_skill_group(conn.body_params) do
       {:ok, group} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(group))
+        json_created(conn, group)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "create_failed", detail: inspect(reason)}))
+        json_resp(conn, 400, %{error: "create_failed", detail: inspect(reason)})
     end
   end
 
   patch "/api/skill-groups/:id" do
     case LocalBoard.update_skill_group(id, conn.body_params) do
       {:ok, group} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(group))
+        json_ok(conn, group)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   delete "/api/skill-groups/:id" do
     case LocalBoard.delete_skill_group(id) do
       :ok ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{deleted: true}))
+        json_ok(conn, %{deleted: true})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1597,20 +1341,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
         case LocalBoard.update_issue(id, attrs) do
           {:ok, updated} ->
-            conn
-            |> put_resp_content_type("application/json")
-            |> send_resp(200, Jason.encode!(updated))
+            json_ok(conn, updated)
 
           {:error, reason} ->
-            conn
-            |> put_resp_content_type("application/json")
-            |> send_resp(400, Jason.encode!(%{error: "update_failed", detail: inspect(reason)}))
+            json_resp(conn, 400, %{error: "update_failed", detail: inspect(reason)})
         end
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -1622,34 +1360,22 @@ defmodule SymphonyElixir.Server.BoardRouter do
          {:ok, rel_path} <- extract_report_path(issue, conn.query_params["path"]),
          safe_path when is_binary(safe_path) <- safe_resolve(workspace, rel_path),
          {:ok, content} <- File.read(safe_path) do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(%{path: rel_path, content: content}))
+      json_ok(conn, %{path: rel_path, content: content})
     else
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, :no_workspace} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "no_workspace"}))
+        json_error(conn, 404, "no_workspace")
 
       {:error, :no_report} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "no_report"}))
+        json_error(conn, 404, "no_report")
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "invalid_path"}))
+        json_error(conn, 400, "invalid_path")
 
       _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "file_not_found"}))
+        json_error(conn, 404, "file_not_found")
     end
   end
 
@@ -1659,9 +1385,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     hint = Map.get(conn.body_params, "hint", "") |> String.trim()
 
     if hint == "" do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "hint_required"}))
+      json_error(conn, 400, "hint_required")
     else
       skills = LocalBoard.list_skills()
 
@@ -1750,29 +1474,20 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
               result = Map.put(draft, "skill_ids", resolved_skill_ids)
 
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(result))
+              json_ok(conn, result)
 
             {:error, _} ->
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(
-                200,
-                Jason.encode!(%{
+              json_ok(conn, %{
                   title: hint,
                   description: clean,
                   priority: 3,
                   labels: [],
                   skill_ids: []
                 })
-              )
           end
 
         {:error, reason} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(500, Jason.encode!(%{error: "ai_failed", detail: inspect(reason)}))
+          json_resp(conn, 500, %{error: "ai_failed", detail: inspect(reason)})
       end
     end
   end
@@ -1815,9 +1530,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       end
 
     if hint == "" do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "hint_required"}))
+      json_error(conn, 400, "hint_required")
     else
       prompt = """
       You are a product management assistant. Given a brief hint, generate a well-structured product definition.
@@ -1842,20 +1555,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
           case Jason.decode(clean) do
             {:ok, draft} ->
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(draft))
+              json_ok(conn, draft)
 
             {:error, _} ->
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(%{name: hint, description: clean, labels: []}))
+              json_ok(conn, %{name: hint, description: clean, labels: []})
           end
 
         {:error, reason} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(500, Jason.encode!(%{error: "ai_failed", detail: inspect(reason)}))
+          json_resp(conn, 500, %{error: "ai_failed", detail: inspect(reason)})
       end
     end
   end
@@ -1864,9 +1571,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     hint = Map.get(conn.body_params, "hint", "") |> String.trim()
 
     if hint == "" do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "hint_required"}))
+      json_error(conn, 400, "hint_required")
     else
       prompt = """
       You are a project management assistant. Given a brief hint, generate a well-structured project definition.
@@ -1892,23 +1597,14 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
           case Jason.decode(clean) do
             {:ok, draft} ->
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(draft))
+              json_ok(conn, draft)
 
             {:error, _} ->
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(
-                200,
-                Jason.encode!(%{name: hint, description: clean, tags: [], priority: 3})
-              )
+              json_ok(conn, %{name: hint, description: clean, tags: [], priority: 3})
           end
 
         {:error, reason} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(500, Jason.encode!(%{error: "ai_failed", detail: inspect(reason)}))
+          json_resp(conn, 500, %{error: "ai_failed", detail: inspect(reason)})
       end
     end
   end
@@ -1918,27 +1614,21 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/settings" do
     settings = Settings.all()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(settings))
+    json_ok(conn, settings)
   end
 
   patch "/api/settings" do
     :ok = Settings.update(conn.body_params)
     settings = Settings.all()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(settings))
+    json_ok(conn, settings)
   end
 
   post "/api/settings/reset" do
     :ok = Settings.reset()
     settings = Settings.all()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(settings))
+    json_ok(conn, settings)
   end
 
   @board_settings_keys ["auto_add_enabled", "max_todo_parallel", "segregate_by_project"]
@@ -1947,9 +1637,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     payload =
       Map.new(@board_settings_keys, fn k -> {k, Settings.get(k)} end)
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(payload))
+    json_ok(conn, payload)
   end
 
   patch "/api/settings/auto-add" do
@@ -1965,9 +1653,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     payload =
       Map.new(@board_settings_keys, fn k -> {k, Settings.get(k)} end)
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(payload))
+    json_ok(conn, payload)
   end
 
   # --- Follow-up helpers ---
@@ -2394,9 +2080,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/pipeline" do
     html = SymphonyElixir.Server.PipelineUI.render_list()
 
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    html_resp(conn, html)
   end
 
   get "/pipeline/:id" do
@@ -2404,9 +2088,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
       {:ok, pipeline} ->
         html = SymphonyElixir.Server.PipelineUI.render_designer(pipeline)
 
-        conn
-        |> put_resp_content_type("text/html")
-        |> send_resp(200, html)
+        html_resp(conn, html)
 
       {:error, :not_found} ->
         conn
@@ -2420,30 +2102,22 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/pipelines" do
     pipelines = LocalBoard.list_pipelines()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{pipelines: pipelines}))
+    json_ok(conn, %{pipelines: pipelines})
   end
 
   post "/api/pipelines" do
     {:ok, pipeline} = LocalBoard.create_pipeline(conn.body_params)
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(201, Jason.encode!(pipeline))
+    json_created(conn, pipeline)
   end
 
   get "/api/pipelines/:id" do
     case LocalBoard.get_pipeline(id) do
       {:ok, pipeline} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(pipeline))
+        json_ok(conn, pipeline)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -2455,34 +2129,20 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     if has_active_run and
          (Map.has_key?(conn.body_params, "nodes") or Map.has_key?(conn.body_params, "edges")) do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(
-        409,
-        Jason.encode!(%{
+      json_resp(conn, 409, %{
           error: "pipeline_running",
           message: "Cannot edit pipeline graph while a run is active. Stop the run first."
         })
-      )
     else
       case LocalBoard.update_pipeline(id, conn.body_params) do
         {:ok, pipeline} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(pipeline))
+          json_ok(conn, pipeline)
 
         {:error, :not_found} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+          json_not_found(conn)
 
         {:error, validation_error} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(
-            422,
-            Jason.encode!(%{error: "validation_failed", reason: to_string(validation_error)})
-          )
+          json_resp(conn, 422, %{error: "validation_failed", reason: to_string(validation_error)})
       end
     end
   end
@@ -2490,14 +2150,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
   delete "/api/pipelines/:id" do
     case LocalBoard.delete_pipeline(id) do
       :ok ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: true}))
+        json_ok(conn, %{ok: true})
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -2517,55 +2173,39 @@ defmodule SymphonyElixir.Server.BoardRouter do
         # Start the pipeline runner
         SymphonyElixir.PipelineRunner.start_run(id, run.id)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(201, Jason.encode!(run))
+        json_created(conn, run)
 
       {:error, :already_running} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(409, Jason.encode!(%{error: "already_running"}))
+        json_error(conn, 409, "already_running")
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   get "/api/pipelines/:id/runs" do
     runs = LocalBoard.list_pipeline_runs(id)
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{runs: runs}))
+    json_ok(conn, %{runs: runs})
   end
 
   get "/api/pipelines/:pipeline_id/runs/:run_id" do
     case LocalBoard.get_pipeline_run(pipeline_id, run_id) do
       {:ok, run} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(run))
+        json_ok(conn, run)
 
       {:error, :not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/pipelines/:pipeline_id/runs/:run_id/pause" do
     case LocalBoard.update_pipeline_run_status(run_id, "paused") do
       {:ok, run} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(run))
+        json_ok(conn, run)
 
       {:error, _} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -2575,28 +2215,23 @@ defmodule SymphonyElixir.Server.BoardRouter do
         # Fix D: Re-register with runner so it resumes ticking
         SymphonyElixir.PipelineRunner.resume_run(pipeline_id, run_id)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(run))
+        json_ok(conn, run)
 
       {:error, _} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
   post "/api/pipelines/:pipeline_id/runs/:run_id/cancel" do
-    case LocalBoard.update_pipeline_run_status(run_id, "cancelled") do
+    # Cancel via PipelineRunner — kills agent containers, sets status to cancelled
+    SymphonyElixir.PipelineRunner.cancel_run(pipeline_id, run_id)
+
+    case LocalBoard.get_pipeline_run(pipeline_id, run_id) do
       {:ok, run} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(run))
+        json_ok(conn, run)
 
       {:error, _} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
     end
   end
 
@@ -2606,34 +2241,23 @@ defmodule SymphonyElixir.Server.BoardRouter do
     findings_decisions = Map.get(conn.body_params, "findings_decisions")
 
     if action not in ["approve", "reject", "hold"] do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(
-        400,
-        Jason.encode!(%{
+      json_resp(conn, 400, %{
           error: "invalid_action",
           message: "action must be 'approve', 'reject', or 'hold'"
         })
-      )
     else
       case LocalBoard.record_gate_decision(run_id, node_id, action, feedback, findings_decisions) do
         {:ok, run} ->
           # Notify the pipeline runner about the gate decision
           SymphonyElixir.PipelineRunner.gate_decided(run_id, node_id, action)
 
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(run))
+          json_ok(conn, run)
 
         {:error, :invalid_action} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(400, Jason.encode!(%{error: "invalid_action"}))
+          json_error(conn, 400, "invalid_action")
 
         {:error, _} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+          json_not_found(conn)
       end
     end
   end
@@ -2642,9 +2266,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   post "/api/pipelines/:pipeline_id/runs/:run_id/force-complete/:node_id" do
     SymphonyElixir.PipelineRunner.force_complete_node(run_id, node_id)
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{ok: true}))
+    json_ok(conn, %{ok: true})
   end
 
   # Gap #2: Get gate context (predecessor issues, instructions, checks, feedback history)
@@ -2663,6 +2285,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
               instructions = get_in(node, [:config, "instructions"]) || ""
               gate_prompt = get_in(node, [:config, "gate_prompt"]) || ""
               checks = get_in(node, [:config, "checks"]) || []
+              review_mode = get_in(node, [:config, "review_mode"]) || "default"
 
               # Feedback history for this gate
               feedback_history =
@@ -2687,6 +2310,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
                 node_type: node.type,
                 label: node.label,
                 gate_prompt: gate_prompt,
+                review_mode: review_mode,
                 instructions: instructions,
                 checks: checks,
                 predecessor_issues: predecessor_issues,
@@ -2695,25 +2319,17 @@ defmodule SymphonyElixir.Server.BoardRouter do
                 attempts: Map.get(run.node_attempts, node_id, 0)
               }
 
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(200, Jason.encode!(context))
+              json_ok(conn, context)
             else
-              conn
-              |> put_resp_content_type("application/json")
-              |> send_resp(404, Jason.encode!(%{error: "node_not_found"}))
+              json_error(conn, 404, "node_not_found")
             end
 
           {:error, _} ->
-            conn
-            |> put_resp_content_type("application/json")
-            |> send_resp(404, Jason.encode!(%{error: "pipeline_not_found"}))
+            json_error(conn, 404, "pipeline_not_found")
         end
 
       {:error, _} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "run_not_found"}))
+        json_error(conn, 404, "run_not_found")
     end
   end
 
@@ -2748,17 +2364,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
         end
       end)
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{gates: gates}))
+    json_ok(conn, %{gates: gates})
   end
 
   get "/api/pipeline-runs/active" do
     runs = LocalBoard.list_all_active_runs()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{runs: runs}))
+    json_ok(conn, %{runs: runs})
   end
 
   # --- Backup & Restore ---
@@ -2766,9 +2378,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   get "/api/backups" do
     backups = LocalBoard.list_backups()
 
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{backups: backups}))
+    json_ok(conn, %{backups: backups})
   end
 
   post "/api/backups/restore" do
@@ -2776,14 +2386,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case LocalBoard.restore_backup(filename) do
       {:ok, _board} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: true, message: "Restored from #{filename}"}))
+        json_ok(conn, %{ok: true, message: "Restored from #{filename}"})
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "restore_failed", reason: inspect(reason)}))
+        json_resp(conn, 400, %{error: "restore_failed", reason: inspect(reason)})
     end
   end
 
@@ -2798,19 +2404,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
       # Save current form values first so test_connection picks them up
       case Registry.test_connection(type) do
         {:ok, message} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(%{ok: true, message: message}))
+          json_ok(conn, %{ok: true, message: message})
 
         {:error, message} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(200, Jason.encode!(%{ok: false, message: to_string(message)}))
+          json_ok(conn, %{ok: false, message: to_string(message)})
       end
     else
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{ok: false, message: "Unknown integration type: #{type}"}))
+      json_resp(conn, 400, %{ok: false, message: "Unknown integration type: #{type}"})
     end
   end
 
@@ -2824,14 +2424,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.test_connection(config) do
       {:ok, message} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: true, message: message}))
+        json_ok(conn, %{ok: true, message: message})
 
       {:error, message} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: false, message: message}))
+        json_ok(conn, %{ok: false, message: message})
     end
   end
 
@@ -2842,9 +2438,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     subfolder = Settings.get("kb_subfolder") || "symphony"
 
     if vault_path == "" and kb_type not in ["local", "confluence"] do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "Knowledge base vault not configured"}))
+      json_error(conn, 400, "Knowledge base vault not configured")
     else
       case LocalBoard.get_issue(issue_id) do
         {:ok, issue} ->
@@ -2904,17 +2498,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
           now = DateTime.utc_now() |> DateTime.to_iso8601()
           LocalBoard.update_issue(issue_id, %{"kb_synced_at" => now})
 
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(
-            200,
-            Jason.encode!(%{ok: true, notes_written: notes_written, source: source})
-          )
+          json_ok(conn, %{ok: true, notes_written: notes_written, source: source})
 
         {:error, :not_found} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(404, Jason.encode!(%{error: "Issue not found"}))
+          json_error(conn, 404, "Issue not found")
       end
     end
   end
@@ -2949,14 +2536,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             }
           end)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{results: serialized}))
+        json_ok(conn, %{results: serialized})
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -2992,14 +2575,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             }
           end)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{results: serialized}))
+        json_ok(conn, %{results: serialized})
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3041,14 +2620,10 @@ defmodule SymphonyElixir.Server.BoardRouter do
             }
           end)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{results: serialized}))
+        json_ok(conn, %{results: serialized})
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3062,27 +2637,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
       {:ok, result} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          200,
-          Jason.encode!(%{frontmatter: result.frontmatter, content: result.content})
-        )
+        json_ok(conn, %{frontmatter: result.frontmatter, content: result.content})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, :file_not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3097,24 +2661,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
       {:ok, _result} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: true}))
+        json_ok(conn, %{ok: true})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, :file_not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3143,19 +2699,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
       {:ok, %{path: path}} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: true, path: path}))
+        json_ok(conn, %{ok: true, path: path})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3166,9 +2716,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
     subfolder = Settings.get("kb_subfolder") || "symphony"
 
     if not is_list(issue_ids) or issue_ids == [] do
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(400, Jason.encode!(%{error: "issue_ids must be a non-empty list"}))
+      json_error(conn, 400, "issue_ids must be a non-empty list")
     else
       results =
         Enum.map(issue_ids, fn issue_id ->
@@ -3235,12 +2783,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
       total_notes = Enum.flat_map(results, fn r -> Map.get(r, :notes_written, []) end)
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(
-        200,
-        Jason.encode!(%{ok: true, results: results, total_notes_written: length(total_notes)})
-      )
+      json_ok(conn, %{ok: true, results: results, total_notes_written: length(total_notes)})
     end
   end
 
@@ -3264,19 +2807,13 @@ defmodule SymphonyElixir.Server.BoardRouter do
             }
           end)
 
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{versions: serialized}))
+        json_ok(conn, %{versions: serialized})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3290,27 +2827,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
       {:ok, result} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          200,
-          Jason.encode!(%{frontmatter: result.frontmatter, content: result.content})
-        )
+        json_ok(conn, %{frontmatter: result.frontmatter, content: result.content})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, :file_not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3325,27 +2851,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
       {:ok, result} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          200,
-          Jason.encode!(%{ok: true, path: result.path, restored_from: result.restored_from})
-        )
+        json_ok(conn, %{ok: true, path: result.path, restored_from: result.restored_from})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, :file_not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3359,24 +2874,16 @@ defmodule SymphonyElixir.Server.BoardRouter do
 
     case SymphonyElixir.Integrations.KnowledgeBase.execute(config, context) do
       {:ok, _result} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{ok: true}))
+        json_ok(conn, %{ok: true})
 
       {:error, :path_traversal} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Jason.encode!(%{error: "path_traversal"}))
+        json_error(conn, 403, "path_traversal")
 
       {:error, :file_not_found} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+        json_not_found(conn)
 
       {:error, reason} ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{error: inspect(reason)}))
+        json_resp(conn, 500, %{error: inspect(reason)})
     end
   end
 
@@ -3726,9 +3233,7 @@ defmodule SymphonyElixir.Server.BoardRouter do
   end
 
   match _ do
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(404, Jason.encode!(%{error: "not_found"}))
+    json_not_found(conn)
   end
 
   defp parse_int_param(nil, default), do: default

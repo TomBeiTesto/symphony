@@ -106,7 +106,7 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
         "reject with feedback to re-plan.",
       "Does the implementation plan cover all affected files, respect constraints, " <>
         "and have a sensible execution order? Approve to begin coding, or reject with specific feedback.",
-      %{"x" => x_center, "y" => y_plan_gate})
+      %{"x" => x_center, "y" => y_plan_gate}, "plan_review")
 
     # ── Phase 3: Implement (sequential, gated) ──
     y_p3 = y_plan_gate + row_gap
@@ -121,7 +121,7 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
       "Review the implementation. Approve if correct, reject with feedback to revise.",
       "Does the code match the approved plan? Are there bugs, missing edge cases, or style issues? " <>
         "Approve to proceed to testing, or reject with specific code review feedback.",
-      %{"x" => x_center, "y" => y_code_gate})
+      %{"x" => x_center, "y" => y_code_gate}, "code_review")
 
     # ── Phase 4: Verify & Document (parallel) ──
     y_p4 = y_code_gate + row_gap
@@ -227,15 +227,19 @@ defmodule SymphonyElixir.FeaturePipelineSeed do
     }
   end
 
-  defp gate_node(id, label, instructions, gate_prompt, position) do
+  defp gate_node(id, label, instructions, gate_prompt, position, review_mode) do
+    config = %{
+      "instructions" => instructions,
+      "gate_prompt" => gate_prompt
+    }
+
+    config = if review_mode, do: Map.put(config, "review_mode", review_mode), else: config
+
     %{
       "id" => id,
       "type" => "human_gate",
       "label" => label,
-      "config" => %{
-        "instructions" => instructions,
-        "gate_prompt" => gate_prompt
-      },
+      "config" => config,
       "position" => position
     }
   end
