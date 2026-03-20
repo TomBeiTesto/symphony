@@ -179,6 +179,8 @@ defmodule SymphonyElixir.AppServer.ClaudeAdapter do
         [
           "-e",
           "CLAUDE_CODE_DISABLE_NONINTERACTIVE_CHECK=1",
+          "-e",
+          "MIX_BUILD_PATH=/tmp/_build_#{issue_id || "default"}",
           image,
           "-p",
           "--output-format",

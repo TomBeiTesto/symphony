@@ -16,9 +16,9 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
     body = """
       <div class="page-actions-bar">
         <div class="page-actions-left">
-          <a href="javascript:history.back()" style="color:var(--text-muted);text-decoration:none;font-size:1.1rem;margin-right:8px" title="Back">&larr;</a>
+          <button onclick="history.back()" aria-label="Go back" style="background:none;border:none;color:var(--text-muted);font-size:1.1rem;margin-right:8px;cursor:pointer;padding:0">&larr;</button>
           <h2 class="issue-identifier">#{esc(issue.identifier)}</h2>
-          <span class="state-badge" id="state-badge">#{esc(issue.state)}</span>
+          <span class="badge" id="state-badge">#{esc(issue.state)}</span>
         </div>
         <div class="page-actions-right">
           <button class="btn-edit" id="edit-btn" onclick="toggleEdit()">Edit</button>
@@ -27,7 +27,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
           <button class="btn btn-ghost" id="rerun-btn" onclick="toggleRerunPanel()"
             style="display:none" title="Rerun agent with additional guidance">Rerun</button>
           <button class="btn-delete" id="delete-btn" onclick="deleteIssue()">Delete</button>
-          <span class="meta" id="agent-status">Loading...</span>
+          <span class="meta" id="agent-status" aria-live="polite" role="status">Loading...</span>
         </div>
       </div>
     
@@ -38,7 +38,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             <span class="meta">The agent will read its previous output, then improve based on your guidance.</span>
           </div>
           <div class="rerun-bar-right">
-            <textarea id="rerun-hint" rows="2" placeholder="e.g. The extraction missed the scheduling logic
+            <textarea id="rerun-hint" rows="2" aria-label="Feedback for agent rerun" placeholder="e.g. The extraction missed the scheduling logic
               in scheduler.py. Also expand BR-003 with retry behavior details."></textarea>
             <div class="rerun-bar-actions">
               <button class="btn btn-primary btn-sm" onclick="rerunIssue()">Rerun Agent</button>
@@ -57,7 +57,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
               <div id="view-mode">
                 <h2 id="issue-title">#{esc(issue.title)}</h2>
                 <div class="issue-meta">
-                  <span class="priority priority-#{issue.priority || 0}"
+                  <span class="priority-badge priority-#{issue.priority || 0}"
                     id="issue-priority">P#{issue.priority || 0}</span>
                   <span id="issue-labels">#{render_labels(issue.labels || [])}</span>
                   <span id="issue-product" class="product-badge"></span>
@@ -162,12 +162,9 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
               </div>
               <div class="plan-reject-form" id="plan-reject-form" style="display:none;">
                 <textarea id="plan-feedback" placeholder="What should the agent change in its plan?"
-                  rows="3" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--border-primary);
-                  border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);
-                  font-size:0.85rem;resize:vertical;"></textarea>
+                  rows="3"></textarea>
                 <div style="display:flex;gap:8px;">
-                  <button class="btn btn-primary" onclick="rejectPlan()"
-                    style="background:var(--orange);">Re-plan with Feedback</button>
+                  <button class="btn btn-primary btn-replan" onclick="rejectPlan()">Re-plan with Feedback</button>
                   <button class="btn btn-ghost" onclick="hideRejectForm()">Cancel</button>
                 </div>
               </div>
@@ -194,7 +191,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
               <h3>Agent Activity</h3>
               <div class="token-display" id="token-display"></div>
             </div>
-            <div class="activity-feed" id="activity-feed">
+            <div class="activity-feed" id="activity-feed" aria-live="polite" aria-atomic="false">
               <div class="empty-state">Waiting for agent...</div>
             </div>
           </div>
@@ -253,31 +250,42 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       h1 { color: var(--text-primary); font-size: 1.15rem; }
       .page-actions-bar { padding: 8px 20px; }
       .issue-identifier { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
-      .state-badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
-        font-size: 0.7rem; font-weight: 600; background: var(--bg-hover); color: var(--text-muted); }
-      .state-badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
-      .state-badge.done { background: rgba(63,185,80,0.15); color: var(--green); }
-      .state-badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
-      .state-badge.in-progress { background: rgba(88,166,255,0.15); color: var(--accent); }
-      .state-badge.review { background: rgba(188,140,255,0.15); color: var(--purple); }
       .meta { color: var(--text-muted); font-size: 0.8rem; }
       .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
-      @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+      @media (min-width: 768px) and (max-width: 1023px) {
+        .main-grid { grid-template-columns: 1.2fr 0.8fr; }
+      }
+      @media (max-width: 767px) {
+        .main-grid { grid-template-columns: 1fr; }
+        .activity-panel { order: 2; }
+        .left-column { order: 1; }
+      }
+      @media (max-width: 640px) {
+        html, body { height: auto; overflow: auto; }
+        .content { overflow: auto; flex: unset; padding: 12px; }
+        .main-grid { height: auto; }
+        .activity-panel { height: auto; min-height: 300px; }
+        .activity-feed { max-height: 400px; }
+        .page-actions-bar { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+        .page-actions-right { flex-wrap: wrap; gap: 4px; }
+        .rerun-bar-inner { flex-direction: column; gap: 8px; }
+        .rerun-bar-left { min-width: 0; }
+        .rerun-bar-right { flex-direction: column; }
+        .edit-row { grid-template-columns: 1fr; }
+      }
+      @media (hover: none) and (pointer: coarse) {
+        .btn-edit, .btn-delete { min-height: 44px; padding: 6px 14px; }
+      }
       .panel { background: var(--bg-secondary); border: 1px solid var(--border);
         border-radius: var(--radius); padding: 20px; overflow: hidden; }
       .left-column { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
       .issue-panel { flex-shrink: 0; }
       .issue-panel h2 { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 12px; }
       .issue-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
-      .priority { font-size: 0.7rem; font-weight: 700; padding: 2px 6px;
-        border-radius: 4px; background: var(--border-light); color: var(--text-muted); }
-      .priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
-      .priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
-      .priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
       .description { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
       .description p { margin-bottom: 8px; }
-      .activity-panel { display: flex; flex-direction: column; }
+      .activity-panel { display: flex; flex-direction: column; min-height: 0; }
       .activity-header { display: flex; justify-content: space-between; align-items: center;
         margin-bottom: 12px; flex-shrink: 0; }
       .activity-header h3 { color: var(--text-primary); font-size: 1rem; }
@@ -312,9 +320,9 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .plan-review-header h3 { color: var(--text-primary); font-size: 1rem;
         display: flex; align-items: center; gap: 8px; }
       .plan-review-header h3::before { content: ''; display: inline-block;
-        width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; }
+        width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
       .plan-status-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-      .plan-status-badge.review { color: #58a6ff; background: rgba(88,166,255,0.15); }
+      .plan-status-badge.review { color: var(--accent); background: rgba(88,166,255,0.15); }
       .plan-status-badge.approved { color: var(--green); background: rgba(63,185,80,0.12); }
       .plan-status-badge.planning { color: var(--orange); background: rgba(255,180,50,0.12); }
       .plan-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;
@@ -329,6 +337,15 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .plan-text ul, .plan-text ol { margin-left: 20px; margin-bottom: 10px; }
       .plan-text li { margin-bottom: 4px; }
       .plan-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+      .plan-reject-form textarea {
+        width: 100%; margin-bottom: var(--space-2); padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--border-primary); border-radius: var(--radius-sm);
+        background: var(--bg-secondary); color: var(--text-primary);
+        font-size: var(--font-base); resize: vertical; font-family: inherit;
+        outline: none; transition: border-color var(--transition);
+      }
+      .plan-reject-form textarea:focus { border-color: var(--accent); }
+      .plan-reject-form .btn-replan { background: var(--warning); border-color: var(--warning); }
       .result-panel { flex-shrink: 0; }
       .result-panel h3 { color: var(--text-primary); font-size: 1rem;
         margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -350,20 +367,6 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .skills-panel-header h3::before { content: ''; display: inline-block;
         width: 8px; height: 8px; border-radius: 50%; background: var(--purple); }
       .skill-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-      .skill-pill {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
-        background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.25);
-        cursor: default;
-      }
-      .skill-pill.group-pill {
-        background: rgba(88,166,255,0.12); color: var(--accent); border-color: rgba(88,166,255,0.25);
-      }
-      .skill-pill-remove {
-        background: none; border: none; color: inherit; cursor: pointer;
-        font-size: 0.85rem; opacity: 0.6; padding: 0 2px; line-height: 1;
-      }
-      .skill-pill-remove:hover { opacity: 1; }
       .skill-picker {
         margin-top: 10px; padding: 10px; background: var(--bg-primary);
         border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -405,13 +408,13 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .fu-label { display: inline-block; padding: 1px 6px; border-radius: 8px;
         font-size: 0.65rem; background: rgba(88,166,255,0.1); color: var(--accent-hover); }
       .fu-actions { display: flex; gap: 8px; align-items: center; }
-      .btn-accept { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--green);
+      .btn-accept { padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--green);
         background: var(--green); color: #fff; font-size: 0.75rem; cursor: pointer; }
       .btn-accept:hover { opacity: 0.9; }
-      .btn-reject { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
+      .btn-reject { padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
         background: transparent; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; }
       .btn-reject:hover { border-color: var(--red); color: var(--red); }
-      .btn-fu-edit { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
+      .btn-fu-edit { padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
         background: transparent; color: var(--text-secondary); font-size: 0.75rem; cursor: pointer; }
       .btn-fu-edit:hover { border-color: var(--accent); color: var(--accent); }
       .fu-status { font-size: 0.75rem; font-weight: 600; }
@@ -454,15 +457,15 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .report-content table { border-collapse: collapse; margin: 12px 0; width: 100%; }
       .report-content th, .report-content td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
       .report-content th { background: var(--bg-secondary); color: var(--text-primary); font-weight: 600; }
-      .btn-edit { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border);
+      .btn-edit { padding: 4px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
         background: transparent; color: var(--text-secondary);
-        font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+        font-size: 0.8rem; cursor: pointer; transition: all var(--transition); }
       .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
       .btn-edit.active { border-color: var(--accent); background: var(--accent); color: #fff; }
-      .btn-delete { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border);
+      .btn-delete { padding: 4px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
         background: transparent; color: var(--text-muted);
-        font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
-      .btn-delete:hover { border-color: #e55; color: #e55; }
+        font-size: 0.8rem; cursor: pointer; transition: all var(--transition); }
+      .btn-delete:hover { border-color: var(--red); color: var(--red); }
       .kb-sent { border-color: var(--green, #3fb950); color: var(--green, #3fb950); }
       .rerun-bar { border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
       .rerun-bar-inner { display: flex; align-items: flex-start; gap: 16px; padding: 10px 20px; }
@@ -487,10 +490,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       .edit-textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
       .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       .edit-actions { display: flex; gap: 8px; margin-top: 4px; }
-      .btn-save { padding: 6px 20px; border-radius: 4px; border: none;
+      .btn-save { padding: 6px 20px; border-radius: var(--radius-sm); border: none;
         background: var(--accent); color: #fff; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
       .btn-save:hover { background: var(--accent-hover); }
-      .btn-cancel { padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border);
+      .btn-cancel { padding: 6px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border);
         background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }
       .btn-cancel:hover { border-color: var(--text-muted); }
       .product-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;
@@ -568,9 +571,9 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
       // Update state badge
       const badge = document.getElementById('state-badge');
       badge.textContent = issue.state;
-      badge.className = 'state-badge ' + issue.state.toLowerCase().replace(/\s+/g, '-');
+      badge.className = 'badge ' + issue.state.toLowerCase().replace(/\s+/g, '-');
       if (orch && orch.status === 'running') {
-        badge.className = 'state-badge running';
+        badge.className = 'badge running';
         badge.textContent = 'Running';
       }
     
@@ -1091,10 +1094,10 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
             renderMarkdown(issueData.description || 'No description.');
           var badge = document.getElementById('state-badge');
           badge.textContent = issueData.state;
-          badge.className = 'state-badge ' + issueData.state.toLowerCase().replace(/\s+/g, '-');
+          badge.className = 'badge ' + issueData.state.toLowerCase().replace(/\s+/g, '-');
           var priEl = document.getElementById('issue-priority');
           priEl.textContent = 'P' + (issueData.priority || 0);
-          priEl.className = 'priority priority-' + (issueData.priority || 0);
+          priEl.className = 'priority-badge priority-' + (issueData.priority || 0);
           document.getElementById('issue-labels').innerHTML = (issueData.labels || []).map(function(l) {
             return '<span class="label">' + esc(l) + '</span>';
           }).join(' ');
@@ -1169,7 +1172,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         if (s) {
           pills.push('<span class="skill-pill" title="' + esc(s.description || '') + '">' +
             esc(s.name) +
-            '<button class="skill-pill-remove" onclick="removeSkillFromIssue(\'' + sid + '\')">&times;</button>' +
+            '<button class="skill-pill-remove" aria-label="Remove skill: ' + esc(s.name) + '" onclick="removeSkillFromIssue(\'' + sid + '\')">&times;</button>' +
           '</span>');
         }
       });
@@ -1179,7 +1182,7 @@ defmodule SymphonyElixir.Server.IssueDetailUI do
         if (g) {
           pills.push('<span class="skill-pill group-pill" title="Group: ' + esc(g.description || '') + '">' +
             esc(g.name) + ' (' + (g.skill_ids || []).length + ')' +
-            '<button class="skill-pill-remove" onclick="removeGroupFromIssue(\'' + gid + '\')">&times;</button>' +
+            '<button class="skill-pill-remove" aria-label="Remove group: ' + esc(g.name) + '" onclick="removeGroupFromIssue(\'' + gid + '\')">&times;</button>' +
           '</span>');
         }
       });

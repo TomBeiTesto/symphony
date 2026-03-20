@@ -56,3 +56,5 @@ elixir/backups/
 *test_router_*.json
 *.symphony_prompt*.txt
 Claude.md
+_reports/
+reports

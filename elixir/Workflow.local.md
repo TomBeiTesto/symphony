@@ -198,7 +198,8 @@ When an issue has `plan_status: planning`, you are in a planning-only pass:
 - If `plan_status` is `plan_review`, do nothing — the plan is awaiting human review.
 - Keep changes concise, specific, and focused on the issue requirements.
 - **NEVER run Playwright or E2E tests.** Only run `mix test` (unit/integration tests). E2E tests require a running server and browser — they are too slow and fragile for agent sessions. If the issue mentions E2E tests, write the test code but do not execute it.
-- **Do not debug build cache or filesystem issues.** If `mix compile` or `mix test` fails due to corrupted `_build`, run `rm -rf _build && mix deps.compile` once. If it still fails, report the blocker and stop — do not spend turns investigating filesystem quirks.
+- **Run only relevant tests, not the full suite.** Use `mix test test/path/to/specific_test.exs` for files you changed or that cover your changes. Never run bare `mix test` — the full suite is slow and may hit unrelated failures. If you need to compile first, run `mix compile` separately.
+- **Do not debug build cache or filesystem issues.** If `mix compile` or `mix test` fails with `_build` errors, run `rm -rf $MIX_BUILD_PATH && mix deps.compile` once. If it still fails, report the blocker and stop — do not spend turns investigating filesystem quirks, trying `ls -la`, `whoami`, or other diagnostics.
 - **Stay focused.** If a task is taking more than 3-4 tool calls without progress, step back and reassess. Do not loop on retries, polling, or process management.
 
 {% if vault %}

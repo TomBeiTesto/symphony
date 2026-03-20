@@ -43,6 +43,49 @@ defmodule SymphonyElixir.Server.UIHelpers do
       --radius-sm: 6px;
       --shadow: 0 8px 24px rgba(0,0,0,0.4);
       --transition: 150ms ease;
+
+      /* Spacing scale (4px base unit) */
+      --space-1:  4px;
+      --space-2:  8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --space-12: 48px;
+
+      /* Typography scale */
+      --font-xs:   0.75rem;
+      --font-sm:   0.8rem;
+      --font-base: 0.875rem;
+      --font-md:   0.9375rem;
+      --font-lg:   1rem;
+      --font-xl:   1.1rem;
+      --font-mono: 'SF Mono', 'Fira Code', Consolas, monospace;
+
+      /* Border-radius scale */
+      --radius-xs:   3px;
+      --radius-lg:   10px;
+      --radius-full: 50%;
+
+      /* Semantic color tokens */
+      --blue:           #58a6ff;
+      --border-primary: var(--border);
+      --warning:        var(--yellow);
+      --success:        #22c55e;
+      --error:          #ef4444;
+
+      /* Sizing tokens */
+      --topbar-height:          48px;
+      --sidebar-width:          240px;
+      --sidebar-width-tablet:   200px;
+      --sidebar-width-collapsed: 48px;
+      --content-max-width:      1400px;
+      --settings-max-width:     800px;
+      --pipeline-list-width:    280px;
+      --card-min-width:         220px;
+      --column-collapsed-width: 48px;
     }
     """
   end
@@ -197,16 +240,18 @@ defmodule SymphonyElixir.Server.UIHelpers do
         padding: 10px 20px; border-bottom: 1px solid var(--border);
         background: var(--bg-secondary); flex-shrink: 0; z-index: 10;
       }
-      .topbar-left { display: flex; align-items: center; gap: 10px; }
-      .topbar-left h1 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); }
-      .topbar-right { display: flex; align-items: center; gap: 6px; }
-      .topbar-nav { display: flex; align-items: center; gap: 2px; margin-left: 8px; }
+      .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .topbar-left h1 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary);
+        white-space: nowrap; }
+      .topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+      .topbar-nav { display: flex; align-items: center; gap: 2px; margin-left: 8px; flex-wrap: wrap; }
       .topbar-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
-      .logo { color: var(--accent); }
+      .logo { color: var(--accent); flex-shrink: 0; }
       .back-link { color: var(--text-muted); text-decoration: none;
         font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; }
       .back-link:hover { color: var(--accent); background: var(--bg-hover); }
-      .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
+      .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem;
+        color: var(--text-muted); flex-wrap: wrap; }
       .breadcrumb a { color: var(--text-muted); text-decoration: none; }
       .breadcrumb a:hover { color: var(--accent); }
       .breadcrumb .sep { opacity: 0.4; }
@@ -214,6 +259,19 @@ defmodule SymphonyElixir.Server.UIHelpers do
         display: inline-block; width: 7px; height: 7px; border-radius: 50%;
         background: var(--accent); margin-left: 4px; vertical-align: middle;
         animation: pulse 2s infinite;
+      }
+      @media (hover: none) and (pointer: coarse) {
+        .topbar-nav a { min-height: 44px; display: inline-flex; align-items: center; }
+        .back-link, .btn-back { min-height: 44px; display: inline-flex; align-items: center; }
+      }
+      @media (max-width: 640px) {
+        .topbar { padding: 8px 12px; gap: 4px; }
+        .topbar-nav a { padding: 4px 7px; font-size: 0.75rem; }
+        .topbar-left h1 { font-size: 0.9rem; }
+        .topbar-nav { margin-left: 4px; gap: 1px; }
+      }
+      @media (max-width: 400px) {
+        .topbar-nav a { padding: 3px 5px; font-size: 0.7rem; }
       }
     """
   end
@@ -266,6 +324,12 @@ defmodule SymphonyElixir.Server.UIHelpers do
         line-height: 1; transition: color var(--transition);
       }
       .btn-icon:hover { color: var(--text-primary); }
+      /* Minimum 44x44px touch targets on touch devices */
+      @media (hover: none) and (pointer: coarse) {
+        .btn { min-height: 44px; }
+        .btn-sm { min-height: 44px; }
+        .btn-icon { min-height: 44px; min-width: 44px; justify-content: center; }
+      }
     """
   end
 
@@ -297,6 +361,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .form-checkbox label input[type="checkbox"] { width: auto; }
       .help-text { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
       @media (max-width: 600px) { .form-row { flex-direction: column; gap: 0; } }
+      @media (hover: none) and (pointer: coarse) {
+        .form-group input, .form-group textarea, .form-group select { min-height: 44px; }
+        .form-group textarea { min-height: 80px; }
+      }
     """
   end
 
@@ -308,12 +376,13 @@ defmodule SymphonyElixir.Server.UIHelpers do
         display: none; position: fixed; inset: 0;
         background: rgba(0,0,0,0.6); z-index: 1000;
         align-items: center; justify-content: center;
+        padding: 16px;
       }
       .modal-overlay.active { display: flex; }
       .modal {
         background: var(--bg-secondary); border: 1px solid var(--border);
         border-radius: var(--radius); padding: 24px;
-        width: 560px; max-width: 92vw; max-height: 85vh;
+        width: 560px; max-width: 100%; max-height: 85vh;
         overflow-y: auto; box-shadow: var(--shadow);
       }
       .modal-wide { width: 700px; }
@@ -327,6 +396,12 @@ defmodule SymphonyElixir.Server.UIHelpers do
         display: flex; justify-content: flex-end; gap: 8px;
         padding-top: 12px; border-top: 1px solid var(--border); margin-top: 8px;
       }
+      @media (max-width: 480px) {
+        .modal-overlay { padding: 0; align-items: flex-end; }
+        .modal { width: 100%; max-width: 100%; border-radius: var(--radius) var(--radius) 0 0;
+          max-height: 92vh; padding: 16px; border-left: none; border-right: none; border-bottom: none; }
+        .modal-wide { width: 100%; }
+      }
     """
   end
 
@@ -335,8 +410,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
   def badge_css do
     ~S"""
       .badge {
-        display: inline-block; padding: 2px 8px; border-radius: 10px;
-        font-size: 0.7rem; font-weight: 600;
+        display: inline-block; padding: 2px 8px; border-radius: var(--radius-lg);
+        font-size: var(--font-xs); font-weight: 600;
       }
       .badge-backlog { background: rgba(139,148,158,0.15); color: var(--text-muted); }
       .badge-todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
@@ -346,6 +421,64 @@ defmodule SymphonyElixir.Server.UIHelpers do
       .badge-cancelled { background: rgba(248,81,73,0.15); color: var(--red); }
       .badge-archived { background: rgba(72,79,88,0.25); color: var(--text-muted); }
       .badge-default { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); }
+      .badge-plan-review { background: rgba(88,166,255,0.15); color: var(--blue); font-weight: 600; }
+      .badge.running { background: rgba(63,185,80,0.15); color: var(--green); animation: pulse 2s infinite; }
+      .badge.done { background: rgba(63,185,80,0.15); color: var(--green); }
+      .badge.todo { background: rgba(210,153,34,0.15); color: var(--yellow); }
+      .badge.in-progress { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .badge.review { background: rgba(188,140,255,0.15); color: var(--purple); }
+      .badge.backlog { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+      .badge.cancelled { background: rgba(248,81,73,0.15); color: var(--red); }
+      .badge.archived { background: rgba(72,79,88,0.25); color: var(--text-muted); }
+    """
+  end
+
+  @doc "Unified priority indicator CSS (replaces both .priority-dot and .priority text badge)."
+  @spec priority_indicator_css() :: String.t()
+  def priority_indicator_css do
+    ~S"""
+      .priority-dot {
+        width: 7px; height: 7px; border-radius: var(--radius-full);
+        display: inline-block; flex-shrink: 0;
+      }
+      .priority-dot.priority-1 { background: var(--red); }
+      .priority-dot.priority-2 { background: var(--orange); }
+      .priority-dot.priority-3 { background: var(--yellow); }
+      .priority-dot.priority-4 { background: var(--accent); }
+      .priority-dot.priority-0 { background: var(--text-muted); }
+      .priority-badge {
+        font-size: var(--font-xs); font-weight: 700; padding: 2px 6px;
+        border-radius: var(--radius-xs); background: var(--border-light); color: var(--text-muted);
+      }
+      .priority-badge.priority-1 { background: rgba(248,81,73,0.2); color: var(--red); }
+      .priority-badge.priority-2 { background: rgba(209,134,22,0.2); color: var(--orange); }
+      .priority-badge.priority-3 { background: rgba(88,166,255,0.15); color: var(--accent); }
+      .priority-badge.priority-4 { background: rgba(63,185,80,0.1); color: var(--green); }
+    """
+  end
+
+  @doc "Unified skill pill CSS (replaces .form-skill-pill, .skill-pill, .ds-pill)."
+  @spec skill_pill_css() :: String.t()
+  def skill_pill_css do
+    ~S"""
+      .skill-pill {
+        display: inline-flex; align-items: center; gap: var(--space-1);
+        padding: 3px 10px; border-radius: var(--radius-lg);
+        font-size: var(--font-xs); font-weight: 500;
+        background: rgba(188,140,255,0.12); color: var(--purple);
+        border: 1px solid rgba(188,140,255,0.25); cursor: default;
+      }
+      .skill-pill.group-pill {
+        background: rgba(88,166,255,0.12); color: var(--accent);
+        border-color: rgba(88,166,255,0.25);
+      }
+      .skill-pill-remove {
+        background: none; border: none; color: inherit; cursor: pointer;
+        font-size: 0.85rem; opacity: 0.6; padding: 0 2px; line-height: 1;
+      }
+      .skill-pill-remove:hover { opacity: 1; }
+      .skill-pills { display: flex; flex-wrap: wrap; gap: var(--space-1); min-height: 24px; }
+      .form-skill-pills { display: flex; flex-wrap: wrap; gap: var(--space-1); min-height: 24px; }
     """
   end
 
@@ -354,7 +487,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
   def toast_css do
     ~S"""
       .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999;
-        display: flex; flex-direction: column; gap: 8px; }
+        display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 40px); }
       .toast {
         padding: 10px 16px; border-radius: var(--radius-sm);
         background: var(--bg-secondary); border: 1px solid var(--border);
@@ -368,6 +501,10 @@ defmodule SymphonyElixir.Server.UIHelpers do
         background: none; border: none; font-size: 0.85rem; }
       @keyframes toastIn { from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); } }
+      @media (max-width: 480px) {
+        .toast-container { bottom: 12px; right: 12px; left: 12px; max-width: none; }
+        .toast { font-size: 0.8rem; }
+      }
     """
   end
 
@@ -380,6 +517,8 @@ defmodule SymphonyElixir.Server.UIHelpers do
       var container = document.getElementById('toast-container');
       if (!container) { container = document.createElement('div');
         container.id = 'toast-container'; container.className = 'toast-container';
+        container.setAttribute('aria-live', 'polite');
+        container.setAttribute('role', 'status');
         document.body.appendChild(container); }
       var toast = document.createElement('div');
       toast.className = 'toast ' + (opts.type || '');
@@ -495,6 +634,17 @@ defmodule SymphonyElixir.Server.UIHelpers do
         .sidebar .sidebar-item-name, .sidebar .sidebar-badge, .sidebar .sidebar-title { display: none; }
         .sidebar .sidebar-item { justify-content: center; padding: 6px; }
         .tab-item { padding: 8px 10px; font-size: 0.78rem; }
+        .tab-bar { overflow-x: auto; }
+      }
+      @media (hover: none) and (pointer: coarse) {
+        .sidebar-item { min-height: 44px; }
+        .tab-item { min-height: 44px; }
+      }
+      @media (max-width: 480px) {
+        .sidebar { width: 44px; min-width: 44px; }
+        .sidebar .sidebar-item { padding: 4px; justify-content: center; }
+        .tab-item { padding: 6px 8px; font-size: 0.72rem; }
+        .tab-bar { padding: 0 8px; }
       }
     """
   end
@@ -542,7 +692,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
           #{back_btn}
           <a href="/board" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
             <svg class="logo" viewBox="0 0 24 24" width="22" height="22"
-              fill="none" stroke="currentColor" stroke-width="2">
+              fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
             <h1 style="margin:0;">Symphony</h1>
           </a>
@@ -624,29 +774,29 @@ defmodule SymphonyElixir.Server.UIHelpers do
     <div class="modal-overlay" id="#{p}-modal"
       style="display:none#{if z_index, do: ";z-index:#{z_index}", else: ""}"
       onclick="if(event.target===this)#{on_cancel}()">
-      <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="#{p}-modal-title" style="max-width:560px" onclick="event.stopPropagation()">
         <div class="modal-header">
           <h3 id="#{p}-modal-title">New Issue</h3>
-          <button class="btn-icon" onclick="#{on_cancel}()">&times;</button>
+          <button class="btn-icon" aria-label="Close" onclick="#{on_cancel}()">&times;</button>
         </div>
     #{ai_draft_html}
         <form id="#{p}-form" onsubmit="#{on_submit}(event)">
           <input type="hidden" id="#{p}-id" value="">
           <div class="form-group">
-            <label>Title</label>
+            <label for="#{p}-title">Title</label>
             <input type="text" id="#{p}-title" required placeholder="Issue title...">
           </div>
           <div class="form-group">
-            <label>Description</label>
+            <label for="#{p}-description">Description</label>
             <textarea id="#{p}-description" rows="5" placeholder="Describe the issue..."></textarea>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>State</label>
+              <label for="#{p}-state">State</label>
               <select id="#{p}-state"></select>
             </div>
             <div class="form-group">
-              <label>Priority</label>
+              <label for="#{p}-priority">Priority</label>
               <select id="#{p}-priority">
                 <option value="0">No priority</option>
                 <option value="1">Urgent</option>
@@ -657,17 +807,17 @@ defmodule SymphonyElixir.Server.UIHelpers do
             </div>
           </div>
           <div class="form-group">
-            <label>Labels (comma-separated)</label>
+            <label for="#{p}-labels">Labels (comma-separated)</label>
             <input type="text" id="#{p}-labels" placeholder="bug, frontend, urgent">
           </div>
           <div class="form-group">
-            <label>Product</label>
+            <label for="#{p}-product">Product</label>
             <select id="#{p}-product" onchange="#{p}OnProductChange()">
               <option value="">No product</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Project</label>
+            <label for="#{p}-project">Project</label>
             <select id="#{p}-project">
               <option value="">No project</option>
             </select>
@@ -952,6 +1102,128 @@ defmodule SymphonyElixir.Server.UIHelpers do
     """
   end
 
+  @doc """
+  Micro-interaction and motion design CSS.
+
+  Covers: active/pressed states, modal entrance, card stagger entrance,
+  dropdown entrance, toast slide-in, tab-content fade-in, and scroll-driven
+  entrance hooks. All non-trivial animations are wrapped in
+  `@media (prefers-reduced-motion: no-preference)`. Focus rings are handled
+  by `focus_ring_css/0` and the reduced-motion override by `reduced_motion_css/0`.
+  """
+  @spec motion_css() :: String.t()
+  def motion_css do
+    ~S"""
+    /* ── Interaction & Motion ── */
+
+    /* Active / pressed tactile feedback — scale-down communicates the press (50ms) */
+    .btn:active          { transform: scale(0.98); transition-duration: 50ms; }
+    .sidebar-item:active { transform: scale(0.99); transition-duration: 50ms; }
+    .card:active         { transform: scale(0.98); transition-duration: 50ms; }
+
+    /* Toast: slide in from right edge (overrides base toastIn keyframe, 200ms) */
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      /* Modal overlay background fade — 200ms communicates layer depth */
+      @keyframes overlayIn {
+        from { background: rgba(0,0,0,0); }
+        to   { background: rgba(0,0,0,0.6); }
+      }
+      /* Modal panel: scale up + fade in, 200ms ease-out */
+      @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+        to   { opacity: 1; transform: scale(1)    translateY(0); }
+      }
+      .modal-overlay.active { animation: overlayIn 200ms ease-out forwards; }
+      .modal-overlay.active .modal {
+        animation: modalIn 200ms ease-out;
+        will-change: transform, opacity;
+      }
+
+      /* Card entrance + stagger choreography (30ms/item, max 300ms total) */
+      @keyframes cardEntrance {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .card { animation: cardEntrance 200ms ease-out both; }
+      .card:nth-child(2)  { animation-delay:  30ms; }
+      .card:nth-child(3)  { animation-delay:  60ms; }
+      .card:nth-child(4)  { animation-delay:  90ms; }
+      .card:nth-child(5)  { animation-delay: 120ms; }
+      .card:nth-child(6)  { animation-delay: 150ms; }
+      .card:nth-child(7)  { animation-delay: 180ms; }
+      .card:nth-child(8)  { animation-delay: 210ms; }
+      .card:nth-child(9)  { animation-delay: 240ms; }
+      .card:nth-child(10) { animation-delay: 270ms; }
+
+      /* Dropdown entrance: fade + slide-down, 150ms — shows causal origin */
+      @keyframes dropdownIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .dropdown.open .dropdown-menu,
+      .dropdown-menu.open { animation: dropdownIn 150ms ease-out; }
+
+      /* View / tab content fade-in, 200ms — guides attention to new content */
+      @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .tab-content { animation: fadeSlideUp 200ms ease-out; }
+
+      /* Scroll-driven entrance hook: add .enter-on-scroll to any list element;
+         scroll_entrance_js() IntersectionObserver adds .entered to reveal it */
+      .enter-on-scroll {
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 300ms ease-out, transform 300ms ease-out;
+      }
+      .enter-on-scroll.entered {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    """
+  end
+
+  @doc """
+  IntersectionObserver JS for scroll-driven entrance animations.
+
+  Observes all `.enter-on-scroll` elements and adds `.entered` when they
+  cross the viewport threshold (10%). Safe to include on every page — it
+  is a no-op when no `.enter-on-scroll` elements exist.
+  """
+  @spec scroll_entrance_js() :: String.t()
+  def scroll_entrance_js do
+    ~S"""
+    (function() {
+      if (typeof IntersectionObserver === 'undefined') return;
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('entered');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1 });
+      function observe() {
+        document.querySelectorAll('.enter-on-scroll:not(.entered)').forEach(function(el) {
+          observer.observe(el);
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', observe);
+      } else {
+        observe();
+      }
+    })();
+    """
+  end
+
   @doc "Shared pulse animation CSS."
   @spec pulse_css() :: String.t()
   def pulse_css do
@@ -1024,10 +1296,14 @@ defmodule SymphonyElixir.Server.UIHelpers do
     ~S"""
       .page-actions-bar { display: flex; align-items: center; justify-content: space-between;
         padding: 10px 20px; border-bottom: 1px solid var(--border);
-        background: var(--bg-primary); flex-shrink: 0; }
-      .page-actions-left { display: flex; align-items: center; gap: 10px; }
-      .page-actions-right { display: flex; align-items: center; gap: 6px; }
-      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+        background: var(--bg-primary); flex-shrink: 0; gap: 8px; flex-wrap: wrap; }
+      .page-actions-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .page-actions-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .page-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+      @media (max-width: 480px) {
+        .page-actions-bar { padding: 8px 12px; }
+        .page-actions-left { gap: 6px; }
+      }
     """
   end
 
@@ -1050,6 +1326,62 @@ defmodule SymphonyElixir.Server.UIHelpers do
         allSkillGroups = (groupsData.skill_groups || []).sort(function(a, b) { return a.name.localeCompare(b.name); });
       } catch(e) { allSkills = []; allSkillGroups = []; }
     }
+    """
+  end
+
+  @doc "Skip-to-main-content link CSS (WCAG 2.4.1)."
+  @spec skip_link_css() :: String.t()
+  def skip_link_css do
+    ~S"""
+      .skip-link {
+        position: absolute; top: -100%; left: var(--space-2);
+        z-index: 9999; padding: var(--space-2) var(--space-4);
+        background: var(--accent); color: #000; font-weight: 700;
+        font-size: var(--font-sm); border-radius: var(--radius-sm);
+        text-decoration: none; transition: top 0ms;
+      }
+      .skip-link:focus { top: var(--space-2); }
+      #main-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    """
+  end
+
+  @doc "Standardized focus-visible ring using --accent."
+  @spec focus_ring_css() :: String.t()
+  def focus_ring_css do
+    ~S"""
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      :focus:not(:focus-visible) { outline: none; }
+    """
+  end
+
+  @doc "Reduced motion media query — disables all animations."
+  @spec reduced_motion_css() :: String.t()
+  def reduced_motion_css do
+    ~S"""
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    """
+  end
+
+  @doc "Utility classes for responsive hiding/showing."
+  @spec responsive_utility_css() :: String.t()
+  def responsive_utility_css do
+    ~S"""
+      .sr-only {
+        position: absolute; width: 1px; height: 1px;
+        padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+      }
+      @media (max-width: 767px) { .hide-mobile { display: none !important; } }
+      @media (min-width: 1024px) { .hide-desktop { display: none !important; } }
     """
   end
 
@@ -1194,9 +1526,16 @@ defmodule SymphonyElixir.Server.UIHelpers do
     base_css() <>
       topbar_css() <>
       nav_active_css() <>
+      skip_link_css() <>
+      focus_ring_css() <>
       button_css() <>
       badge_css() <>
+      priority_indicator_css() <>
+      skill_pill_css() <>
       toast_css() <>
+      motion_css() <>
+      reduced_motion_css() <>
+      responsive_utility_css() <>
       explain_mode_css()
   end
 
@@ -1256,7 +1595,7 @@ defmodule SymphonyElixir.Server.UIHelpers do
   def explain_mode_js do
     ~S"""
     <div id="explain-badge" onclick="toggleExplain()">? Explain Mode</div>
-    <div id="explain-popover"><button class="ep-close" onclick="closeExplainPopover()">&times;</button><div id="ep-content"></div></div>
+    <div id="explain-popover"><button class="ep-close" aria-label="Close" onclick="closeExplainPopover()">&times;</button><div id="ep-content"></div></div>
     <script>
     (function() {
       var active = false;
@@ -1371,9 +1710,36 @@ defmodule SymphonyElixir.Server.UIHelpers do
       </style>
     </head>
     <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     #{nav_topbar(active_nav)}
+    <main id="main-content">
     #{body}
+    </main>
     #{explain_mode_js()}
+    <script>
+    // Focus trap for modal dialogs (WCAG 2.1.2)
+    function trapModalFocus(modalEl, onEscape) {
+      var sel = 'button:not([disabled]),a[href],[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+      function handler(e) {
+        if (e.key === 'Escape' && typeof onEscape === 'function') { onEscape(); return; }
+        if (e.key !== 'Tab') return;
+        var focusable = Array.from(modalEl.querySelectorAll(sel)).filter(function(el) { return !el.closest('[style*="display:none"]') && !el.closest('[hidden]'); });
+        if (focusable.length === 0) { e.preventDefault(); return; }
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey) { if (document.activeElement === first || document.activeElement === modalEl) { e.preventDefault(); last.focus(); } }
+        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+      }
+      modalEl._trapHandler = handler;
+      modalEl.addEventListener('keydown', handler);
+    }
+    function releaseTrapFocus(modalEl) {
+      if (modalEl && modalEl._trapHandler) {
+        modalEl.removeEventListener('keydown', modalEl._trapHandler);
+        delete modalEl._trapHandler;
+      }
+    }
+    #{scroll_entrance_js()}
+    </script>
     </body>
     </html>
     """
